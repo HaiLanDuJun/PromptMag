@@ -57,6 +57,17 @@ npm run preview    # 生产构建 + 运行
 
 Windows 截图工具常会抢焦点，输入区的「贴图」按钮是手动兜底。
 
+### 打包成 exe
+
+```bash
+npm run dist            # 产出 release/ 下两个 exe
+```
+
+- `PromptMag-Portable-x.x.x.exe`：单文件免安装，双击即用
+- `PromptMag-Setup-x.x.x.exe`：一键安装版
+
+打包只是源码的快照，之后继续改代码、重新 `npm run dist` 即可产出新版本；用户数据始终在 `~/.prompt-mag/`，替换 exe 不丢数据。
+
 ### 架构
 
 纯本地 Electron 桌面应用，无服务端、无网络依赖：
@@ -137,6 +148,17 @@ npm install
 npm run dev:all    # dev mode (Vite HMR + Electron)
 npm run preview    # production build + run
 ```
+
+### Package as exe
+
+```bash
+npm run dist            # produces two executables under release/
+```
+
+- `PromptMag-Portable-x.x.x.exe`: single-file, no installation, double-click to run
+- `PromptMag-Setup-x.x.x.exe`: one-click installer
+
+A package is just a snapshot of the source; keep coding and re-run `npm run dist` for a new build. User data lives in `~/.prompt-mag/` and survives exe replacement.
 
 ### Architecture
 
