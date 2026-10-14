@@ -18,30 +18,29 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-ink-900 text-slate-200 font-mono text-xs select-none">
-    <!-- 顶部栏：拖拽区 + 置顶/透明度/接力/隐藏 -->
+  <div class="shell">
+    <!-- 顶部栏：拖拽区 + 接力/置顶/透明度/隐藏 -->
     <TitleBar />
 
-    <!-- 主输入区：光标贴图 + 图片分镜卡片 + 词库胶囊 -->
+    <!-- 主输入区 -->
     <Composer @switch-tab="tab = 'snippets'" />
 
-    <!-- 双 Tab -->
-    <div class="flex border-b border-ink-700 bg-ink-850 shrink-0">
-      <button class="tab" :class="{ active: tab === 'queue' }" @click="tab = 'queue'">
-        ⚡ 待发弹夹队列
-        <span v-if="pendingCount" class="ml-1 px-1.5 rounded-full bg-neon-green/15 text-neon-green text-[10px]">{{ pendingCount }}</span>
+    <!-- Tab -->
+    <nav class="tabs">
+      <button class="tab-btn" :class="{ active: tab === 'queue' }" @click="tab = 'queue'">
+        队列
+        <span v-if="pendingCount" class="tab-count">{{ pendingCount }}</span>
       </button>
-      <button class="tab" :class="{ active: tab === 'snippets' }" @click="tab = 'snippets'">
-        📚 常用词库
+      <button class="tab-btn" :class="{ active: tab === 'snippets' }" @click="tab = 'snippets'">
+        词库
       </button>
-    </div>
+    </nav>
 
-    <div class="flex-1 overflow-y-auto min-h-0">
+    <main class="flex-1 overflow-y-auto min-h-0 px-3 pb-3">
       <QueueTab v-show="tab === 'queue'" />
       <SnippetsTab v-show="tab === 'snippets'" />
-    </div>
+    </main>
 
-    <!-- Toast -->
     <div v-if="state.toast" class="toast">{{ state.toast }}</div>
   </div>
 </template>

@@ -41,9 +41,8 @@ async function onPaste(e) {
     addImages(res.images)
     const tokens = res.images.map((_, i) => `[图${startNo + i}]`).join(' ')
     insertAtCursor(tokens + ' ')
-    toast(`🖼 已贴 ${res.images.length} 张图并插入标记`)
+    toast(`已贴 ${res.images.length} 张图，标记插在光标处`)
   } else {
-    // 剪贴板不是图片，回退为粘贴文本
     try {
       const t = await navigator.clipboard.readText()
       if (t) insertAtCursor(t)
@@ -59,15 +58,15 @@ async function pasteImageManually() {
     addImages(res.images)
     const tokens = res.images.map((_, i) => `[图${startNo + i}]`).join(' ')
     insertAtCursor(tokens + ' ')
-    toast(`🖼 已贴 ${res.images.length} 张图`)
+    toast(`已贴 ${res.images.length} 张图`)
   } else {
-    toast('剪贴板中没有图片，先截图或复制图片再试')
+    toast('剪贴板中没有图片')
   }
 }
 
 /* ---------- 快捷键 ---------- */
 function onKeydown(e) {
-  if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter')) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault()
     enqueue()
   }
@@ -75,18 +74,18 @@ function onKeydown(e) {
 
 function enqueue() {
   const t = pushComposerToQueue()
-  if (!t) toast('输入框为空：先写提示词或贴图')
-  else toast('✓ 已压入弹夹队列')
+  if (!t) toast('输入框是空的')
+  else toast('已入队')
 }
 
 async function copyCurrent() {
   const c = state.composer
   if (!String(c.text).trim() && !c.images.length) {
-    toast('输入框为空：先写提示词或贴图')
+    toast('输入框是空的')
     return
   }
   await copyCompiled({ text: c.text, images: c.images })
-  toast('✓ 已复制编译后的 Prompt' + (state.settings.relay ? '（含接力指令）' : ''))
+  toast('已复制' + (state.settings.relay ? '（含接力指令）' : ''))
 }
 
 function clearComposer() {
@@ -109,48 +108,47 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="px-2.5 pt-2 pb-1.5 border-b border-ink-700 bg-ink-900 shrink-0">
+  <section class="px-3 pt-2.5 pb-2 shrink-0 space-y-2 hairline">
     <!-- 主输入框 -->
     <textarea
       ref="ta"
       v-model="state.composer.text"
-      class="w-full h-20 px-2 py-1.5 rounded bg-ink-850 border border-ink-600 focus:border-neon-green/60 text-slate-200 leading-relaxed placeholder:text-slate-600"
-      placeholder="写提示词… 光标处 Ctrl+V 直接贴图插入 [图1] 标记，Ctrl+Enter 入队"
+      class="field h-[72px] leading-relaxed"
+      placeholder="写提示词… Ctrl+V 在光标处贴图，Ctrl+Enter 入队"
       @paste="onPaste"
       @keydown="onKeydown"
     />
 
     <!-- 图片分镜卡片 -->
-    <ImageCardList class="mt-1.5" @insert="(i) => insertAtCursor(`[图${i + 1}]`)" />
+    <ImageCardList @insert="(i) => insertAtCursor(`[图${i + 1}]`)" />
 
-    <!-- 词库快捷胶囊 -->
-    <div v-if="state.snippets.length" class="mt-1.5 flex items-center gap-1 overflow-x-auto pb-0.5">
-      <span class="text-slate-600 text-[10px] shrink-0">词库</span>
+    <!-- 词库胶囊 -->
+    <div v-if="state.snippets.length" class="flex items-center gap-1 overflow-x-auto">
       <button
         v-for="s in state.snippets.slice(0, 8)"
         :key="s.id"
-        class="shrink-0 px-1.5 py-0.5 rounded-full bg-ink-800 border border-ink-600 text-slate-400 text-[10px] whitespace-nowrap hover:border-neon-cyan/60 hover:text-neon-cyan transition-colors"
+        class="shrink-0 px-2 py-0.5 rounded-full bg-slate-400/[.05] border border-slate-400/15 text-slate-400 text-[10px] whitespace-nowrap hover:border-neon-cyan/50 hover:text-neon-cyan transition-colors"
         :title="s.text"
         @click="insertAtCursor(s.text + ' ')"
       >{{ s.text.length > 12 ? s.text.slice(0, 12) + '…' : s.text }}</button>
       <button
-        class="shrink-0 px-1.5 py-0.5 rounded-full border border-dashed border-ink-600 text-slate-600 text-[10px] hover:text-slate-300"
+        class="shrink-0 px-2 py-0.5 rounded-full border border-dashed border-slate-500/40 text-slate-500 text-[10px] hover:text-slate-300 transition-colors"
         title="管理常用词库"
         @click="emit('switch-tab')"
-      >＋</button>
+      >+</button>
     </div>
 
     <!-- 操作行 -->
-    <div class="mt-1.5 flex items-center gap-1.5">
-      <button class="btn" title="将剪贴板图片贴到光标处" @click="pasteImageManually">🖼 贴图</button>
-      <button class="btn" title="编译（含图片路径映射 + 批注）并复制到剪贴板" @click="copyCurrent">📋 复制</button>
-      <button class="btn btn-primary" title="压入待发弹夹队列 (Ctrl+Enter)" @click="enqueue">⚡ 入队</button>
+    <div class="flex items-center gap-1.5">
+      <button class="btn" title="将剪贴板图片贴到光标处" @click="pasteImageManually">贴图</button>
+      <button class="btn" title="编译（图片路径映射 + 批注）并复制" @click="copyCurrent">复制</button>
+      <button class="btn btn-primary" title="压入待发队列 (Ctrl+Enter)" @click="enqueue">入队</button>
       <div class="flex-1" />
       <button
         v-if="state.composer.text || state.composer.images.length"
         class="btn btn-danger"
         @click="clearComposer"
-      >🧹 清空</button>
+      >清空</button>
     </div>
-  </div>
+  </section>
 </template>

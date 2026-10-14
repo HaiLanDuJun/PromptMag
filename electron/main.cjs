@@ -294,17 +294,16 @@ function createWindow() {
   const settings = saved.settings || {}
 
   mainWindow = new BrowserWindow({
-    width: 420,
-    height: 660,
-    minWidth: 360,
-    minHeight: 520,
+    width: 396,
+    height: 640,
+    minWidth: 340,
+    minHeight: 480,
     frame: false,
-    transparent: false,
+    transparent: true, // 胶囊造型：透明窗口 + 前端大圆角外壳
     resizable: true,
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: false,
-    backgroundColor: '#0b0d13',
     alwaysOnTop: settings.alwaysOnTop !== false,
     show: false,
     icon: makeTrayIcon(),

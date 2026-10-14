@@ -130,7 +130,7 @@ export function bindExternalEvents() {
       const q = state.queue.find((t) => t.id === it.id)
       if (q && !!q.done !== !!it.done) {
         q.done = !!it.done
-        if (q.done) toast('✓ 检测到 Agent 完成任务：' + (q.text || '').slice(0, 18) + '…')
+        if (q.done) toast('Agent 已完成任务：' + (q.text || '').slice(0, 18) + '…')
       }
     })
   })
@@ -232,7 +232,7 @@ export function setRelay(v) {
   state.settings.relay = !!v
   if (v) {
     syncTasksFile()
-    toast('⚡ Agent 自动接力已开启')
+    toast('自动接力已开启')
   } else {
     toast('自动接力已关闭（next_tasks.md 保留）')
   }

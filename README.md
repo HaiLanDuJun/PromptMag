@@ -1,75 +1,51 @@
-<div align="center">
+# PromptMag
 
-# 🎯 PromptMag
+CLI 提示词弹夹。为 Claude Code / Codex 等 CLI 编码 Agent 设计的桌面悬浮工具：随时捕获提示词与多张截图，编译成无歧义的图文 Prompt，并通过本地任务文件实现自动接力。
 
-**CLI 提示词弹夹 · The Tactical Prompt Magazine for CLI Coding Agents**
-
-**脑子比 Agent 快？把下一个灵感压进弹夹，让 CLI 自动接力连发。**
-
-[English](#-english) | [中文](#-中文)
-
-</div>
+[English](#english) · [中文](#中文)
 
 ---
 
-## 🇺🇸 English
+## 中文
 
-A tiny always-on-top floating window for people who work with CLI coding agents (Claude Code / Codex / Antigravity). Capture prompts and screenshots the instant ideas strike — without fighting the terminal — then let your agent consume them in order, all by itself.
+### 解决什么问题
 
-### ✨ Features
+用 CLI Agent 干活时，终端被滚动输出占着：想法来了没法随手记，截图贴不进终端，好不容易贴进去还怕模型认错图片顺序；任务跑完一单，还得守在屏幕前手动传下一棒。
 
-- **📌 Inline image pinning** — `Ctrl+V` pastes the clipboard image and inserts an `[图N]` anchor **exactly at your cursor**. The compiled prompt embeds local absolute paths, so the model can never mix up image order.
-- **🖼 Storyboard note cards** — every screenshot gets a numbered thumbnail card with a one-line note field; drag to reorder, delete to auto-renumber (tokens in your text are synced automatically).
-- **⚙️ Zero-ambiguity Prompt Compiler** — inline tokens are expanded to `[图1 (本地路径: "...")]` in place, and a precise bottom mapping table is appended — natural-language references like "the second image" are covered too.
-- **⚡ Magazine queue** — `Ctrl+Enter` chambers a task; copy & pop, copy only, edit-backfill, or delete from the floating queue.
-- **📚 Snippet library** — high-frequency directives as one-click capsules inserted at the cursor.
-- **🤖 Agent auto-relay** — the queue is mirrored to `~/.prompt-mag/next_tasks.md`; when the agent finishes a task it flips `- [ ]` to `- [x]`, and the UI updates in real time via `fs.watch`. Copied prompts can carry a relay instruction telling the agent to read the queue file next.
-- **🕶 Ghost mode** — frameless dark floating window, `Alt+Q` global summon, opacity 40%–100%, always-on-top toggle.
+PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图（自动落盘为本地文件并插入 `[图1]` 锚点），`Ctrl+Enter` 入队。复制时编译器把锚点展开成带绝对路径的结构化文本，模型不会认错图。开启「接力」后，队列实时写入 `~/.prompt-mag/next_tasks.md`，Agent 每勾掉一行，界面同步一行。
 
-### 🚀 Quick Start
+### 功能
 
-```bash
-git clone https://github.com/HaiLanDuJun/PromptMag.git
-cd PromptMag
-npm install
-npm run dev:all    # dev mode (Vite HMR + Electron)
-npm run preview    # production build + run
+- 光标处内联贴图：`[图N]` 锚点 + 本地绝对路径；删除、拖拽重排后自动改号
+- 图片分镜卡片：每张图一条批注；点击缩略图可在光标处补插锚点
+- Prompt 编译器：内联路径展开 + 底部精确映射表，兼容「第二张图」这类口语指代
+- 待发队列：复制并弹出 / 仅复制 / 编辑回填 / 删除
+- 常用词库：高频指令胶囊，一键插入光标处
+- Agent 自动接力：`next_tasks.md` 双向同步（`fs.watch`），复制时可选注入接力指令
+- 悬浮窗：无边框胶囊造型、置顶、透明度 40%–100%、全局快捷键
+
+### 编译效果
+
+输入框里写：
+
+```text
+把 [图1] 的导航栏改成 [图2] 的配色
 ```
 
-> Windows screenshot tools often steal focus — the **🖼 贴图** button in the composer is a manual fallback for pasting clipboard images.
+复制到剪贴板的内容：
 
-### 📁 Data Layout
-
-Everything lives in `~/.prompt-mag/`:
-
-```
-~/.prompt-mag/
-├── images/          # pasted screenshots (referenced by absolute path)
-├── data.json        # queue / snippets / window settings
-└── next_tasks.md    # auto-relay queue file (agent ticks off tasks here)
-```
-
-### 🗺 Roadmap
-
-See [DREAM.md](./DREAM.md) for the full vision (bilingual).
+```text
+把 [图1 (本地路径: "C:/Users/you/.prompt-mag/images/img_01.png")] 的导航栏改成 [图2 (本地路径: "C:/Users/you/.prompt-mag/images/img_02.png")] 的配色
 
 ---
+### 附加上下文图片精确映射（请严格按编号对应读取本地图片文件）：
+- 【图1 / 第一张图】路径: "C:/Users/you/.prompt-mag/images/img_01.png" | 针对此图的说明: 当前导航栏
+- 【图2 / 第二张图】路径: "C:/Users/you/.prompt-mag/images/img_02.png" | 针对此图的说明: 目标配色
+```
 
-## 🇨🇳 中文
+主输入框没写正文、只在每张图下写了批注时，编译器自动汇总为逐图分步指令。
 
-一个为 CLI 编码 Agent（Claude Code / Codex / Antigravity）用户打造的置顶悬浮小窗。灵感闪现的瞬间就把它和多张截图一起捕获——不用跟终端搏斗——然后让 Agent 自己按顺序消化。
-
-### ✨ 功能
-
-- **📌 光标处内联贴图**：`Ctrl+V` 将剪贴板图片落盘并在**光标所在位置**插入 `[图N]` 锚点；编译后的 Prompt 内嵌本地绝对路径，模型绝不认错图片顺序。
-- **🖼 图片分镜卡**：每张截图一张带角标的缩略图卡 + 单行批注框；拖拽调序、删除自动重排编号，正文中的 `[图N]` 标记同步更新。
-- **⚙️ 无歧义 Prompt 编译器**：内联标记原地展开为 `[图1 (本地路径: "...")]`，末尾自动追加精准映射表；口语化的“第二张图”也有对应提示。
-- **⚡ 待发弹夹队列**：`Ctrl+Enter` 入膛；支持复制并弹出、仅复制、编辑回填、删除。
-- **📚 常用词库**：高频指令一键胶囊，点击插入光标处。
-- **🤖 Agent 自动接力**：队列实时镜像到 `~/.prompt-mag/next_tasks.md`；Agent 完成任务把 `- [ ]` 勾成 `- [x]`，界面经 `fs.watch` 实时同步状态；复制时可自动附上接力指令。
-- **🕶 幽灵模式**：无边框暗黑悬浮窗、`Alt+Q` 全局呼出、透明度 40%~100%、置顶开关。
-
-### 🚀 快速开始
+### 快速开始
 
 ```bash
 git clone https://github.com/HaiLanDuJun/PromptMag.git
@@ -79,18 +55,106 @@ npm run dev:all    # 开发模式（Vite 热更新 + Electron）
 npm run preview    # 生产构建 + 运行
 ```
 
-> Windows 截图工具常抢焦点，输入区的 **🖼 贴图** 按钮是手动兜底。
+Windows 截图工具常会抢焦点，输入区的「贴图」按钮是手动兜底。
 
-### 📁 数据布局
+### 架构
 
-所有数据都在 `~/.prompt-mag/`：`images/` 存图片、`data.json` 存状态、`next_tasks.md` 供 Agent 自动接力勾选。
+纯本地 Electron 桌面应用，无服务端、无网络依赖：
 
-### 🗺 路线图
+| 进程 | 技术 | 职责 |
+|------|------|------|
+| 主进程 | Node.js（`electron/main.cjs`） | 窗口与快捷键、剪贴板图片落盘、`data.json` / `next_tasks.md` 读写与监听、本地图片协议 |
+| 渲染进程 | Vue 3 + Vite + Tailwind | 输入区、图片卡片、队列、词库 |
 
-完整愿景见 [DREAM.md](./DREAM.md)（中英双语）。
+### 数据目录
+
+所有数据都在本地 `~/.prompt-mag/`：
+
+```text
+~/.prompt-mag/
+├── images/          # 贴入的截图（Prompt 中引用绝对路径）
+├── data.json        # 队列 / 词库 / 窗口设置
+└── next_tasks.md    # 自动接力队列（Agent 在此勾选）
+```
+
+### 路线图
+
+见 [DREAM.md](./DREAM.md)（中英双语）。
+
+### License
+
+[MIT](./LICENSE)
 
 ---
 
-## 📄 License
+## English
 
-[MIT](./LICENSE) © 2026 HaiLanDuJun
+A desktop floating tool for people working with CLI coding agents (Claude Code / Codex, etc.). Capture prompts and screenshots the moment ideas strike, compile them into unambiguous image-text prompts, and hand tasks to your agent automatically via a local queue file.
+
+### The Problem
+
+While a CLI agent is running, the terminal is flooded with output: you can't jot down the next idea, screenshots won't paste, and when they do, the model may mix up image order. When a task finishes, you still have to babysit the terminal to feed the next one.
+
+PromptMag is a small always-on-top window. `Alt+Q` summons it; `Ctrl+V` pastes a clipboard image at your cursor (saved to a local file, with an inline `[图1]` anchor); `Ctrl+Enter` queues the task. On copy, the compiler expands anchors into structured text with absolute paths — the model can't misread which image is which. With relay mode on, the queue is mirrored to `~/.prompt-mag/next_tasks.md`; every line the agent ticks off syncs back to the UI in real time.
+
+### Features
+
+- Inline image pinning at the cursor: `[图N]` anchors + local absolute paths; auto-renumbering on delete / drag-reorder
+- Storyboard cards: one note per image; click a thumbnail to insert its anchor at the cursor
+- Prompt compiler: inline path expansion + a precise bottom mapping table; handles natural references like "the second image"
+- Queue: copy & pop / copy only / edit backfill / delete
+- Snippet library: high-frequency directives as one-click capsules
+- Agent auto-relay: two-way `next_tasks.md` sync via `fs.watch`, optional relay instruction appended on copy
+- Floating window: frameless capsule design, always-on-top, 40%–100% opacity, global hotkey
+
+### Compile Example
+
+What you type:
+
+```text
+把 [图1] 的导航栏改成 [图2] 的配色
+```
+
+What lands on your clipboard:
+
+```text
+把 [图1 (本地路径: "C:/Users/you/.prompt-mag/images/img_01.png")] 的导航栏改成 [图2 (本地路径: "C:/Users/you/.prompt-mag/images/img_02.png")] 的配色
+
+---
+### 附加上下文图片精确映射（请严格按编号对应读取本地图片文件）：
+- 【图1 / 第一张图】路径: "C:/Users/you/.prompt-mag/images/img_01.png" | 针对此图的说明: 当前导航栏
+- 【图2 / 第二张图】路径: "C:/Users/you/.prompt-mag/images/img_02.png" | 针对此图的说明: 目标配色
+```
+
+If the main input is empty and you only wrote per-image notes, the compiler turns them into step-by-step instructions.
+
+### Quick Start
+
+```bash
+git clone https://github.com/HaiLanDuJun/PromptMag.git
+cd PromptMag
+npm install
+npm run dev:all    # dev mode (Vite HMR + Electron)
+npm run preview    # production build + run
+```
+
+### Architecture
+
+Fully local Electron app — no server, no network dependency:
+
+| Process | Stack | Responsibility |
+|---------|-------|----------------|
+| Main | Node.js (`electron/main.cjs`) | window & hotkeys, clipboard image saving, `data.json` / `next_tasks.md` I/O & watching, local image protocol |
+| Renderer | Vue 3 + Vite + Tailwind | composer, image cards, queue, snippets |
+
+### Data Layout
+
+Everything lives in `~/.prompt-mag/`: `images/` for pasted screenshots, `data.json` for queue / snippets / settings, `next_tasks.md` as the relay queue the agent ticks off.
+
+### Roadmap
+
+See [DREAM.md](./DREAM.md) (bilingual).
+
+### License
+
+[MIT](./LICENSE)
