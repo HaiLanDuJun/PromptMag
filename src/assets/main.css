@@ -7,11 +7,10 @@ html, body, #app {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: transparent;
+  background: #0b0e15;
 }
 
 #app {
-  padding: 8px;
   box-sizing: border-box;
 }
 
@@ -23,18 +22,15 @@ body {
   user-select: none;
 }
 
-/* ============ 胶囊外壳 ============ */
+/* ============ 胶囊外壳（不透明窗口，DWM 圆角） ============ */
 .shell {
   height: 100%;
   display: flex;
   flex-direction: column;
-  border-radius: 22px;
+  border-radius: 12px;
   overflow: hidden;
   background: linear-gradient(168deg, #141926 0%, #0e121c 48%, #0b0e15 100%);
   border: 1px solid rgba(148, 163, 184, 0.16);
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* ============ 拖拽区 ============ */

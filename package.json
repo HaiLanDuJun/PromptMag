@@ -34,7 +34,7 @@
     "appId": "com.hailandujun.promptmag",
     "productName": "PromptMag",
     "directories": {
-      "output": "release"
+      "output": "out"
     },
     "files": [
       "dist/**",

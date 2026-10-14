@@ -60,7 +60,7 @@ Windows 截图工具常会抢焦点，输入区的「贴图」按钮是手动兜
 ### 打包成 exe
 
 ```bash
-npm run dist            # 产出 release/ 下两个 exe
+npm run dist            # 产出 out/ 下两个 exe
 ```
 
 - `PromptMag-Portable-x.x.x.exe`：单文件免安装，双击即用
@@ -152,7 +152,7 @@ npm run preview    # production build + run
 ### Package as exe
 
 ```bash
-npm run dist            # produces two executables under release/
+npm run dist            # produces two executables under out/
 ```
 
 - `PromptMag-Portable-x.x.x.exe`: single-file, no installation, double-click to run

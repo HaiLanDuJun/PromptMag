@@ -40,16 +40,20 @@ const SHORTCUT = 'Alt+Q'
 
 const isDev = !app.isPackaged
 
-// 部分环境（远程桌面 / 虚拟显卡 / 部分驱动）下 GPU 进程会崩溃退出，
-// 悬浮窗场景不需要硬件加速，禁用以保证兼容性
-app.disableHardwareAcceleration()
-app.commandLine.appendSwitch('disable-gpu')
-app.commandLine.appendSwitch('disable-gpu-compositing')
-// 兜底：GPU 进程反复崩溃的环境（远程桌面/虚拟显卡/受限会话）
-app.commandLine.appendSwitch('disable-gpu-rasterization')
-app.commandLine.appendSwitch('disable-gpu-sandbox')
-app.commandLine.appendSwitch('use-gl', 'swiftshader')
+// GPU 进程在本机会 Access Violation，用 in-process-gpu 规避独立 GPU 进程崩溃。
+// 注意：不能用 disableHardwareAcceleration / disable-gpu ——
+// Windows 上软件渲染会导致 transparent 透明窗口完全不可见（Electron 已知问题）。
 app.commandLine.appendSwitch('in-process-gpu')
+
+/* ---------------- 诊断日志 ---------------- */
+const LOG_FILE = path.join(HOME_DIR, 'main.log')
+function log(...args) {
+  try {
+    ensureDirs()
+    fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${args.join(' ')}\n`, 'utf8')
+  } catch { /* ignore */ }
+}
+log('=== app start ===', 'version:', app.getVersion(), 'packaged:', app.isPackaged)
 
 let mainWindow = null
 let tray = null
@@ -299,7 +303,11 @@ function createWindow() {
     minWidth: 340,
     minHeight: 480,
     frame: false,
-    transparent: true, // 胶囊造型：透明窗口 + 前端大圆角外壳
+    // 注意：本机 GPU 配置下 transparent:true + 软件渲染会导致窗口完全不可见，
+    // 改用不透明窗口 + Win11 DWM 原生圆角（roundedCorners）
+    transparent: false,
+    roundedCorners: true,
+    backgroundColor: '#0b0e15',
     resizable: true,
     maximizable: false,
     fullscreenable: false,
@@ -318,6 +326,8 @@ function createWindow() {
 
   if (typeof settings.opacity === 'number') mainWindow.setOpacity(settings.opacity)
 
+  log('window created', 'transparent: false, roundedCorners: true')
+
   const devUrl = resolveRendererURL()
   if (devUrl) {
     mainWindow.loadURL(devUrl)
@@ -325,7 +335,25 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
   }
 
-  mainWindow.once('ready-to-show', () => mainWindow.show())
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    log('!! render-process-gone:', JSON.stringify(details))
+  })
+  mainWindow.webContents.on('did-finish-load', () => log('did-finish-load'))
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    log('!! did-fail-load:', code, desc, url)
+  })
+
+  mainWindow.once('ready-to-show', () => {
+    log('ready-to-show -> show()')
+    mainWindow.show()
+  })
+  // 兜底：ready-to-show 因渲染异常未触发时，4 秒后强制显示窗口
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      log('!! ready-to-show timeout, force show')
+      mainWindow.show()
+    }
+  }, 4000)
   mainWindow.on('close', (e) => {
     if (!quitting) {
       e.preventDefault()

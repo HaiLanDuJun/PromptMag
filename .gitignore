@@ -19,3 +19,8 @@ Thumbs.db
 # WorkBuddy project data
 .workbuddy/
 release/
+release/
+out/
+.release-broken*
+out2/
+out3/
