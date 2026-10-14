@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  @apply bg-ink-900 text-slate-200 font-mono text-xs;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- 拖拽区 ---------------- */
+.titlebar-drag { -webkit-app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; }
+
+/* ---------------- 滚动条 ---------------- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3042; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4257; }
+
+/* ---------------- 透明度滑块 ---------------- */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: #2a3042;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22d3ee;
+  cursor: pointer;
+  border: none;
+}
+input[type='range']::-webkit-slider-thumb:hover { background: #3ddc97; }
+
+/* ---------------- 图片内联标记高亮 ---------------- */
+.img-token {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------------- Tab ---------------- */
+.tab {
+  @apply px-3 py-1.5 text-[11px] text-slate-500 border-b-2 border-transparent transition-colors;
+}
+.tab:hover { @apply text-slate-300; }
+.tab.active {
+  @apply text-neon-green border-neon-green bg-ink-850;
+}
+
+/* ---------------- 通用小按钮 ---------------- */
+.btn {
+  @apply px-2 py-1 rounded text-[11px] bg-ink-700 text-slate-300 border border-ink-600 transition-colors;
+}
+.btn:hover { @apply bg-ink-600 text-slate-100; }
+.btn-primary {
+  @apply bg-neon-green/15 border-neon-green/50 text-neon-green;
+}
+.btn-primary:hover { @apply bg-neon-green/25 text-neon-green; }
+.btn-amber {
+  @apply bg-amber-400/10 border-amber-400/40 text-amber-300;
+}
+.btn-amber:hover { @apply bg-amber-400/20 text-amber-200; }
+.btn-danger {
+  @apply bg-red-500/10 border-red-500/30 text-red-400;
+}
+.btn-danger:hover { @apply bg-red-500/20 text-red-300; }
+.icon-btn {
+  @apply w-5 h-5 flex items-center justify-center rounded text-[11px] text-slate-500 hover:text-slate-100 hover:bg-ink-700 transition-colors leading-none;
+}
+.icon-btn.on { @apply text-neon-green; }
+
+/* ---------------- 输入 ---------------- */
+textarea, input { @apply select-text; }
+textarea { resize: none; }
+input:focus, textarea:focus { outline: none; }
+
+::placeholder { color: #475569; }
+
+/* ---------------- 图片分镜卡片 ---------------- */
+.img-card {
+  @apply relative rounded border border-ink-600 bg-ink-850 p-1 transition-all;
+}
+.img-card.drag-over {
+  @apply border-neon-cyan;
+  box-shadow: 0 0 0 1px #22d3ee inset;
+}
+.img-card .thumb-wrap { @apply cursor-pointer relative rounded overflow-hidden; }
+.img-card.dragging { @apply opacity-40; }
+
+/* ---------------- Toast ---------------- */
+.toast {
+  @apply fixed left-1/2 bottom-8 -translate-x-1/2 px-3 py-1.5 rounded bg-ink-700 border border-neon-green/40 text-neon-green text-[11px] shadow-lg z-50;
+  animation: toast-in 0.15s ease-out;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
