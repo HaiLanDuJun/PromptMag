@@ -18,9 +18,11 @@ Thumbs.db
 
 # WorkBuddy project data
 .workbuddy/
-release/
+
+# electron-builder output
 release/
 out/
-.release-broken*
 out2/
 out3/
+installer/
+.release-broken*

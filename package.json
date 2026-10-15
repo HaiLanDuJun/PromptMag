@@ -13,8 +13,9 @@
     "start": "electron .",
     "preview": "npm run build && electron .",
     "icon": "node scripts/make-icon.cjs",
-    "dist": "npm run build && electron-builder --win",
-    "dist:portable": "npm run build && electron-builder --win portable"
+    "clean": "node -e \"require('node:fs').rmSync('release',{recursive:true,force:true})\"",
+    "dist": "npm run clean && npm run build && electron-builder --win",
+    "dist:portable": "npm run clean && npm run build && electron-builder --win portable"
   },
   "dependencies": {
     "vue": "^3.5.13"
@@ -34,7 +35,7 @@
     "appId": "com.hailandujun.promptmag",
     "productName": "PromptMag",
     "directories": {
-      "output": "out"
+      "output": "release"
     },
     "files": [
       "dist/**",
