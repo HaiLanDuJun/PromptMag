@@ -29,6 +29,8 @@ if (typeof window !== 'undefined' && !window.pm) {
     setMode () {},
     pointerIn () {},
     pointerOut () {},
+    getBounds: async () => null,
+    dragMoveTo () {},
     chooseDataDir: async () => ({ ok: false, canceled: true }),
     openPath () {},
     showItemInFolder () {},

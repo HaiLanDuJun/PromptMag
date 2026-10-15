@@ -30,6 +30,8 @@ const api = {
   setMode: (m) => ipcRenderer.send('pm:set-mode', m),
   pointerIn: () => ipcRenderer.send('pm:pointer-in'),
   pointerOut: () => ipcRenderer.send('pm:pointer-out'),
+  getBounds: () => ipcRenderer.invoke('pm:get-bounds'),
+  dragMoveTo: (x, y) => ipcRenderer.send('pm:drag-move', { x, y }),
 
   /* 数据目录 */
   chooseDataDir: () => ipcRenderer.invoke('pm:choose-data-dir'),

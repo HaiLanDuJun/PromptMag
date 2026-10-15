@@ -95,7 +95,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="shell" @mouseenter="onShellEnter" @mouseleave="onShellLeave">
+  <div class="shell" :class="'mode-' + mode" @mouseenter="onShellEnter" @mouseleave="onShellLeave">
     <!-- 胶囊：悬停/点击 -> 快捷输入面板；整条可拖拽 -->
     <CapsuleBar v-if="mode === 'capsule'" @open="hoverOpenQuick" />
 

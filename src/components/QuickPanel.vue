@@ -64,6 +64,7 @@ function save() {
 }
 
 const imgCount = () => state.composer.images.length
+const pendingCount = () => state.queue.filter((t) => !t.done).length
 
 onMounted(() => {
   nextTick(() => ta.value && ta.value.focus())
@@ -72,51 +73,60 @@ onMounted(() => {
 
 <template>
   <div class="quick">
+    <!-- 顶部高光条 -->
+    <div class="quick-glow" />
+
     <!-- 头部：拖拽区 + 展开 / 收起 -->
     <header class="drag-region quick-head">
-      <span
-        class="w-1.5 h-1.5 rounded-full shrink-0"
-        :class="state.settings.relay ? 'bg-neon-cyan shadow-[0_0_6px_#22d3ee]' : 'bg-slate-600'"
-      />
-      <span class="font-semibold text-slate-200 tracking-wide text-[11px]">PromptMag</span>
-      <span v-if="state.queue.filter((t) => !t.done).length" class="capsule-count">
-        {{ state.queue.filter((t) => !t.done).length }}
-      </span>
+      <span class="quick-logo">P</span>
+      <span class="quick-title">PromptMag</span>
+      <span v-if="pendingCount()" class="quick-count">{{ pendingCount() }}</span>
 
       <div class="flex-1" />
 
       <div class="no-drag flex items-center gap-1">
-        <!-- 展开完整窗口 -->
-        <button class="icon-btn" title="展开完整窗口" @click="setMode('full')">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="qicon" title="展开完整窗口" @click="setMode('full')">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" />
           </svg>
         </button>
-        <!-- 收起为胶囊 -->
-        <button class="icon-btn" title="收起为胶囊" @click="setMode('capsule')">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
+        <button class="qicon" title="收起为胶囊" @click="setMode('capsule')">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+            <path d="M5 12h14" />
           </svg>
         </button>
       </div>
     </header>
 
     <!-- 输入区 -->
-    <textarea
-      ref="ta"
-      v-model="state.composer.text"
-      class="field quick-input"
-      placeholder="输入提示词… Ctrl+V 贴图，Ctrl+Enter 存弹夹"
-      @paste="onPaste"
-      @keydown="onKeydown"
-    />
+    <div class="quick-body">
+      <textarea
+        ref="ta"
+        v-model="state.composer.text"
+        class="quick-input"
+        placeholder="输入提示词…  Ctrl+V 贴图 · Ctrl+Enter 存弹夹"
+        @paste="onPaste"
+        @keydown="onKeydown"
+      />
+    </div>
 
     <!-- 操作行 -->
-    <div class="flex items-center gap-1.5 px-3 pb-3">
-      <button class="btn" title="把剪贴板图片贴到光标处" @click="pasteImages">贴图</button>
-      <span v-if="imgCount()" class="text-[10px] text-slate-500">图 {{ imgCount() }}</span>
+    <div class="quick-foot">
+      <button class="qbtn" title="把剪贴板图片贴到光标处" @click="pasteImages">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
+        </svg>
+        贴图<span v-if="imgCount()" class="qbtn-badge">{{ imgCount() }}</span>
+      </button>
+
       <div class="flex-1" />
-      <button class="btn btn-primary" title="存入待发弹夹 (Ctrl+Enter)" @click="save">存弹夹</button>
+
+      <button class="qbtn qbtn-primary" title="存入待发弹夹 (Ctrl+Enter)" @click="save">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" />
+        </svg>
+        存弹夹
+      </button>
     </div>
   </div>
 </template>

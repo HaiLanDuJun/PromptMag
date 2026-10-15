@@ -100,7 +100,6 @@ let fullSize = { ...FULL_DEFAULT }
 let tucked = false
 let tuckHome = null
 let tuckTimer = null
-let hovering = false   // 鼠标是否在窗口内（含缩进后露出的半边）
 
 /* ------------------------------------------------------------------ */
 /* 工具函数                                                            */
@@ -420,8 +419,12 @@ function nearestEdge(b) {
 /** 缩进到最近的边缘，只露出一半 */
 function tuck() {
   if (!mainWindow || tucked || mode === 'capsule') return
-  if (hovering || mainWindow.isFocused()) return // 鼠标还在窗口上 / 正在使用，不缩进
+  if (mainWindow.isFocused()) return
+  // 不依赖渲染进程的 hover 事件（会卡死），直接读真实光标位置
   const b = mainWindow.getBounds()
+  const pt = screen.getCursorScreenPoint()
+  const over = pt.x >= b.x - 6 && pt.x <= b.x + b.width + 6 && pt.y >= b.y - 6 && pt.y <= b.y + b.height + 6
+  if (over) return
   const { edge, dist, wa } = nearestEdge(b)
   if (dist > EDGE_THRESHOLD) return
   tuckHome = { ...b }
@@ -448,10 +451,9 @@ function untuck() {
 }
 function scheduleTuck() {
   clearTimeout(tuckTimer)
-  if (mode === 'capsule' || hovering) return
+  if (mode === 'capsule') return
   tuckTimer = setTimeout(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return
-    if (mainWindow.isFocused()) return
     tuck()
   }, TUCK_DELAY)
 }
@@ -515,11 +517,10 @@ function createWindow() {
     minWidth: minOf(mode).width,
     minHeight: minOf(mode).height,
     frame: false,
-    // 注意：本机 GPU 配置下 transparent:true + 软件渲染会导致窗口完全不可见，
-    // 改用不透明窗口 + Win11 DWM 原生圆角（roundedCorners）
-    transparent: false,
-    roundedCorners: true,
-    backgroundColor: '#0b0e15',
+    // in-process-gpu 下合成器可用，透明窗口正常（此前 disable-gpu 软件渲染才不显示）
+    transparent: true,
+    roundedCorners: false,
+    backgroundColor: '#00000000',
     resizable: mode === 'full',
     maximizable: false,
     fullscreenable: false,
@@ -690,14 +691,19 @@ function registerIpc() {
   })
 
   ipcMain.on('pm:set-mode', (_e, m) => setMode(m === 'quick' ? 'quick' : m === 'capsule' ? 'capsule' : 'full'))
-  /* 鼠标进入窗口（含缩进后露出的半边）时取消缩进，离开后再计时缩进 */
-  ipcMain.on('pm:pointer-in', () => {
-    hovering = true
-    untuck()
-  })
-  ipcMain.on('pm:pointer-out', () => {
-    hovering = false
-    scheduleTuck()
+  /* 鼠标进入窗口（含缩进后露出的半边）时滑回 */
+  ipcMain.on('pm:pointer-in', () => untuck())
+  ipcMain.on('pm:pointer-out', () => scheduleTuck())
+
+  /* 胶囊自定义拖拽（renderer 区分点击/拖动后调用） */
+  ipcMain.handle('pm:get-bounds', () => (mainWindow ? mainWindow.getBounds() : null))
+  ipcMain.on('pm:drag-move', (_e, pos) => {
+    if (!mainWindow || mainWindow.isDestroyed() || tucked) return
+    const x = Math.round(Number(pos && pos.x))
+    const y = Math.round(Number(pos && pos.y))
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return
+    mainWindow.setPosition(x, y)
+    scheduleSaveWindowState()
   })
 
   ipcMain.handle('pm:save-data', (_e, payload) => {
