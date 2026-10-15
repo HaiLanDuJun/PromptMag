@@ -1,12 +1,23 @@
 <script setup>
-import { state, setAlwaysOnTop, setOpacity, setRelay } from '../lib/store'
+import { ref } from 'vue'
+import { state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir } from '../lib/store'
+
+defineEmits(['collapse'])
+
+const showSettings = ref(false)
 
 function hide() { window.pm.hideWindow() }
 function openTasks() { window.pm.openPath(state.paths.tasksFile) }
+function openDataDir() { window.pm.openPath(state.paths.homeDir) }
+
+async function onChooseDir() {
+  const r = await chooseDataDir()
+  if (r && r.ok) showSettings.value = false
+}
 </script>
 
 <template>
-  <header class="drag-region flex items-center gap-2 px-3.5 h-9 shrink-0 hairline">
+  <header class="drag-region relative flex items-center gap-2 px-3.5 h-9 shrink-0 hairline">
     <!-- 状态指示灯：接力开启时发光 -->
     <span
       class="w-1.5 h-1.5 rounded-full shrink-0"
@@ -57,12 +68,49 @@ function openTasks() { window.pm.openPath(state.paths.tasksFile) }
         </svg>
       </button>
 
+      <!-- 设置 -->
+      <button
+        class="icon-btn"
+        :class="{ active: showSettings }"
+        title="设置"
+        @click.stop="showSettings = !showSettings"
+      >
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
+
+      <!-- 收起为胶囊 -->
+      <button class="icon-btn" title="收起为胶囊（悬停胶囊可重新展开）" @click="$emit('collapse')">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
+        </svg>
+      </button>
+
       <!-- 隐藏 -->
       <button class="icon-btn" title="隐藏窗口（Alt+Q 重新呼出）" @click="hide">
         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M5 12h14" />
         </svg>
       </button>
+    </div>
+
+    <!-- 设置面板 -->
+    <div v-if="showSettings" class="settings-backdrop" @click="showSettings = false" />
+    <div v-if="showSettings" class="settings-panel no-drag" @click.stop>
+      <div class="settings-title">设置</div>
+
+      <div class="settings-label">数据目录（图片 / 队列 / next_tasks.md）</div>
+      <div class="settings-path" :title="state.paths.homeDir">{{ state.paths.homeDir }}</div>
+      <div class="flex gap-2 mt-2">
+        <button class="btn flex-1" @click="onChooseDir">更改…（迁移并重启）</button>
+        <button class="btn" @click="openDataDir">打开</button>
+      </div>
+
+      <div class="settings-tip">
+        更改后会把现有数据复制到新目录并自动重启应用。
+      </div>
     </div>
   </header>
 </template>

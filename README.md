@@ -51,22 +51,26 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 git clone https://github.com/HaiLanDuJun/PromptMag.git
 cd PromptMag
 npm install
-npm run dev:all    # 开发模式（Vite 热更新 + Electron）
-npm run preview    # 生产构建 + 运行
+npm run dev:all      # 开发模式（Vite 热更新，端口 5199 + Electron）
+npm run dev:static   # 构建前端后直接启动，不起任何端口
+npm run preview      # 生产构建 + 运行
 ```
+
+前端开发服务默认监听 `5199`（可用 `PM_DEV_PORT` 覆盖），不再占用 5173；
+`npm start` / `npm run dev:static` / 打包产物都直接加载 `dist/`，不依赖任何端口。
 
 Windows 截图工具常会抢焦点，输入区的「贴图」按钮是手动兜底。
 
 ### 打包成 exe
 
 ```bash
-npm run dist            # 产出 out/ 下两个 exe
+npm run dist            # 产出 release/ 下两个 exe
 ```
 
 - `PromptMag-Portable-x.x.x.exe`：单文件免安装，双击即用
-- `PromptMag-Setup-x.x.x.exe`：一键安装版
+- `PromptMag-Setup-x.x.x.exe`：安装向导版，可自选安装目录
 
-打包只是源码的快照，之后继续改代码、重新 `npm run dist` 即可产出新版本；用户数据始终在 `~/.prompt-mag/`，替换 exe 不丢数据。
+打包只是源码的快照，之后继续改代码、重新 `npm run dist` 即可产出新版本；用户数据默认在 `~/.prompt-mag/`，替换 exe 不丢数据。
 
 ### 架构
 
@@ -79,14 +83,24 @@ npm run dist            # 产出 out/ 下两个 exe
 
 ### 数据目录
 
-所有数据都在本地 `~/.prompt-mag/`：
+默认 `~/.prompt-mag/`，可改为任意位置：标题栏齿轮 → 「更改…」选择目录，
+现有数据会复制到新目录并自动重启应用。配置记录在 `%APPDATA%\prompt-mag\app-config.json`。
 
 ```text
-~/.prompt-mag/
-├── images/          # 贴入的截图（Prompt 中引用绝对路径）
-├── data.json        # 队列 / 词库 / 窗口设置
-└── next_tasks.md    # 自动接力队列（Agent 在此勾选）
+<数据目录>/
+├── images/            # 贴入的截图（Prompt 中引用绝对路径）
+├── data.json          # 队列 / 词库 / 窗口设置
+├── next_tasks.md      # 自动接力队列（Agent 在此勾选）
+└── window-state.json  # 窗口位置与胶囊状态
 ```
+
+### 悬浮胶囊
+
+窗口可收起为一条 176×46 的胶囊：
+
+- 标题栏收起按钮 → 折叠；鼠标悬停或点击胶囊 → 平滑展开
+- 鼠标移出窗口约 0.6 秒后自动收起；正在输入（窗口持有焦点）时不收起
+- 胶囊整体可拖拽，窗口位置与展开尺寸自动记忆
 
 ### 路线图
 
@@ -145,18 +159,21 @@ If the main input is empty and you only wrote per-image notes, the compiler turn
 git clone https://github.com/HaiLanDuJun/PromptMag.git
 cd PromptMag
 npm install
-npm run dev:all    # dev mode (Vite HMR + Electron)
-npm run preview    # production build + run
+npm run dev:all      # dev mode (Vite HMR on port 5199 + Electron)
+npm run dev:static   # build the renderer, then launch with no port at all
+npm run preview      # production build + run
 ```
+
+The dev server listens on `5199` (override with `PM_DEV_PORT`) instead of 5173. `npm start`, `npm run dev:static` and packaged builds load `dist/` directly — no dev server needed.
 
 ### Package as exe
 
 ```bash
-npm run dist            # produces two executables under out/
+npm run dist            # produces two executables under release/
 ```
 
 - `PromptMag-Portable-x.x.x.exe`: single-file, no installation, double-click to run
-- `PromptMag-Setup-x.x.x.exe`: one-click installer
+- `PromptMag-Setup-x.x.x.exe`: installer wizard with a choosable install directory
 
 A package is just a snapshot of the source; keep coding and re-run `npm run dist` for a new build. User data lives in `~/.prompt-mag/` and survives exe replacement.
 

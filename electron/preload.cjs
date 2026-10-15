@@ -26,6 +26,10 @@ const api = {
   setAlwaysOnTop: (flag) => ipcRenderer.send('pm:set-always-on-top', flag),
   hideWindow: () => ipcRenderer.send('pm:hide-window'),
   toggleWindow: () => ipcRenderer.send('pm:toggle-window'),
+  setCollapsed: (flag) => ipcRenderer.send('pm:set-collapsed', !!flag),
+
+  /* 数据目录 */
+  chooseDataDir: () => ipcRenderer.invoke('pm:choose-data-dir'),
 
   /* 文件系统辅助 */
   openPath: (p) => ipcRenderer.send('pm:open-path', p),
@@ -41,6 +45,11 @@ const api = {
     const h = (_e, payload) => cb(payload)
     ipcRenderer.on('pm:tasks-external', h)
     return () => ipcRenderer.removeListener('pm:tasks-external', h)
+  },
+  onCollapsedChanged: (cb) => {
+    const h = (_e, flag) => cb(!!flag)
+    ipcRenderer.on('pm:collapsed-changed', h)
+    return () => ipcRenderer.removeListener('pm:collapsed-changed', h)
   }
 }
 

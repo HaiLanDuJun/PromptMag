@@ -1,16 +1,17 @@
 {
   "name": "prompt-mag",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "PromptMag - CLI 提示词弹夹：多图锚定 + Agent 任务队列自动接力",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "electron:dev": "concurrently -k -n VITE,ELECTRON -c cyan,magenta \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "electron:dev": "concurrently -k -n VITE,ELECTRON -c cyan,magenta \"vite\" \"wait-on tcp:5199 && set PM_USE_DEV_SERVER=1&& electron .\"",
     "dev:all": "npm run electron:dev",
     "build": "vite build",
     "start": "electron .",
+    "dev:static": "npm run build && electron .",
     "preview": "npm run build && electron .",
     "icon": "node scripts/make-icon.cjs",
     "clean": "node -e \"require('node:fs').rmSync('release',{recursive:true,force:true})\"",
@@ -50,9 +51,12 @@
       ]
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
       "artifactName": "PromptMag-Setup-${version}.${ext}"
     },
     "portable": {

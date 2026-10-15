@@ -16,7 +16,9 @@ const {
   nativeImage,
   shell,
   protocol,
-  net
+  net,
+  dialog,
+  screen
 } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
@@ -30,13 +32,39 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 /* ------------------------------------------------------------------ */
-/* 路径常量                                                            */
+/* 路径常量（数据目录可在应用内更改，配置存于 %APPDATA%/prompt-mag）      */
 /* ------------------------------------------------------------------ */
-const HOME_DIR = path.join(os.homedir(), '.prompt-mag')
-const IMAGES_DIR = path.join(HOME_DIR, 'images')
-const DATA_FILE = path.join(HOME_DIR, 'data.json')
-const TASKS_FILE = path.join(HOME_DIR, 'next_tasks.md')
+const CONFIG_DIR = path.join(process.env.APPDATA || os.homedir(), 'prompt-mag')
+const CONFIG_FILE = path.join(CONFIG_DIR, 'app-config.json')
+
+/** 解析数据目录：优先用户自定义，默认 ~/.prompt-mag */
+function resolveDataDir() {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'))
+    if (cfg && typeof cfg.dataDir === 'string' && cfg.dataDir.trim()) {
+      return path.resolve(cfg.dataDir)
+    }
+  } catch { /* 无配置或损坏，用默认 */ }
+  return path.join(os.homedir(), '.prompt-mag')
+}
+
+const P = { home: resolveDataDir() }
+P.images = path.join(P.home, 'images')
+P.dataFile = path.join(P.home, 'data.json')
+P.tasksFile = path.join(P.home, 'next_tasks.md')
+P.logFile = path.join(P.home, 'main.log')
+P.windowState = path.join(P.home, 'window-state.json')
+
 const SHORTCUT = 'Alt+Q'
+
+/* 开发服务端口（与 vite.config.js 保持一致），不再使用 5173 */
+const DEV_PORT = Number(process.env.PM_DEV_PORT) || 5199
+
+/* 胶囊模式尺寸 */
+const CAPSULE_W = 176
+const CAPSULE_H = 46
+const EXPANDED_DEFAULT = { width: 396, height: 640 }
+const EXPANDED_MIN = { width: 340, height: 480 }
 
 const isDev = !app.isPackaged
 
@@ -46,14 +74,13 @@ const isDev = !app.isPackaged
 app.commandLine.appendSwitch('in-process-gpu')
 
 /* ---------------- 诊断日志 ---------------- */
-const LOG_FILE = path.join(HOME_DIR, 'main.log')
 function log(...args) {
   try {
     ensureDirs()
-    fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${args.join(' ')}\n`, 'utf8')
+    fs.appendFileSync(P.logFile, `[${new Date().toISOString()}] ${args.join(' ')}\n`, 'utf8')
   } catch { /* ignore */ }
 }
-log('=== app start ===', 'version:', app.getVersion(), 'packaged:', app.isPackaged)
+log('=== app start ===', 'version:', app.getVersion(), 'packaged:', app.isPackaged, 'dataDir:', P.home)
 
 let mainWindow = null
 let tray = null
@@ -62,12 +89,16 @@ let watchTimer = null
 let lastWrittenTasks = ''
 let quitting = false
 let imgSeq = 0
+/* 胶囊模式状态 */
+let collapsed = false
+let animating = false
+let expandedSize = { ...EXPANDED_DEFAULT }
 
 /* ------------------------------------------------------------------ */
 /* 工具函数                                                            */
 /* ------------------------------------------------------------------ */
 function ensureDirs() {
-  fs.mkdirSync(IMAGES_DIR, { recursive: true })
+  fs.mkdirSync(P.images, { recursive: true })
 }
 
 function readJsonSafe(file) {
@@ -91,7 +122,7 @@ function uniqueImagePath(ext = '.png') {
   let p
   do {
     imgSeq += 1
-    p = path.join(IMAGES_DIR, `img_${ts}_${String(imgSeq).padStart(2, '0')}${ext}`)
+    p = path.join(P.images, `img_${ts}_${String(imgSeq).padStart(2, '0')}${ext}`)
   } while (fs.existsSync(p))
   return p
 }
@@ -176,8 +207,8 @@ function parseTasksContent(content) {
 
 function broadcastTasksState() {
   if (!mainWindow || mainWindow.isDestroyed()) return
-  const exists = fs.existsSync(TASKS_FILE)
-  const content = exists ? fs.readFileSync(TASKS_FILE, 'utf8') : ''
+  const exists = fs.existsSync(P.tasksFile)
+  const content = exists ? fs.readFileSync(P.tasksFile, 'utf8') : ''
   if (content === lastWrittenTasks) return // 自身写入触发的变更，忽略
   mainWindow.webContents.send('pm:tasks-external', { exists, items: parseTasksContent(content) })
 }
@@ -190,12 +221,12 @@ function scheduleTasksCheck() {
 function startTasksWatch() {
   if (tasksWatcher) return
   ensureDirs()
-  if (!fs.existsSync(TASKS_FILE)) {
-    fs.writeFileSync(TASKS_FILE, '', 'utf8')
+  if (!fs.existsSync(P.tasksFile)) {
+    fs.writeFileSync(P.tasksFile, '', 'utf8')
     lastWrittenTasks = ''
   }
   try {
-    tasksWatcher = fs.watch(TASKS_FILE, { persistent: true }, () => scheduleTasksCheck())
+    tasksWatcher = fs.watch(P.tasksFile, { persistent: true }, () => scheduleTasksCheck())
     tasksWatcher.on('error', () => { tasksWatcher = null })
   } catch {
     tasksWatcher = null
@@ -288,27 +319,129 @@ function makeTrayIcon() {
 /* ------------------------------------------------------------------ */
 /* 窗口                                                                */
 /* ------------------------------------------------------------------ */
+/**
+ * 开发服务地址：
+ *  - 默认加载 dist 构建产物（不起端口）
+ *  - 仅当 PM_USE_DEV_SERVER=1（dev:all 脚本）或显式 VITE_DEV_SERVER_URL 时才连 5199
+ */
 function resolveRendererURL() {
-  if (isDev) return process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
+  if (process.env.VITE_DEV_SERVER_URL) return process.env.VITE_DEV_SERVER_URL
+  if (isDev && process.env.PM_USE_DEV_SERVER === '1') {
+    return `http://127.0.0.1:${DEV_PORT}`
+  }
   return null
 }
 
+/* ---------------- 窗口位置记忆 + 胶囊模式 ---------------- */
+let wsTimer = null
+function saveWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const b = mainWindow.getBounds()
+  const payload = {
+    x: b.x,
+    y: b.y,
+    width: collapsed ? expandedSize.width : b.width,
+    height: collapsed ? expandedSize.height : b.height,
+    collapsed
+  }
+  try { fs.writeFileSync(P.windowState, JSON.stringify(payload), 'utf8') } catch { /* ignore */ }
+}
+function scheduleSaveWindowState() {
+  clearTimeout(wsTimer)
+  wsTimer = setTimeout(saveWindowState, 400)
+}
+
+/** 将目标 bounds 钳制在所在显示器工作区内 */
+function clampToWorkArea(b) {
+  const wa = screen.getDisplayNearestPoint({ x: b.x, y: b.y }).workArea
+  const width = Math.min(b.width, wa.width)
+  const height = Math.min(b.height, wa.height)
+  return {
+    x: Math.min(Math.max(b.x, wa.x), wa.x + wa.width - width),
+    y: Math.min(Math.max(b.y, wa.y), wa.y + wa.height - height),
+    width,
+    height
+  }
+}
+
+/** 平滑缩放窗口（easeOutCubic，~130ms） */
+function animateTo(target, done) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const from = mainWindow.getBounds()
+  const STEPS = 8
+  let i = 0
+  animating = true
+  const timer = setInterval(() => {
+    i += 1
+    const k = Math.min(1, i / STEPS)
+    const e = 1 - Math.pow(1 - k, 3)
+    try {
+      mainWindow.setBounds({
+        x: Math.round(from.x + (target.x - from.x) * e),
+        y: Math.round(from.y + (target.y - from.y) * e),
+        width: Math.round(from.width + (target.width - from.width) * e),
+        height: Math.round(from.height + (target.height - from.height) * e)
+      })
+    } catch { /* ignore */ }
+    if (k >= 1) {
+      clearInterval(timer)
+      animating = false
+      if (done) done()
+    }
+  }, 16)
+}
+
+/** 切换 胶囊(收起) / 完整(展开) 形态 */
+function setCollapsed(flag) {
+  if (!mainWindow || mainWindow.isDestroyed() || collapsed === flag) return
+  collapsed = flag
+  const cur = mainWindow.getBounds()
+  if (flag) {
+    expandedSize = { width: cur.width, height: cur.height }
+    mainWindow.setResizable(false)
+    mainWindow.setMinimumSize(CAPSULE_W, CAPSULE_H)
+    animateTo(clampToWorkArea({ x: cur.x, y: cur.y, width: CAPSULE_W, height: CAPSULE_H }), saveWindowState)
+  } else {
+    mainWindow.setMinimumSize(EXPANDED_MIN.width, EXPANDED_MIN.height)
+    mainWindow.setResizable(true)
+    animateTo(clampToWorkArea({ x: cur.x, y: cur.y, ...expandedSize }), saveWindowState)
+  }
+  mainWindow.webContents.send('pm:collapsed-changed', collapsed)
+  log('collapsed ->', collapsed)
+}
+
 function createWindow() {
-  const saved = readJsonSafe(DATA_FILE) || {}
+  const saved = readJsonSafe(P.dataFile) || {}
   const settings = saved.settings || {}
+  const ws = readJsonSafe(P.windowState) || {}
+  expandedSize = {
+    width: Math.max(EXPANDED_MIN.width, Number(ws.width) || EXPANDED_DEFAULT.width),
+    height: Math.max(EXPANDED_MIN.height, Number(ws.height) || EXPANDED_DEFAULT.height)
+  }
+  collapsed = !!settings.collapsed
+
+  const initBounds = collapsed
+    ? { width: CAPSULE_W, height: CAPSULE_H }
+    : { ...expandedSize }
+  if (typeof ws.x === 'number' && typeof ws.y === 'number') {
+    // 恢复上次位置并钳制到当前显示器工作区
+    Object.assign(initBounds, clampToWorkArea({
+      x: ws.x, y: ws.y,
+      width: initBounds.width, height: initBounds.height
+    }))
+  } // 无记录则保持默认居中
 
   mainWindow = new BrowserWindow({
-    width: 396,
-    height: 640,
-    minWidth: 340,
-    minHeight: 480,
+    ...initBounds,
+    minWidth: collapsed ? CAPSULE_W : EXPANDED_MIN.width,
+    minHeight: collapsed ? CAPSULE_H : EXPANDED_MIN.height,
     frame: false,
     // 注意：本机 GPU 配置下 transparent:true + 软件渲染会导致窗口完全不可见，
     // 改用不透明窗口 + Win11 DWM 原生圆角（roundedCorners）
     transparent: false,
     roundedCorners: true,
     backgroundColor: '#0b0e15',
-    resizable: true,
+    resizable: !collapsed,
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: false,
@@ -326,13 +459,21 @@ function createWindow() {
 
   if (typeof settings.opacity === 'number') mainWindow.setOpacity(settings.opacity)
 
-  log('window created', 'transparent: false, roundedCorners: true')
+  log('window created', JSON.stringify(initBounds), 'collapsed:', collapsed)
+
+  let fellBackToDist = false
+  const loadDist = () => {
+    if (fellBackToDist) return
+    fellBackToDist = true
+    log('fallback -> load dist/index.html')
+    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+  }
 
   const devUrl = resolveRendererURL()
   if (devUrl) {
-    mainWindow.loadURL(devUrl)
+    mainWindow.loadURL(devUrl).catch(() => loadDist())
   } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    loadDist()
   }
 
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
@@ -341,6 +482,18 @@ function createWindow() {
   mainWindow.webContents.on('did-finish-load', () => log('did-finish-load'))
   mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
     log('!! did-fail-load:', code, desc, url)
+    // 开发服务不可用时自动回退到构建产物，保证窗口永远有内容
+    if (devUrl) loadDist()
+  })
+
+  /* 位置 / 尺寸记忆 */
+  mainWindow.on('move', scheduleSaveWindowState)
+  mainWindow.on('resize', () => {
+    if (!collapsed && !animating) {
+      const b = mainWindow.getBounds()
+      expandedSize = { width: b.width, height: b.height }
+    }
+    scheduleSaveWindowState()
   })
 
   mainWindow.once('ready-to-show', () => {
@@ -357,6 +510,7 @@ function createWindow() {
   mainWindow.on('close', (e) => {
     if (!quitting) {
       e.preventDefault()
+      saveWindowState()
       mainWindow.hide()
     }
   })
@@ -368,6 +522,7 @@ function toggleWindow() {
   if (mainWindow.isVisible() && mainWindow.isFocused()) {
     mainWindow.hide()
   } else {
+    if (collapsed) setCollapsed(false) // 呼出时若是胶囊则展开
     mainWindow.show()
     mainWindow.focus()
     mainWindow.webContents.send('pm:focus-composer')
@@ -382,11 +537,11 @@ function createTray() {
     { type: 'separator' },
     {
       label: '打开数据目录',
-      click: () => shell.openPath(HOME_DIR)
+      click: () => shell.openPath(P.home)
     },
     {
       label: '打开 next_tasks.md',
-      click: () => shell.openPath(TASKS_FILE)
+      click: () => shell.openPath(P.tasksFile)
     },
     { type: 'separator' },
     {
@@ -406,19 +561,56 @@ function createTray() {
 /* ------------------------------------------------------------------ */
 function registerIpc() {
   ipcMain.handle('pm:get-init-data', () => ({
-    data: readJsonSafe(DATA_FILE) || {},
+    data: readJsonSafe(P.dataFile) || {},
     paths: {
-      homeDir: HOME_DIR,
-      imagesDir: IMAGES_DIR,
-      tasksFile: TASKS_FILE,
-      dataFile: DATA_FILE
+      homeDir: P.home,
+      imagesDir: P.images,
+      tasksFile: P.tasksFile,
+      dataFile: P.dataFile
     },
-    platform: process.platform
+    platform: process.platform,
+    version: app.getVersion()
   }))
+
+  /* 选择数据目录：迁移现有数据并重启应用 */
+  ipcMain.handle('pm:choose-data-dir', async () => {
+    const r = await dialog.showOpenDialog(mainWindow, {
+      title: '选择 PromptMag 数据存放目录',
+      buttonLabel: '选择此目录',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true }
+    const dir = path.resolve(r.filePaths[0])
+    if (dir === path.resolve(P.home)) return { ok: false, canceled: true }
+    try {
+      fs.mkdirSync(dir, { recursive: true })
+      // 迁移既有数据（data.json / next_tasks.md / images/）
+      for (const f of ['data.json', 'next_tasks.md']) {
+        const src = path.join(P.home, f)
+        const dst = path.join(dir, f)
+        if (fs.existsSync(src) && !fs.existsSync(dst)) fs.copyFileSync(src, dst)
+      }
+      if (fs.existsSync(P.images)) {
+        fs.cpSync(P.images, path.join(dir, 'images'), { recursive: true, force: false, errorOnExist: false })
+      }
+      // 写入固定位置的配置，重启后生效
+      fs.mkdirSync(CONFIG_DIR, { recursive: true })
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify({ dataDir: dir }, null, 2), 'utf8')
+      log('dataDir changed ->', dir, '(relaunching)')
+      saveWindowState()
+      app.relaunch()
+      app.exit(0)
+      return { ok: true, dir }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.on('pm:set-collapsed', (_e, flag) => setCollapsed(!!flag))
 
   ipcMain.handle('pm:save-data', (_e, payload) => {
     try {
-      writeJsonAtomic(DATA_FILE, payload)
+      writeJsonAtomic(P.dataFile, payload)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
@@ -435,13 +627,13 @@ function registerIpc() {
   ipcMain.handle('pm:write-tasks', (_e, content) => {
     ensureDirs()
     lastWrittenTasks = String(content || '')
-    fs.writeFileSync(TASKS_FILE, lastWrittenTasks, 'utf8')
+    fs.writeFileSync(P.tasksFile, lastWrittenTasks, 'utf8')
     return { ok: true }
   })
 
   ipcMain.handle('pm:read-tasks', () => {
-    if (!fs.existsSync(TASKS_FILE)) return { exists: false, content: '', items: [] }
-    const content = fs.readFileSync(TASKS_FILE, 'utf8')
+    if (!fs.existsSync(P.tasksFile)) return { exists: false, content: '', items: [] }
+    const content = fs.readFileSync(P.tasksFile, 'utf8')
     return { exists: true, content, items: parseTasksContent(content) }
   })
 

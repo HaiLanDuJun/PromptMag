@@ -26,10 +26,13 @@ if (typeof window !== 'undefined' && !window.pm) {
     setAlwaysOnTop () {},
     hideWindow () {},
     toggleWindow () {},
+    setCollapsed () {},
+    chooseDataDir: async () => ({ ok: false, canceled: true }),
     openPath () {},
     showItemInFolder () {},
     onFocusComposer: () => () => {},
-    onTasksExternalChange: () => () => {}
+    onTasksExternalChange: () => () => {},
+    onCollapsedChanged: () => () => {}
   }
 }
 
@@ -49,7 +52,7 @@ export const state = reactive({
   platform: 'win32',
   toast: '',
   paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '' },
-  settings: { alwaysOnTop: true, opacity: 1, relay: false },
+  settings: { alwaysOnTop: true, opacity: 1, relay: false, collapsed: false },
   snippets: [],
   composer: { text: '', images: [] },
   queue: []
@@ -102,7 +105,7 @@ export async function initStore() {
   state.platform = res.platform || 'win32'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
-    { alwaysOnTop: true, opacity: 1, relay: false },
+    { alwaysOnTop: true, opacity: 1, relay: false, collapsed: false },
     d.settings || {}
   )
   state.snippets =
@@ -236,6 +239,38 @@ export function setRelay(v) {
   } else {
     toast('自动接力已关闭（next_tasks.md 保留）')
   }
+}
+
+/* ---------------- 胶囊模式 ---------------- */
+let lastToggleAt = 0
+
+/**
+ * 收起 / 展开。带 500ms 冷却，避免窗口缩放后光标恰好落在胶囊上
+ * 触发「收起 -> 立刻展开」的抖动循环。
+ */
+export function setCollapsed(v) {
+  const flag = !!v
+  if (state.settings.collapsed === flag) return
+  if (Date.now() - lastToggleAt < 500) return
+  lastToggleAt = Date.now()
+  state.settings.collapsed = flag
+  window.pm.setCollapsed(flag)
+}
+
+/** 主进程回显胶囊状态（Alt+Q 呼出自动展开等场景） */
+export function bindCollapsedSync(applyFn) {
+  return window.pm.onCollapsedChanged((flag) => applyFn(!!flag))
+}
+
+/* ---------------- 数据目录 ---------------- */
+export async function chooseDataDir() {
+  const r = await window.pm.chooseDataDir()
+  if (r && r.ok) {
+    toast('数据目录已更改，应用即将重启')
+  } else if (r && r.error) {
+    toast('更改失败：' + r.error)
+  }
+  return r
 }
 
 /* ---------------- 词库 ---------------- */

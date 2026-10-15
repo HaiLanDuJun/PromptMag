@@ -24,5 +24,6 @@ release/
 out/
 out2/
 out3/
+out4/
 installer/
 .release-broken*
