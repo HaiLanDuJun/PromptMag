@@ -254,10 +254,35 @@ input:focus, textarea:focus, button:focus { outline: none; }
   align-items: center;
   gap: 7px;
   padding: 0 14px;
-  cursor: pointer;
-  transition: background 0.15s;
+  cursor: grab;              /* 明确可拖拽 */
+  transition: background 0.12s linear;
+  will-change: background;
 }
 .capsule:hover { background: rgba(148, 163, 184, 0.06); }
+.capsule:active { cursor: grabbing; }
+
+/* ============ 快捷输入面板（输入法悬浮窗形态） ============ */
+.quick {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.quick-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+.quick-input {
+  margin: 10px 12px 8px;
+  flex: 1;
+  min-height: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
 .capsule-title {
   font-size: 12px;
   font-weight: 600;

@@ -2,18 +2,18 @@
 import { computed } from 'vue'
 import { state } from '../lib/store'
 
-defineEmits(['expand'])
+defineEmits(['open'])
 
 const pendingCount = computed(() => state.queue.filter((t) => !t.done).length)
 </script>
 
 <template>
-  <!-- 胶囊条：整条可拖拽，悬停/点击展开完整窗口 -->
+  <!-- 胶囊条：整条可拖拽，悬停或点击直接打开快捷输入面板 -->
   <div
     class="capsule drag-region"
-    title="悬停或点击展开 · 按住拖拽移动"
-    @mouseenter="$emit('expand')"
-    @click="$emit('expand')"
+    title="悬停或点击直接输入 · 按住可拖拽移动"
+    @mouseenter="$emit('open')"
+    @click="$emit('open')"
   >
     <span
       class="w-1.5 h-1.5 rounded-full shrink-0"
@@ -21,9 +21,8 @@ const pendingCount = computed(() => state.queue.filter((t) => !t.done).length)
     />
     <span class="capsule-title">PromptMag</span>
     <span v-if="pendingCount" class="capsule-count">{{ pendingCount }}</span>
-    <!-- 展开提示箭头 -->
     <svg class="capsule-arrow" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
+      <path d="M4 9h12" /><path d="M4 15h16" /><path d="M14 6l6 6-6 6" />
     </svg>
   </div>
 </template>

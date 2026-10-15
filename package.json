@@ -1,6 +1,6 @@
 {
   "name": "prompt-mag",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "PromptMag - CLI 提示词弹夹：多图锚定 + Agent 任务队列自动接力",
   "main": "electron/main.cjs",

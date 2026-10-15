@@ -60,11 +60,14 @@ const SHORTCUT = 'Alt+Q'
 /* 开发服务端口（与 vite.config.js 保持一致），不再使用 5173 */
 const DEV_PORT = Number(process.env.PM_DEV_PORT) || 5199
 
-/* 胶囊模式尺寸 */
-const CAPSULE_W = 176
-const CAPSULE_H = 46
-const EXPANDED_DEFAULT = { width: 396, height: 640 }
-const EXPANDED_MIN = { width: 340, height: 480 }
+/* 三种形态尺寸 */
+const CAPSULE = { width: 176, height: 46 }
+const QUICK = { width: 400, height: 210 }
+const FULL_DEFAULT = { width: 396, height: 640 }
+const FULL_MIN = { width: 340, height: 480 }
+/* 边缘吸附：离边小于该距离且窗口失焦时，半缩进屏幕边缘 */
+const EDGE_THRESHOLD = 90
+const TUCK_DELAY = 1200
 
 const isDev = !app.isPackaged
 
@@ -89,10 +92,15 @@ let watchTimer = null
 let lastWrittenTasks = ''
 let quitting = false
 let imgSeq = 0
-/* 胶囊模式状态 */
-let collapsed = false
+/* 形态状态：capsule(胶囊) / quick(快捷输入) / full(完整) */
+let mode = 'full'
 let animating = false
-let expandedSize = { ...EXPANDED_DEFAULT }
+let fullSize = { ...FULL_DEFAULT }
+/* 边缘吸附状态 */
+let tucked = false
+let tuckHome = null
+let tuckTimer = null
+let hovering = false   // 鼠标是否在窗口内（含缩进后露出的半边）
 
 /* ------------------------------------------------------------------ */
 /* 工具函数                                                            */
@@ -338,11 +346,11 @@ function saveWindowState() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   const b = mainWindow.getBounds()
   const payload = {
-    x: b.x,
-    y: b.y,
-    width: collapsed ? expandedSize.width : b.width,
-    height: collapsed ? expandedSize.height : b.height,
-    collapsed
+    x: tuckHome ? tuckHome.x : b.x,
+    y: tuckHome ? tuckHome.y : b.y,
+    width: mode === 'full' ? (tuckHome ? tuckHome.width : b.width) : fullSize.width,
+    height: mode === 'full' ? (tuckHome ? tuckHome.height : b.height) : fullSize.height,
+    mode
   }
   try { fs.writeFileSync(P.windowState, JSON.stringify(payload), 'utf8') } catch { /* ignore */ }
 }
@@ -391,38 +399,109 @@ function animateTo(target, done) {
   }, 16)
 }
 
-/** 切换 胶囊(收起) / 完整(展开) 形态 */
-function setCollapsed(flag) {
-  if (!mainWindow || mainWindow.isDestroyed() || collapsed === flag) return
-  collapsed = flag
-  const cur = mainWindow.getBounds()
-  if (flag) {
-    expandedSize = { width: cur.width, height: cur.height }
-    mainWindow.setResizable(false)
-    mainWindow.setMinimumSize(CAPSULE_W, CAPSULE_H)
-    animateTo(clampToWorkArea({ x: cur.x, y: cur.y, width: CAPSULE_W, height: CAPSULE_H }), saveWindowState)
-  } else {
-    mainWindow.setMinimumSize(EXPANDED_MIN.width, EXPANDED_MIN.height)
-    mainWindow.setResizable(true)
-    animateTo(clampToWorkArea({ x: cur.x, y: cur.y, ...expandedSize }), saveWindowState)
+/* ---------------- 边缘吸附（0 侵入） ---------------- */
+/** 找出离窗口最近的屏幕边，以及距离 */
+function nearestEdge(b) {
+  const wa = screen.getDisplayNearestPoint({ x: b.x, y: b.y }).workArea
+  const d = {
+    left: b.x - wa.x,
+    right: (wa.x + wa.width) - (b.x + b.width),
+    top: b.y - wa.y,
+    bottom: (wa.y + wa.height) - (b.y + b.height)
   }
-  mainWindow.webContents.send('pm:collapsed-changed', collapsed)
-  log('collapsed ->', collapsed)
+  let edge = 'left'
+  let min = d.left
+  for (const k of ['right', 'top', 'bottom']) {
+    if (d[k] < min) { min = d[k]; edge = k }
+  }
+  return { edge, dist: min, wa }
+}
+
+/** 缩进到最近的边缘，只露出一半 */
+function tuck() {
+  if (!mainWindow || tucked || mode === 'capsule') return
+  if (hovering || mainWindow.isFocused()) return // 鼠标还在窗口上 / 正在使用，不缩进
+  const b = mainWindow.getBounds()
+  const { edge, dist, wa } = nearestEdge(b)
+  if (dist > EDGE_THRESHOLD) return
+  tuckHome = { ...b }
+  const target = { ...b }
+  if (edge === 'left') target.x = wa.x - Math.round(b.width / 2)
+  else if (edge === 'right') target.x = wa.x + wa.width - Math.round(b.width / 2)
+  else if (edge === 'top') target.y = wa.y - Math.round(b.height / 2)
+  else target.y = wa.y + wa.height - Math.round(b.height / 2)
+  tucked = true
+  log('tuck ->', edge, JSON.stringify(target))
+  animateTo(target, saveWindowState)
+}
+
+function untuck() {
+  clearTimeout(tuckTimer)
+  if (!tucked) return
+  tucked = false
+  const home = tuckHome
+  tuckHome = null
+  if (home) {
+    log('untuck ->', JSON.stringify(home))
+    animateTo(clampToWorkArea(home), saveWindowState)
+  }
+}
+function scheduleTuck() {
+  clearTimeout(tuckTimer)
+  if (mode === 'capsule' || hovering) return
+  tuckTimer = setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (mainWindow.isFocused()) return
+    tuck()
+  }, TUCK_DELAY)
+}
+
+/** 切换形态：capsule / quick / full */
+function setMode(next) {
+  if (!mainWindow || mainWindow.isDestroyed() || mode === next) return
+  const prev = mode
+  mode = next
+  untuck()
+  const cur = mainWindow.getBounds()
+
+  if (next === 'full') {
+    mainWindow.setMinimumSize(FULL_MIN.width, FULL_MIN.height)
+    mainWindow.setResizable(true)
+    const size = {
+      width: Math.max(FULL_MIN.width, fullSize.width),
+      height: Math.max(FULL_MIN.height, fullSize.height)
+    }
+    animateTo(clampToWorkArea({ x: cur.x, y: cur.y, ...size }), saveWindowState)
+  } else {
+    // 从完整形态收起时记住它的尺寸
+    if (prev === 'full') fullSize = { width: cur.width, height: cur.height }
+    const size = next === 'quick' ? { ...QUICK } : { ...CAPSULE }
+    mainWindow.setResizable(false)
+    mainWindow.setMinimumSize(size.width, size.height)
+    // 尽量保持左上角，越界则反向贴边
+    const wa = screen.getDisplayNearestPoint({ x: cur.x, y: cur.y }).workArea
+    const x = Math.min(Math.max(wa.x, cur.x), wa.x + wa.width - size.width)
+    const y = Math.min(Math.max(wa.y, cur.y), wa.y + wa.height - size.height)
+    animateTo({ x, y, ...size }, saveWindowState)
+  }
+  mainWindow.webContents.send('pm:mode-changed', mode)
+  log('mode ->', mode)
 }
 
 function createWindow() {
   const saved = readJsonSafe(P.dataFile) || {}
   const settings = saved.settings || {}
   const ws = readJsonSafe(P.windowState) || {}
-  expandedSize = {
-    width: Math.max(EXPANDED_MIN.width, Number(ws.width) || EXPANDED_DEFAULT.width),
-    height: Math.max(EXPANDED_MIN.height, Number(ws.height) || EXPANDED_DEFAULT.height)
+  fullSize = {
+    width: Math.max(FULL_MIN.width, Number(ws.width) || FULL_DEFAULT.width),
+    height: Math.max(FULL_MIN.height, Number(ws.height) || FULL_DEFAULT.height)
   }
-  collapsed = !!settings.collapsed
+  mode = ['capsule', 'quick', 'full'].includes(settings.mode) ? settings.mode : 'full'
+  mode = ['capsule', 'quick', 'full'].includes(ws.mode) ? ws.mode : mode
 
-  const initBounds = collapsed
-    ? { width: CAPSULE_W, height: CAPSULE_H }
-    : { ...expandedSize }
+  const sizeOf = (m) => (m === 'capsule' ? { ...CAPSULE } : m === 'quick' ? { ...QUICK } : { ...fullSize })
+  const initBounds = sizeOf(mode)
+  const minOf = (m) => (m === 'capsule' ? { ...CAPSULE } : m === 'quick' ? { ...QUICK } : FULL_MIN)
   if (typeof ws.x === 'number' && typeof ws.y === 'number') {
     // 恢复上次位置并钳制到当前显示器工作区
     Object.assign(initBounds, clampToWorkArea({
@@ -433,15 +512,15 @@ function createWindow() {
 
   mainWindow = new BrowserWindow({
     ...initBounds,
-    minWidth: collapsed ? CAPSULE_W : EXPANDED_MIN.width,
-    minHeight: collapsed ? CAPSULE_H : EXPANDED_MIN.height,
+    minWidth: minOf(mode).width,
+    minHeight: minOf(mode).height,
     frame: false,
     // 注意：本机 GPU 配置下 transparent:true + 软件渲染会导致窗口完全不可见，
     // 改用不透明窗口 + Win11 DWM 原生圆角（roundedCorners）
     transparent: false,
     roundedCorners: true,
     backgroundColor: '#0b0e15',
-    resizable: !collapsed,
+    resizable: mode === 'full',
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: false,
@@ -459,7 +538,7 @@ function createWindow() {
 
   if (typeof settings.opacity === 'number') mainWindow.setOpacity(settings.opacity)
 
-  log('window created', JSON.stringify(initBounds), 'collapsed:', collapsed)
+  log('window created', JSON.stringify(initBounds), 'mode:', mode)
 
   let fellBackToDist = false
   const loadDist = () => {
@@ -487,14 +566,18 @@ function createWindow() {
   })
 
   /* 位置 / 尺寸记忆 */
-  mainWindow.on('move', scheduleSaveWindowState)
+  mainWindow.on('move', () => { if (tucked) return; scheduleSaveWindowState() })
   mainWindow.on('resize', () => {
-    if (!collapsed && !animating) {
+    if (mode === 'full' && !animating && !tucked) {
       const b = mainWindow.getBounds()
-      expandedSize = { width: b.width, height: b.height }
+      fullSize = { width: b.width, height: b.height }
     }
     scheduleSaveWindowState()
   })
+
+  /* 边缘吸附：失焦一段时间后缩进屏幕边缘，重新聚焦/悬停时滑回 */
+  mainWindow.on('focus', () => untuck())
+  mainWindow.on('blur', () => scheduleTuck())
 
   mainWindow.once('ready-to-show', () => {
     log('ready-to-show -> show()')
@@ -522,7 +605,7 @@ function toggleWindow() {
   if (mainWindow.isVisible() && mainWindow.isFocused()) {
     mainWindow.hide()
   } else {
-    if (collapsed) setCollapsed(false) // 呼出时若是胶囊则展开
+    if (mode === 'capsule') setMode('quick') // 呼出时若是胶囊则展开为快捷输入
     mainWindow.show()
     mainWindow.focus()
     mainWindow.webContents.send('pm:focus-composer')
@@ -606,7 +689,16 @@ function registerIpc() {
     }
   })
 
-  ipcMain.on('pm:set-collapsed', (_e, flag) => setCollapsed(!!flag))
+  ipcMain.on('pm:set-mode', (_e, m) => setMode(m === 'quick' ? 'quick' : m === 'capsule' ? 'capsule' : 'full'))
+  /* 鼠标进入窗口（含缩进后露出的半边）时取消缩进，离开后再计时缩进 */
+  ipcMain.on('pm:pointer-in', () => {
+    hovering = true
+    untuck()
+  })
+  ipcMain.on('pm:pointer-out', () => {
+    hovering = false
+    scheduleTuck()
+  })
 
   ipcMain.handle('pm:save-data', (_e, payload) => {
     try {

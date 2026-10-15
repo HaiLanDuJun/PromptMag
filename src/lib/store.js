@@ -26,13 +26,15 @@ if (typeof window !== 'undefined' && !window.pm) {
     setAlwaysOnTop () {},
     hideWindow () {},
     toggleWindow () {},
-    setCollapsed () {},
+    setMode () {},
+    pointerIn () {},
+    pointerOut () {},
     chooseDataDir: async () => ({ ok: false, canceled: true }),
     openPath () {},
     showItemInFolder () {},
     onFocusComposer: () => () => {},
     onTasksExternalChange: () => () => {},
-    onCollapsedChanged: () => () => {}
+    onModeChanged: () => () => {}
   }
 }
 
@@ -52,7 +54,7 @@ export const state = reactive({
   platform: 'win32',
   toast: '',
   paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '' },
-  settings: { alwaysOnTop: true, opacity: 1, relay: false, collapsed: false },
+  settings: { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full' },
   snippets: [],
   composer: { text: '', images: [] },
   queue: []
@@ -105,9 +107,10 @@ export async function initStore() {
   state.platform = res.platform || 'win32'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
-    { alwaysOnTop: true, opacity: 1, relay: false, collapsed: false },
+    { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full' },
     d.settings || {}
   )
+  if (!['capsule', 'quick', 'full'].includes(state.settings.mode)) state.settings.mode = 'full'
   state.snippets =
     Array.isArray(d.snippets) && d.snippets.length
       ? d.snippets
@@ -241,25 +244,26 @@ export function setRelay(v) {
   }
 }
 
-/* ---------------- 胶囊模式 ---------------- */
-let lastToggleAt = 0
+/* ---------------- 形态：capsule / quick / full ---------------- */
+const MODES = ['capsule', 'quick', 'full']
+let lastModeAt = 0
 
 /**
- * 收起 / 展开。带 500ms 冷却，避免窗口缩放后光标恰好落在胶囊上
+ * 切换形态。带 400ms 冷却，避免窗口缩放后光标恰好落在新形态上
  * 触发「收起 -> 立刻展开」的抖动循环。
  */
-export function setCollapsed(v) {
-  const flag = !!v
-  if (state.settings.collapsed === flag) return
-  if (Date.now() - lastToggleAt < 500) return
-  lastToggleAt = Date.now()
-  state.settings.collapsed = flag
-  window.pm.setCollapsed(flag)
+export function setMode(m) {
+  const mode = MODES.includes(m) ? m : 'full'
+  if (state.settings.mode === mode) return
+  if (Date.now() - lastModeAt < 400) return
+  lastModeAt = Date.now()
+  state.settings.mode = mode
+  window.pm.setMode(mode)
 }
 
-/** 主进程回显胶囊状态（Alt+Q 呼出自动展开等场景） */
-export function bindCollapsedSync(applyFn) {
-  return window.pm.onCollapsedChanged((flag) => applyFn(!!flag))
+/** 主进程回显形态（Alt+Q 自动展开等场景） */
+export function bindModeSync(applyFn) {
+  return window.pm.onModeChanged((m) => applyFn(m))
 }
 
 /* ---------------- 数据目录 ---------------- */

@@ -26,7 +26,10 @@ const api = {
   setAlwaysOnTop: (flag) => ipcRenderer.send('pm:set-always-on-top', flag),
   hideWindow: () => ipcRenderer.send('pm:hide-window'),
   toggleWindow: () => ipcRenderer.send('pm:toggle-window'),
-  setCollapsed: (flag) => ipcRenderer.send('pm:set-collapsed', !!flag),
+  /* 形态：capsule(胶囊) / quick(快捷输入) / full(完整) */
+  setMode: (m) => ipcRenderer.send('pm:set-mode', m),
+  pointerIn: () => ipcRenderer.send('pm:pointer-in'),
+  pointerOut: () => ipcRenderer.send('pm:pointer-out'),
 
   /* 数据目录 */
   chooseDataDir: () => ipcRenderer.invoke('pm:choose-data-dir'),
@@ -46,10 +49,10 @@ const api = {
     ipcRenderer.on('pm:tasks-external', h)
     return () => ipcRenderer.removeListener('pm:tasks-external', h)
   },
-  onCollapsedChanged: (cb) => {
-    const h = (_e, flag) => cb(!!flag)
-    ipcRenderer.on('pm:collapsed-changed', h)
-    return () => ipcRenderer.removeListener('pm:collapsed-changed', h)
+  onModeChanged: (cb) => {
+    const h = (_e, m) => cb(m)
+    ipcRenderer.on('pm:mode-changed', h)
+    return () => ipcRenderer.removeListener('pm:mode-changed', h)
   }
 }
 
