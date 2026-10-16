@@ -22,7 +22,7 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 - 待发队列：复制并弹出 / 仅复制 / 编辑回填 / 删除
 - 常用词库：高频指令胶囊，一键插入光标处
 - Agent 自动接力：`next_tasks.md` 双向同步（`fs.watch`），复制时可选注入接力指令
-- 悬浮窗：无边框透明玻璃圆球造型、置顶、透明度 40%–100%、全局快捷键
+- 悬浮窗：无边框深色圆球（青色发光核心）造型、置顶、透明度 40%–100%、全局快捷键
 - 置顶开关三处可达：完整窗口标题栏图钉、快捷面板图钉、托盘菜单「窗口置顶」（状态写入 `data.json`）
 - `Ctrl+V` 智能粘贴：剪贴板是图片则落盘并插入 `[图N]` 锚点，是纯文本则直接粘贴到光标处
 
@@ -102,7 +102,7 @@ npm run dist            # 产出 release/ 下两个 exe
 
 | 形态 | 尺寸 | 说明 |
 |------|------|------|
-| 玻璃圆球 `capsule` | 56×56 透明玻璃圆球 | 悬停或点击即开输入面板；按住拖动可移动（点击与拖拽互不干扰）；靠近边缘自动缩进，只露约 20px |
+| 圆球 `capsule` | 56×56 深色圆球（青色发光核心） | 悬停或点击即开输入面板；按住拖动可移动（点击与拖拽互不干扰）；靠近边缘自动缩进，只露约 20px |
 | 快捷输入 `quick` | 400×210 | 类输入法悬浮窗：可直接打字、`Ctrl+V` 粘贴文字或图片、`Ctrl+Enter` 存弹夹 |
 | 完整 `full` | 396×640（可拉伸） | 队列 / 词库 / 图片分镜批注全功能 |
 
@@ -141,7 +141,7 @@ PromptMag is a small always-on-top window. `Alt+Q` summons it; `Ctrl+V` pastes a
 - Queue: copy & pop / copy only / edit backfill / delete
 - Snippet library: high-frequency directives as one-click capsules
 - Agent auto-relay: two-way `next_tasks.md` sync via `fs.watch`, optional relay instruction appended on copy
-- Floating window: frameless translucent glass orb, always-on-top, 40%–100% opacity, global hotkey
+- Floating window: frameless dark orb with glowing core, always-on-top, 40%–100% opacity, global hotkey
 
 ### Compile Example
 

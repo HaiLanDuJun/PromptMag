@@ -34,17 +34,12 @@ body {
   transition: border-radius 0.18s ease;
 }
 .shell.mode-capsule {
-  /* 圆球形态：玻璃质感 + 背景模糊，尽量透出底下的内容 */
+  /* 圆球形态：干净利落的深色圆球（不做背景模糊，避免虚化边缘） */
   border-radius: 999px;
-  background: radial-gradient(circle at 32% 26%,
-      rgba(125, 211, 252, 0.34) 0%,
-      rgba(30, 41, 59, 0.42) 42%,
-      rgba(11, 14, 21, 0.58) 100%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
-  backdrop-filter: blur(10px) saturate(140%);
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38),
-              inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  background: linear-gradient(150deg, #2b3a52 0%, #131b2b 58%, #0a0f1a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45),
+              inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 .shell.mode-quick { border-radius: 18px; }
 .shell.mode-full { border-radius: 16px; }
@@ -277,17 +272,14 @@ input:focus, textarea:focus, button:focus { outline: none; }
 .ball:hover { transform: scale(1.06); filter: brightness(1.12); }
 .ball:active { cursor: grabbing; transform: scale(0.97); }
 
-/* 球心 logo */
+/* 球心：青色发光圆点 */
 .ball-logo {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  line-height: 1;
-  background: linear-gradient(150deg, #a5f3fc 0%, #22d3ee 45%, #6366f1 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 38% 32%, #cffafe 0%, #22d3ee 52%, #0e7490 100%);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.65),
+              0 0 2px rgba(207, 250, 254, 0.9);
   pointer-events: none;
 }
 
@@ -295,10 +287,10 @@ input:focus, textarea:focus, button:focus { outline: none; }
 .ball-relay::after {
   content: '';
   position: absolute;
-  inset: 3px;
+  inset: 4px;
   border-radius: 999px;
-  border: 1px solid rgba(34, 211, 238, 0.55);
-  box-shadow: 0 0 10px rgba(34, 211, 238, 0.35);
+  border: 1px solid rgba(34, 211, 238, 0.6);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.4), inset 0 0 8px rgba(34, 211, 238, 0.18);
   pointer-events: none;
 }
 

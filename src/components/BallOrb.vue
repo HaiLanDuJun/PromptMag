@@ -67,7 +67,7 @@ onBeforeUnmount(() => {
     @mousedown="onDown"
     @mouseenter="$emit('open')"
   >
-    <span class="ball-logo">P</span>
+    <span class="ball-logo" />
     <span v-if="pendingCount" class="ball-badge">{{ pendingCount > 9 ? '9+' : pendingCount }}</span>
   </div>
 </template>
