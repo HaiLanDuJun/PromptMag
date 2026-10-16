@@ -101,6 +101,10 @@ let tucked = false
 let tuckHome = null
 let tuckTimer = null
 
+/* 置顶状态（主进程持有权威值，任何 show/focus/模式切换都会重新断言一次，
+   避免被后来的窗口抢走 Z 序） */
+let alwaysOnTop = true
+
 /* ------------------------------------------------------------------ */
 /* 工具函数                                                            */
 /* ------------------------------------------------------------------ */
@@ -440,6 +444,7 @@ function tuck() {
 
 function untuck() {
   clearTimeout(tuckTimer)
+  applyAlwaysOnTop()
   if (!tucked) return
   tucked = false
   const home = tuckHome
@@ -456,6 +461,34 @@ function scheduleTuck() {
     if (!mainWindow || mainWindow.isDestroyed()) return
     tuck()
   }, TUCK_DELAY)
+}
+
+/** 重新断言置顶（Windows 上所有 level 最终都是 HWND_TOPMOST，screen-saver 最高） */
+function applyAlwaysOnTop() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  try {
+    mainWindow.setAlwaysOnTop(alwaysOnTop, 'screen-saver')
+  } catch (e) {
+    log('setAlwaysOnTop failed:', e && e.message)
+  }
+}
+
+/** 统一修改置顶：应用到窗口 + 落盘 data.json + 同步渲染进程 + 刷新托盘菜单 */
+function setAlwaysOnTopState(flag) {
+  alwaysOnTop = !!flag
+  applyAlwaysOnTop()
+  try {
+    const d = readJsonSafe(P.dataFile) || {}
+    d.settings = Object.assign({}, d.settings || {}, { alwaysOnTop })
+    writeJsonAtomic(P.dataFile, d)
+  } catch (e) {
+    log('save alwaysOnTop failed:', e && e.message)
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('pm:always-on-top', alwaysOnTop)
+  }
+  refreshTrayMenu()
+  log('alwaysOnTop ->', alwaysOnTop)
 }
 
 /** 切换形态：capsule / quick / full */
@@ -500,6 +533,7 @@ function createWindow() {
   }
   mode = ['capsule', 'quick', 'full'].includes(settings.mode) ? settings.mode : 'full'
   mode = ['capsule', 'quick', 'full'].includes(ws.mode) ? ws.mode : mode
+  alwaysOnTop = settings.alwaysOnTop !== false
 
   const sizeOf = (m) => (m === 'capsule' ? { ...CAPSULE } : m === 'quick' ? { ...QUICK } : { ...fullSize })
   const initBounds = sizeOf(mode)
@@ -525,7 +559,7 @@ function createWindow() {
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: false,
-    alwaysOnTop: settings.alwaysOnTop !== false,
+    alwaysOnTop,
     show: false,
     icon: makeTrayIcon(),
     webPreferences: {
@@ -538,6 +572,11 @@ function createWindow() {
   })
 
   if (typeof settings.opacity === 'number') mainWindow.setOpacity(settings.opacity)
+
+  // 置顶在创建后立刻断言一次，并在 show/focus/滑回时反复断言，防止被其他窗口覆盖
+  applyAlwaysOnTop()
+  mainWindow.on('show', applyAlwaysOnTop)
+  mainWindow.on('restore', applyAlwaysOnTop)
 
   log('window created', JSON.stringify(initBounds), 'mode:', mode)
 
@@ -577,7 +616,7 @@ function createWindow() {
   })
 
   /* 边缘吸附：失焦一段时间后缩进屏幕边缘，重新聚焦/悬停时滑回 */
-  mainWindow.on('focus', () => untuck())
+  mainWindow.on('focus', () => { applyAlwaysOnTop(); untuck() })
   mainWindow.on('blur', () => scheduleTuck())
 
   mainWindow.once('ready-to-show', () => {
@@ -613,11 +652,16 @@ function toggleWindow() {
   }
 }
 
-function createTray() {
-  tray = new Tray(makeTrayIcon())
-  tray.setToolTip('PromptMag · CLI 提示词弹夹 (Alt+Q)')
-  const menu = Menu.buildFromTemplate([
+function buildTrayMenu() {
+  return Menu.buildFromTemplate([
     { label: '显示 / 隐藏 (Alt+Q)', click: () => toggleWindow() },
+    { type: 'separator' },
+    {
+      label: '窗口置顶（不被其他窗口覆盖）',
+      type: 'checkbox',
+      checked: alwaysOnTop,
+      click: (item) => setAlwaysOnTopState(item.checked)
+    },
     { type: 'separator' },
     {
       label: '打开数据目录',
@@ -636,7 +680,16 @@ function createTray() {
       }
     }
   ])
-  tray.setContextMenu(menu)
+}
+
+function refreshTrayMenu() {
+  if (tray && !tray.isDestroyed()) tray.setContextMenu(buildTrayMenu())
+}
+
+function createTray() {
+  tray = new Tray(makeTrayIcon())
+  tray.setToolTip('PromptMag · CLI 提示词弹夹 (Alt+Q)')
+  refreshTrayMenu()
   tray.on('click', () => toggleWindow())
 }
 
@@ -717,6 +770,16 @@ function registerIpc() {
 
   ipcMain.handle('pm:save-clipboard-images', () => saveClipboardImages())
 
+  /* 剪贴板纯文本（渲染进程粘贴文本时兜底读取，不受浏览器权限限制） */
+  ipcMain.handle('pm:read-clipboard-text', () => {
+    try {
+      const text = clipboard.readText() || ''
+      return { ok: true, text }
+    } catch (e) {
+      return { ok: false, text: '', error: String(e && e.message ? e.message : e) }
+    }
+  })
+
   ipcMain.handle('pm:copy-text', (_e, text) => {
     clipboard.writeText(String(text || ''))
     return { ok: true }
@@ -738,9 +801,7 @@ function registerIpc() {
   ipcMain.on('pm:set-opacity', (_e, v) => {
     if (mainWindow) mainWindow.setOpacity(Math.min(1, Math.max(0.4, Number(v) || 1)))
   })
-  ipcMain.on('pm:set-always-on-top', (_e, flag) => {
-    if (mainWindow) mainWindow.setAlwaysOnTop(!!flag)
-  })
+  ipcMain.on('pm:set-always-on-top', (_e, flag) => setAlwaysOnTopState(!!flag))
   ipcMain.on('pm:hide-window', () => mainWindow && mainWindow.hide())
   ipcMain.on('pm:toggle-window', () => toggleWindow())
   ipcMain.on('pm:open-path', (_e, p) => {

@@ -14,6 +14,9 @@ const api = {
   /* 剪贴板图片落盘 */
   saveClipboardImages: () => ipcRenderer.invoke('pm:save-clipboard-images'),
 
+  /* 剪贴板文本（粘贴纯文本兜底） */
+  readClipboardText: () => ipcRenderer.invoke('pm:read-clipboard-text'),
+
   /* 剪贴板文本 */
   copyText: (text) => ipcRenderer.invoke('pm:copy-text', text),
 
@@ -55,6 +58,12 @@ const api = {
     const h = (_e, m) => cb(m)
     ipcRenderer.on('pm:mode-changed', h)
     return () => ipcRenderer.removeListener('pm:mode-changed', h)
+  },
+  /* 托盘菜单切换置顶时回传，保持 UI 同步 */
+  onAlwaysOnTopChanged: (cb) => {
+    const h = (_e, flag) => cb(!!flag)
+    ipcRenderer.on('pm:always-on-top', h)
+    return () => ipcRenderer.removeListener('pm:always-on-top', h)
   }
 }
 

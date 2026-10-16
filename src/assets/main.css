@@ -342,6 +342,14 @@ input:focus, textarea:focus, button:focus { outline: none; }
 }
 .qicon:hover { background: rgba(148, 163, 184, 0.1); color: #e2e8f0; }
 
+/* 置顶开启态 */
+.qicon-on {
+  color: #22d3ee;
+  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.12);
+}
+.qicon-on:hover { background: rgba(34, 211, 238, 0.2); color: #67e8f9; }
+
 .quick-body {
   flex: 1;
   min-height: 0;

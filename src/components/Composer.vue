@@ -1,14 +1,14 @@
 <script setup>
 /**
  * 主输入区（Composer）
- *  - Ctrl+V：剪贴板为图片时落盘并在「光标处」插入 [图N] 内联标记
+ *  - Ctrl+V：图片则落盘并在「光标处」插入 [图N] 内联标记；纯文本则直接粘贴
  *  - Ctrl+Enter：压入待发弹夹队列
  *  - 词库胶囊点击插入光标处
  */
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { compilePrompt } from '../lib/compilePrompt'
 import {
-  state, addImages, pushComposerToQueue, copyCompiled, toast
+  state, addImages, pushComposerToQueue, copyCompiled, toast, readClipboardText
 } from '../lib/store'
 import ImageCardList from './ImageCardList.vue'
 
@@ -23,8 +23,10 @@ function insertAtCursor(str) {
     state.composer.text = t + str
     return
   }
-  const s = el.selectionStart ?? t.length
-  const e = el.selectionEnd ?? s
+  el.focus()
+  const focused = document.activeElement === el
+  const s = focused ? (el.selectionStart ?? t.length) : t.length
+  const e = focused ? (el.selectionEnd ?? s) : t.length
   state.composer.text = t.slice(0, s) + str + t.slice(e)
   nextTick(() => {
     el.focus()
@@ -32,9 +34,8 @@ function insertAtCursor(str) {
   })
 }
 
-/* ---------- Ctrl+V：图片拦截 / 文本兜底 ---------- */
-async function onPaste(e) {
-  e.preventDefault()
+/* ---------- 粘贴：优先图片，其次纯文本 ---------- */
+async function pasteFromClipboard() {
   const res = await window.pm.saveClipboardImages()
   if (res.ok && res.images && res.images.length) {
     const startNo = state.composer.images.length + 1
@@ -42,26 +43,30 @@ async function onPaste(e) {
     const tokens = res.images.map((_, i) => `[图${startNo + i}]`).join(' ')
     insertAtCursor(tokens + ' ')
     toast(`已贴 ${res.images.length} 张图，标记插在光标处`)
-  } else {
-    try {
-      const t = await navigator.clipboard.readText()
-      if (t) insertAtCursor(t)
-    } catch { /* ignore */ }
+    return
   }
+  const t = await readClipboardText()
+  if (t) {
+    insertAtCursor(t)
+    toast('已粘贴文本')
+    return
+  }
+  toast('剪贴板里没有可粘贴的图片或文字')
 }
 
-/* ---------- 手动贴图按钮（截图工具抢焦点时的兜底） ---------- */
-async function pasteImageManually() {
-  const res = await window.pm.saveClipboardImages()
-  if (res.ok && res.images && res.images.length) {
-    const startNo = state.composer.images.length + 1
-    addImages(res.images)
-    const tokens = res.images.map((_, i) => `[图${startNo + i}]`).join(' ')
-    insertAtCursor(tokens + ' ')
-    toast(`已贴 ${res.images.length} 张图`)
-  } else {
-    toast('剪贴板中没有图片')
-  }
+/** 粘贴目标若是别的输入框（批注、词库等）则不拦截，让它走浏览器默认行为 */
+function isOwnPasteTarget(e) {
+  const el = e && e.target
+  if (!el || !el.tagName) return true
+  const tag = String(el.tagName).toLowerCase()
+  if (tag === 'textarea' || tag === 'input') return el === ta.value
+  return true
+}
+
+async function onPaste(e) {
+  if (!isOwnPasteTarget(e)) return
+  e.preventDefault()
+  await pasteFromClipboard()
 }
 
 /* ---------- 快捷键 ---------- */
@@ -100,10 +105,13 @@ function onSnippetInsert(e) { insertAtCursor(e.detail + ' ') }
 onMounted(() => {
   offFocus = window.pm.onFocusComposer(() => ta.value && ta.value.focus())
   window.addEventListener('pm:insert-snippet', onSnippetInsert)
+  // 挂在 document 上：焦点不在输入框时 Ctrl+V 也能接到
+  document.addEventListener('paste', onPaste)
 })
 onBeforeUnmount(() => {
   if (offFocus) offFocus()
   window.removeEventListener('pm:insert-snippet', onSnippetInsert)
+  document.removeEventListener('paste', onPaste)
 })
 </script>
 
@@ -114,8 +122,7 @@ onBeforeUnmount(() => {
       ref="ta"
       v-model="state.composer.text"
       class="field h-[72px] leading-relaxed"
-      placeholder="写提示词… Ctrl+V 在光标处贴图，Ctrl+Enter 入队"
-      @paste="onPaste"
+      placeholder="写提示词… Ctrl+V 在光标处粘贴文字/图片，Ctrl+Enter 入队"
       @keydown="onKeydown"
     />
 
@@ -140,7 +147,7 @@ onBeforeUnmount(() => {
 
     <!-- 操作行 -->
     <div class="flex items-center gap-1.5">
-      <button class="btn" title="将剪贴板图片贴到光标处" @click="pasteImageManually">贴图</button>
+      <button class="btn" title="粘贴剪贴板内容（图片落盘插入 [图N]，文字直接粘贴）" @click="pasteFromClipboard">粘贴</button>
       <button class="btn" title="编译（图片路径映射 + 批注）并复制" @click="copyCurrent">复制</button>
       <button class="btn btn-primary" title="压入待发队列 (Ctrl+Enter)" @click="enqueue">入队</button>
       <div class="flex-1" />

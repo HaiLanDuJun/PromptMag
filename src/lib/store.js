@@ -16,6 +16,7 @@ if (typeof window !== 'undefined' && !window.pm) {
     }),
     saveData: async () => ({ ok: true }),
     saveClipboardImages: async () => ({ ok: false, error: 'no bridge' }),
+    readClipboardText: async () => ({ ok: false, text: '' }),
     copyText: async (t) => {
       try { await navigator.clipboard.writeText(String(t)) } catch { /* ignore */ }
       return { ok: true }
@@ -36,7 +37,8 @@ if (typeof window !== 'undefined' && !window.pm) {
     showItemInFolder () {},
     onFocusComposer: () => () => {},
     onTasksExternalChange: () => () => {},
-    onModeChanged: () => () => {}
+    onModeChanged: () => () => {},
+    onAlwaysOnTopChanged: () => () => {}
   }
 }
 
@@ -127,7 +129,22 @@ export async function initStore() {
 
   window.pm.setOpacity(state.settings.opacity)
   window.pm.setAlwaysOnTop(state.settings.alwaysOnTop !== false)
+  // 托盘菜单切换置顶时回传，保持 UI 开关一致
+  window.pm.onAlwaysOnTopChanged((v) => { state.settings.alwaysOnTop = !!v })
   if (state.settings.relay) syncTasksFile()
+}
+
+/* ---------------- 剪贴板文本读取（主进程优先，浏览器 API 兜底） ---------------- */
+export async function readClipboardText() {
+  try {
+    const r = await window.pm.readClipboardText()
+    if (r && r.ok && r.text) return r.text
+  } catch { /* ignore */ }
+  try {
+    const t = await navigator.clipboard.readText()
+    if (t) return t
+  } catch { /* ignore */ }
+  return ''
 }
 
 /* 双向监听：CLI Agent 把 "- [ ]" 勾成 "- [x]" 时同步回 UI */
