@@ -471,7 +471,38 @@ function scheduleTuck() {
 }
 
 /** 重新断言置顶（Windows 上所有 level 最终都是 HWND_TOPMOST，screen-saver 最高） */
-function applyAlwaysOnTop() {
+/** 圆球形态真正裁成圆形：Windows 的 setShape 只支持矩形列表，用 1px 横向细条逼近圆。
+ *  透明窗口仅靠 CSS border-radius 时，合成器常在四角残留方形虚框，这里从窗口层面切掉。 */
+function applyShape() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (mode !== 'capsule') {
+    try { mainWindow.setShape([]) } catch (e) { log('clear shape failed:', e && e.message) }
+    return
+  }
+  const b = mainWindow.getBounds()
+  const r = Math.min(b.width, b.height) / 2
+  const cx = b.width / 2
+  const cy = b.height / 2
+  const rects = []
+  for (let y = 0; y < b.height; y += 1) {
+    const dy = y + 0.5 - cy
+    const h2 = r * r - dy * dy
+    if (h2 <= 0) continue
+    const hw = Math.sqrt(h2)
+    rects.push({
+      x: Math.max(0, Math.round(cx - hw)),
+      y: Math.round(y),
+      width: Math.max(1, Math.round(hw * 2)),
+      height: 1
+    })
+  }
+  try {
+    mainWindow.setShape(rects)
+    log('shape -> circle', 'rects:', rects.length, 'size:', b.width + 'x' + b.height)
+  } catch (e) {
+    log('setShape failed:', e && e.message)
+  }
+}function applyAlwaysOnTop() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   try {
     mainWindow.setAlwaysOnTop(alwaysOnTop, 'screen-saver')
@@ -504,6 +535,8 @@ function setMode(next) {
   const prev = mode
   mode = next
   untuck()
+  // 离开圆球先撤销裁剪，避免放大动画被圆形裁掉
+  if (prev === 'capsule') { try { mainWindow.setShape([]) } catch { /* ignore */ } }
   const cur = mainWindow.getBounds()
 
   if (next === 'full') {
@@ -524,7 +557,11 @@ function setMode(next) {
     const wa = screen.getDisplayNearestPoint({ x: cur.x, y: cur.y }).workArea
     const x = Math.min(Math.max(wa.x, cur.x), wa.x + wa.width - size.width)
     const y = Math.min(Math.max(wa.y, cur.y), wa.y + wa.height - size.height)
-    animateTo({ x, y, ...size }, saveWindowState)
+    // 收成圆球：动画结束后再裁圆形（动画期间裁圆会闪）
+    animateTo({ x, y, ...size }, () => {
+      saveWindowState()
+      if (next === 'capsule') applyShape()
+    })
   }
   mainWindow.webContents.send('pm:mode-changed', mode)
   // untuck() 会清掉缩进定时器，收成胶囊后要重新排队（否则胶囊永远贴边不缩进）
@@ -586,6 +623,8 @@ function createWindow() {
   applyAlwaysOnTop()
   mainWindow.on('show', applyAlwaysOnTop)
   mainWindow.on('restore', applyAlwaysOnTop)
+  // 圆球形态启动就裁成圆形（避免 CSS 圆角残留的方形四角）
+  if (mode === 'capsule') setTimeout(applyShape, 50)
 
   log('window created', JSON.stringify(initBounds), 'mode:', mode)
 
@@ -933,7 +972,8 @@ function registerIpc() {
 /* ------------------------------------------------------------------ */
 /* 生命周期                                                            */
 /* ------------------------------------------------------------------ */
-if (!app.requestSingleInstanceLock()) {
+// PM_ALLOW_MULTI=1 时跳过单实例锁（仅本地调试用，正常启动不受影响）
+if (!process.env.PM_ALLOW_MULTI && !app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => {
