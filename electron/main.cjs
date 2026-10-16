@@ -420,9 +420,10 @@ function nearestEdge(b) {
   return { edge, dist: min, wa }
 }
 
-/** 缩进到最近的边缘，只露出一半 */
+/** 缩进到最近的边缘，只露出一半（胶囊形态同样生效） */
 function tuck() {
-  if (!mainWindow || tucked || mode === 'capsule') return
+  if (!mainWindow || tucked) return
+  if (mainWindow.isDestroyed()) return
   if (mainWindow.isFocused()) return
   // 不依赖渲染进程的 hover 事件（会卡死），直接读真实光标位置
   const b = mainWindow.getBounds()
@@ -456,7 +457,6 @@ function untuck() {
 }
 function scheduleTuck() {
   clearTimeout(tuckTimer)
-  if (mode === 'capsule') return
   tuckTimer = setTimeout(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return
     tuck()
@@ -520,6 +520,8 @@ function setMode(next) {
     animateTo({ x, y, ...size }, saveWindowState)
   }
   mainWindow.webContents.send('pm:mode-changed', mode)
+  // untuck() 会清掉缩进定时器，收成胶囊后要重新排队（否则胶囊永远贴边不缩进）
+  if (next === 'capsule') scheduleTuck()
   log('mode ->', mode)
 }
 
@@ -846,6 +848,19 @@ if (!app.requestSingleInstanceLock()) {
     })
 
     globalShortcut.register(SHORTCUT, () => toggleWindow())
+
+    // 置顶自愈：某些窗口（全屏、游戏、远控类）会把我们挤出 TOPMOST，
+    // 每 2s 检查一次，只在真的掉下来时才重新断言，平时零开销
+    setInterval(() => {
+      if (!mainWindow || mainWindow.isDestroyed() || !alwaysOnTop) return
+      if (!mainWindow.isVisible() || mainWindow.isMinimized()) return
+      try {
+        if (!mainWindow.isAlwaysOnTop()) {
+          log('!! topmost lost -> re-assert')
+          applyAlwaysOnTop()
+        }
+      } catch { /* ignore */ }
+    }, 2000)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
