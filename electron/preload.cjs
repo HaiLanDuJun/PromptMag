@@ -39,6 +39,9 @@ const api = {
   /* 数据目录 */
   chooseDataDir: () => ipcRenderer.invoke('pm:choose-data-dir'),
 
+  /* 自定义全局快捷键（弹出最旧未用 / 收录选中文字） */
+  updateHotkeys: (h) => ipcRenderer.send('pm:update-hotkeys', h),
+
   /* 文件系统辅助 */
   openPath: (p) => ipcRenderer.send('pm:open-path', p),
   showItemInFolder: (p) => ipcRenderer.send('pm:show-item-in-folder', p),
@@ -64,6 +67,24 @@ const api = {
     const h = (_e, flag) => cb(!!flag)
     ipcRenderer.on('pm:always-on-top', h)
     return () => ipcRenderer.removeListener('pm:always-on-top', h)
+  },
+  /* 全局快捷键：弹出最旧未用提示词 */
+  onHotkeyPop: (cb) => {
+    const h = () => cb()
+    ipcRenderer.on('pm:hotkey-pop', h)
+    return () => ipcRenderer.removeListener('pm:hotkey-pop', h)
+  },
+  /* 全局快捷键：收录选中文字到词库 */
+  onHotkeyCollected: (cb) => {
+    const h = (_e, payload) => cb(payload || {})
+    ipcRenderer.on('pm:hotkey-collected', h)
+    return () => ipcRenderer.removeListener('pm:hotkey-collected', h)
+  },
+  /* 快捷键注册结果回执 */
+  onHotkeysRegistered: (cb) => {
+    const h = (_e, payload) => cb(payload || {})
+    ipcRenderer.on('pm:hotkeys-registered', h)
+    return () => ipcRenderer.removeListener('pm:hotkeys-registered', h)
   }
 }
 

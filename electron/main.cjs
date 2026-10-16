@@ -24,6 +24,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const zlib = require('node:zlib')
+const { spawn } = require('node:child_process')
 const { pathToFileURL } = require('node:url')
 
 // pmimg:// 本地图片协议需在 app ready 前注册特权（standard + fetch 支持）
@@ -56,6 +57,10 @@ P.logFile = path.join(P.home, 'main.log')
 P.windowState = path.join(P.home, 'window-state.json')
 
 const SHORTCUT = 'Alt+Q'
+
+/* 两个可自定义全局快捷键（设置面板可改，存于 data.json settings） */
+const HOTKEY_DEFAULTS = { pop: 'Alt+V', collect: 'Alt+S' }
+let customHotkeys = { ...HOTKEY_DEFAULTS }
 
 /* 开发服务端口（与 vite.config.js 保持一致），不再使用 5173 */
 const DEV_PORT = Number(process.env.PM_DEV_PORT) || 5199
@@ -656,6 +661,101 @@ function toggleWindow() {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* 自定义全局快捷键：弹出最旧未用 / 收录选中文字                        */
+/* ------------------------------------------------------------------ */
+function sendToRenderer(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload)
+  }
+}
+
+/** 快捷键 1：弹出弹夹里最老的未使用提示词（复制并标记使用） */
+function onHotkeyPop() {
+  log('hotkey pop ->', customHotkeys.pop)
+  sendToRenderer('pm:hotkey-pop')
+}
+
+/** 模拟按下 Ctrl+C（对前台窗口生效），让目标应用把选中文本复制到剪贴板
+ *  用 wscript + vbs：无控制台窗口、不抢焦点（powershell 启动会闪 conhost 抢焦点导致 ^c 发错窗口） */
+function sendCopyKeys() {
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => { if (!done) { done = true; resolve() } }
+    try {
+      const vbs = path.join(os.tmpdir(), 'pm-sendcopy.vbs')
+      fs.writeFileSync(vbs, 'CreateObject("WScript.Shell").SendKeys "^c"', 'utf8')
+      const p = spawn('wscript.exe', ['//nologo', '//B', vbs], { windowsHide: true, stdio: 'ignore' })
+      p.on('exit', finish)
+      p.on('error', finish)
+    } catch { finish() }
+    setTimeout(finish, 900) // 兜底：脚本卡死也不阻塞
+  })
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/** 快照剪贴板（文本 + 图片 + HTML），捕获后还原，尽量不破坏用户剪贴板 */
+function snapshotClipboard() {
+  const snap = { text: '', image: null, html: null }
+  try { snap.text = clipboard.readText() || '' } catch { /* ignore */ }
+  try {
+    const img = clipboard.readImage()
+    if (img && !img.isEmpty()) snap.image = img
+  } catch { /* ignore */ }
+  try {
+    const html = clipboard.readBuffer('text/html')
+    if (html && html.length) snap.html = html
+  } catch { /* ignore */ }
+  return snap
+}
+
+function restoreClipboard(snap) {
+  try {
+    if (snap.image) clipboard.writeImage(snap.image)
+    else if (snap.html) clipboard.writeBuffer('text/html', snap.html)
+    else if (snap.text) clipboard.writeText(snap.text)
+  } catch { /* ignore */ }
+}
+
+/** 快捷键 2：收录当前选中文字到词库（保存剪贴板 -> 模拟 Ctrl+C -> 读文本 -> 还原） */
+async function onHotkeyCollect() {
+  log('hotkey collect ->', customHotkeys.collect)
+  const snap = snapshotClipboard()
+  await sendCopyKeys()
+  await sleep(260) // 等目标应用完成复制
+  let text = ''
+  try { text = clipboard.readText() || '' } catch { /* ignore */ }
+  log('hotkey collect captured:', JSON.stringify(text.slice(0, 60)), 'len:', text.length)
+  // 还原用户原来的剪贴板内容（同文本则无需还原）
+  if (text !== snap.text) restoreClipboard(snap)
+  sendToRenderer('pm:hotkey-collected', { ok: !!(text && text.trim()), text })
+}
+
+/** 从 data.json 读取自定义快捷键配置 */
+function readHotkeysFromData() {
+  const d = readJsonSafe(P.dataFile) || {}
+  const s = d.settings || {}
+  customHotkeys = {
+    pop: typeof s.hotkeyPop === 'string' && s.hotkeyPop.trim() ? s.hotkeyPop.trim() : HOTKEY_DEFAULTS.pop,
+    collect: typeof s.hotkeyCollect === 'string' && s.hotkeyCollect.trim() ? s.hotkeyCollect.trim() : HOTKEY_DEFAULTS.collect
+  }
+}
+
+/** 重新注册自定义快捷键（设置变更时调用），返回是否全部成功 */
+function registerCustomHotkeys() {
+  for (const acc of Object.values(customHotkeys)) {
+    try { if (acc && acc !== SHORTCUT) globalShortcut.unregister(acc) } catch { /* ignore */ }
+  }
+  let allOk = true
+  try { globalShortcut.register(customHotkeys.pop, onHotkeyPop) }
+  catch (e) { allOk = false; log('!! register pop hotkey failed:', customHotkeys.pop, e && e.message) }
+  try { globalShortcut.register(customHotkeys.collect, onHotkeyCollect) }
+  catch (e) { allOk = false; log('!! register collect hotkey failed:', customHotkeys.collect, e && e.message) }
+  log('custom hotkeys ->', JSON.stringify(customHotkeys), 'ok:', allOk)
+  return allOk
+}
+
 function buildTrayMenu() {
   return Menu.buildFromTemplate([
     { label: '显示 / 隐藏 (Alt+Q)', click: () => toggleWindow() },
@@ -806,6 +906,20 @@ function registerIpc() {
     if (mainWindow) mainWindow.setOpacity(Math.min(1, Math.max(0.4, Number(v) || 1)))
   })
   ipcMain.on('pm:set-always-on-top', (_e, flag) => setAlwaysOnTopState(!!flag))
+
+  /* 自定义快捷键变更（渲染层设置面板录制后调用，主进程立即生效） */
+  ipcMain.on('pm:update-hotkeys', (_e, h) => {
+    const pop = h && typeof h.pop === 'string' && h.pop.trim() ? h.pop.trim() : null
+    const collect = h && typeof h.collect === 'string' && h.collect.trim() ? h.collect.trim() : null
+    if (pop && pop !== SHORTCUT) customHotkeys.pop = pop
+    if (collect && collect !== SHORTCUT) customHotkeys.collect = collect
+    const ok = registerCustomHotkeys()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('pm:hotkeys-registered', {
+        ok, pop: customHotkeys.pop, collect: customHotkeys.collect
+      })
+    }
+  })
   ipcMain.on('pm:hide-window', () => mainWindow && mainWindow.hide())
   ipcMain.on('pm:toggle-window', () => toggleWindow())
   ipcMain.on('pm:open-path', (_e, p) => {
@@ -850,6 +964,10 @@ if (!app.requestSingleInstanceLock()) {
     })
 
     globalShortcut.register(SHORTCUT, () => toggleWindow())
+
+    // 自定义快捷键（弹出最旧未用 / 收录选中文字），配置来自 data.json settings
+    readHotkeysFromData()
+    registerCustomHotkeys()
 
     // 置顶自愈：某些窗口（全屏、游戏、远控类）会把我们挤出 TOPMOST，
     // 每 2s 检查一次，只在真的掉下来时才重新断言，平时零开销

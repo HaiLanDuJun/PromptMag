@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import { state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir } from '../lib/store'
+import { state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir, setHotkeys } from '../lib/store'
+import HotkeyInput from './HotkeyInput.vue'
 
 defineEmits(['collapse', 'mini'])
 
@@ -13,6 +14,10 @@ function openDataDir() { window.pm.openPath(state.paths.homeDir) }
 async function onChooseDir() {
   const r = await chooseDataDir()
   if (r && r.ok) showSettings.value = false
+}
+
+function onHotkeyChange(which, v) {
+  setHotkeys(which === 'pop' ? { pop: v } : { collect: v })
 }
 </script>
 
@@ -107,6 +112,25 @@ async function onChooseDir() {
     <div v-if="showSettings" class="settings-backdrop" @click="showSettings = false" />
     <div v-if="showSettings" class="settings-panel no-drag" @click.stop>
       <div class="settings-title">设置</div>
+
+      <div class="settings-label">全局快捷键</div>
+      <div class="hotkey-row">
+        <span class="hotkey-desc" title="复制弹夹里最老的未使用提示词，并标记为已使用">弹出最旧未用</span>
+        <HotkeyInput
+          :model-value="state.settings.hotkeyPop"
+          @update:model-value="(v) => onHotkeyChange('pop', v)"
+        />
+      </div>
+      <div class="hotkey-row">
+        <span class="hotkey-desc" title="把当前选中文字一键收录到提示词收藏夹（词库）">收录选中文字</span>
+        <HotkeyInput
+          :model-value="state.settings.hotkeyCollect"
+          @update:model-value="(v) => onHotkeyChange('collect', v)"
+        />
+      </div>
+      <div class="settings-tip">
+        「弹出最旧未用」：复制弹夹里最老的未使用提示词并标记为已使用；「收录选中文字」：在其他应用里选中文字后按下快捷键，自动加入词库（会短暂借用剪贴板并自动还原）。
+      </div>
 
       <div class="settings-label">数据目录（图片 / 队列 / next_tasks.md）</div>
       <div class="settings-path" :title="state.paths.homeDir">{{ state.paths.homeDir }}</div>

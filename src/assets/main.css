@@ -521,3 +521,36 @@ input:focus, textarea:focus, button:focus { outline: none; }
   color: #475569;
   line-height: 1.5;
 }
+
+/* ============ 快捷键录制输入 ============ */
+.hotkey-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.hotkey-desc {
+  flex: 0 0 84px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+.hotkey-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  color: #e2e8f0;
+  background: rgba(10, 13, 20, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 7px;
+  padding: 5px 8px;
+  cursor: pointer;
+  outline: none;
+  text-align: center;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.hotkey-input:hover { border-color: rgba(34, 211, 238, 0.4); }
+.hotkey-input.recording {
+  border-color: #22d3ee;
+  color: #22d3ee;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.15);
+}

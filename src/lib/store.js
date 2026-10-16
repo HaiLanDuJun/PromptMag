@@ -33,12 +33,16 @@ if (typeof window !== 'undefined' && !window.pm) {
     getBounds: async () => null,
     dragMoveTo () {},
     chooseDataDir: async () => ({ ok: false, canceled: true }),
+    updateHotkeys () {},
     openPath () {},
     showItemInFolder () {},
     onFocusComposer: () => () => {},
     onTasksExternalChange: () => () => {},
     onModeChanged: () => () => {},
-    onAlwaysOnTopChanged: () => () => {}
+    onAlwaysOnTopChanged: () => () => {},
+    onHotkeyPop: () => () => {},
+    onHotkeyCollected: () => () => {},
+    onHotkeysRegistered: () => () => {}
   }
 }
 
@@ -58,7 +62,7 @@ export const state = reactive({
   platform: 'win32',
   toast: '',
   paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '' },
-  settings: { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full' },
+  settings: { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full', hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S' },
   snippets: [],
   composer: { text: '', images: [] },
   queue: []
@@ -111,7 +115,7 @@ export async function initStore() {
   state.platform = res.platform || 'win32'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
-    { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full' },
+    { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full', hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S' },
     d.settings || {}
   )
   if (!['capsule', 'quick', 'full'].includes(state.settings.mode)) state.settings.mode = 'full'
@@ -132,6 +136,44 @@ export async function initStore() {
   // 托盘菜单切换置顶时回传，保持 UI 开关一致
   window.pm.onAlwaysOnTopChanged((v) => { state.settings.alwaysOnTop = !!v })
   if (state.settings.relay) syncTasksFile()
+
+  /* 全局快捷键事件绑定 */
+  bindHotkeyEvents()
+}
+
+/* ---------------- 全局快捷键：弹出最旧未用 / 收录选中 ---------------- */
+function bindHotkeyEvents() {
+  /* 快捷键 1：复制弹夹里最老的未使用提示词，并标记为已使用（done） */
+  window.pm.onHotkeyPop(async () => {
+    const task = state.queue.find((t) => !t.done)
+    if (!task) { toast('弹夹空了：没有未使用的提示词'); return }
+    try {
+      await copyCompiled(task)
+      task.done = true
+      toast('已复制最旧未用提示词（标记为已使用）')
+    } catch { toast('复制失败') }
+  })
+
+  /* 快捷键 2：收录当前选中文字到词库 */
+  window.pm.onHotkeyCollected(({ ok, text }) => {
+    if (ok && text && text.trim()) {
+      addSnippet(text.trim())
+      toast('已收录选中文字到词库')
+    } else {
+      toast('没有捕获到选中文本')
+    }
+  })
+
+  /* 快捷键注册失败回执（例如与其他软件冲突） */
+  window.pm.onHotkeysRegistered(({ ok, pop, collect }) => {
+    if (!ok) toast(`快捷键注册失败：${pop} / ${collect}（可能与其他软件冲突）`)
+  })
+}
+
+export function setHotkeys({ pop, collect } = {}) {
+  if (pop) state.settings.hotkeyPop = pop
+  if (collect) state.settings.hotkeyCollect = collect
+  window.pm.updateHotkeys({ pop: state.settings.hotkeyPop, collect: state.settings.hotkeyCollect })
 }
 
 /* ---------------- 剪贴板文本读取（主进程优先，浏览器 API 兜底） ---------------- */
