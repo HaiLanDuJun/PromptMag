@@ -61,7 +61,7 @@ const SHORTCUT = 'Alt+Q'
 const DEV_PORT = Number(process.env.PM_DEV_PORT) || 5199
 
 /* 三种形态尺寸 */
-const CAPSULE = { width: 176, height: 46 }
+const BALL = { width: 56, height: 56 }      // 收起形态：玻璃圆球
 const QUICK = { width: 400, height: 210 }
 const FULL_DEFAULT = { width: 396, height: 640 }
 const FULL_MIN = { width: 340, height: 480 }
@@ -433,11 +433,13 @@ function tuck() {
   const { edge, dist, wa } = nearestEdge(b)
   if (dist > EDGE_THRESHOLD) return
   tuckHome = { ...b }
+  // 只露出一条边（圆球约 20px，大窗口最多 26px），尽量 0 侵入
+  const visible = Math.min(26, Math.round(Math.min(b.width, b.height) * 0.36))
   const target = { ...b }
-  if (edge === 'left') target.x = wa.x - Math.round(b.width / 2)
-  else if (edge === 'right') target.x = wa.x + wa.width - Math.round(b.width / 2)
-  else if (edge === 'top') target.y = wa.y - Math.round(b.height / 2)
-  else target.y = wa.y + wa.height - Math.round(b.height / 2)
+  if (edge === 'left') target.x = wa.x - (b.width - visible)
+  else if (edge === 'right') target.x = wa.x + wa.width - visible
+  else if (edge === 'top') target.y = wa.y - (b.height - visible)
+  else target.y = wa.y + wa.height - visible
   tucked = true
   log('tuck ->', edge, JSON.stringify(target))
   animateTo(target, saveWindowState)
@@ -510,7 +512,7 @@ function setMode(next) {
   } else {
     // 从完整形态收起时记住它的尺寸
     if (prev === 'full') fullSize = { width: cur.width, height: cur.height }
-    const size = next === 'quick' ? { ...QUICK } : { ...CAPSULE }
+    const size = next === 'quick' ? { ...QUICK } : { ...BALL }
     mainWindow.setResizable(false)
     mainWindow.setMinimumSize(size.width, size.height)
     // 尽量保持左上角，越界则反向贴边
@@ -537,9 +539,9 @@ function createWindow() {
   mode = ['capsule', 'quick', 'full'].includes(ws.mode) ? ws.mode : mode
   alwaysOnTop = settings.alwaysOnTop !== false
 
-  const sizeOf = (m) => (m === 'capsule' ? { ...CAPSULE } : m === 'quick' ? { ...QUICK } : { ...fullSize })
+  const sizeOf = (m) => (m === 'capsule' ? { ...BALL } : m === 'quick' ? { ...QUICK } : { ...fullSize })
   const initBounds = sizeOf(mode)
-  const minOf = (m) => (m === 'capsule' ? { ...CAPSULE } : m === 'quick' ? { ...QUICK } : FULL_MIN)
+  const minOf = (m) => (m === 'capsule' ? { ...BALL } : m === 'quick' ? { ...QUICK } : FULL_MIN)
   if (typeof ws.x === 'number' && typeof ws.y === 'number') {
     // 恢复上次位置并钳制到当前显示器工作区
     Object.assign(initBounds, clampToWorkArea({

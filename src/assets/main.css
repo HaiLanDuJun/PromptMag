@@ -33,7 +33,19 @@ body {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.35);
   transition: border-radius 0.18s ease;
 }
-.shell.mode-capsule { border-radius: 999px; }
+.shell.mode-capsule {
+  /* 圆球形态：玻璃质感 + 背景模糊，尽量透出底下的内容 */
+  border-radius: 999px;
+  background: radial-gradient(circle at 32% 26%,
+      rgba(125, 211, 252, 0.34) 0%,
+      rgba(30, 41, 59, 0.42) 42%,
+      rgba(11, 14, 21, 0.58) 100%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38),
+              inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
 .shell.mode-quick { border-radius: 18px; }
 .shell.mode-full { border-radius: 16px; }
 
@@ -251,19 +263,63 @@ input:focus, textarea:focus, button:focus { outline: none; }
 /* ============ 分隔线 ============ */
 .hairline { border-bottom: 1px solid rgba(148, 163, 184, 0.08); }
 
-/* ============ 胶囊条（收起形态） ============ */
-.capsule {
+/* ============ 玻璃圆球（收起形态） ============ */
+.ball {
+  position: relative;
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 14px;
+  justify-content: center;
   cursor: grab;              /* 明确可拖拽 */
-  transition: background 0.12s linear;
-  will-change: background;
+  transition: transform 0.14s ease, filter 0.14s linear;
+  will-change: transform;
 }
-.capsule:hover { background: rgba(148, 163, 184, 0.06); }
-.capsule:active { cursor: grabbing; }
+.ball:hover { transform: scale(1.06); filter: brightness(1.12); }
+.ball:active { cursor: grabbing; transform: scale(0.97); }
+
+/* 球心 logo */
+.ball-logo {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  background: linear-gradient(150deg, #a5f3fc 0%, #22d3ee 45%, #6366f1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  pointer-events: none;
+}
+
+/* 接力开启：外圈青色微光 */
+.ball-relay::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.55);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.35);
+  pointer-events: none;
+}
+
+/* 待发数量角标 */
+.ball-badge {
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #22d3ee;
+  color: #06212b;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
 
 /* ============ 快捷输入面板（输入法悬浮窗形态） ============ */
 .quick {
@@ -425,31 +481,7 @@ input:focus, textarea:focus, button:focus { outline: none; }
   align-items: center;
   justify-content: center;
 }
-.capsule-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #e2e8f0;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-.capsule-count {
-  min-width: 16px;
-  height: 15px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: rgba(61, 220, 151, 0.18);
-  color: #3ddc97;
-  font-size: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.capsule-arrow {
-  margin-left: auto;
-  color: #475569;
-  flex-shrink: 0;
-}
-.capsule:hover .capsule-arrow { color: #94a3b8; }
+
 
 /* ============ 设置面板 ============ */
 .settings-backdrop {

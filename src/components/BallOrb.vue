@@ -1,5 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+/**
+ * 收起形态：玻璃圆球
+ *  - 悬停展开成快捷输入面板，点击也能打开
+ *  - 按住拖动可移动（点击与拖拽互不干扰：位移 > 4px 才算拖动）
+ */
+import { computed, onBeforeUnmount } from 'vue'
 import { state } from '../lib/store'
 
 const emit = defineEmits(['open'])
@@ -54,21 +59,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- 胶囊条：点击打开快捷输入面板；按住拖动移动（不吞点击） -->
+  <!-- 玻璃圆球：点击打开快捷输入面板；按住拖动移动（不吞点击） -->
   <div
-    class="capsule"
+    class="ball"
+    :class="{ 'ball-relay': state.settings.relay }"
     title="悬停或点击直接输入 · 按住可拖拽移动"
     @mousedown="onDown"
     @mouseenter="$emit('open')"
   >
-    <span
-      class="w-1.5 h-1.5 rounded-full shrink-0"
-      :class="state.settings.relay ? 'bg-neon-cyan shadow-[0_0_6px_#22d3ee]' : 'bg-slate-600'"
-    />
-    <span class="capsule-title">PromptMag</span>
-    <span v-if="pendingCount" class="capsule-count">{{ pendingCount }}</span>
-    <svg class="capsule-arrow" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 9h12" /><path d="M4 15h16" /><path d="M14 6l6 6-6 6" />
-    </svg>
+    <span class="ball-logo">P</span>
+    <span v-if="pendingCount" class="ball-badge">{{ pendingCount > 9 ? '9+' : pendingCount }}</span>
   </div>
 </template>

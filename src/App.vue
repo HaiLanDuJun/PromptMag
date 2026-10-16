@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import TitleBar from './components/TitleBar.vue'
-import CapsuleBar from './components/CapsuleBar.vue'
+import BallOrb from './components/BallOrb.vue'
 import QuickPanel from './components/QuickPanel.vue'
 import Composer from './components/Composer.vue'
 import QueueTab from './components/QueueTab.vue'
@@ -96,8 +96,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="shell" :class="'mode-' + mode" @mouseenter="onShellEnter" @mouseleave="onShellLeave">
-    <!-- 胶囊：悬停/点击 -> 快捷输入面板；整条可拖拽 -->
-    <CapsuleBar v-if="mode === 'capsule'" @open="hoverOpenQuick" />
+    <!-- 圆球：悬停/点击 -> 快捷输入面板；整球可拖拽 -->
+    <BallOrb v-if="mode === 'capsule'" @open="hoverOpenQuick" />
 
     <!-- 快捷输入面板（输入法悬浮窗形态） -->
     <QuickPanel v-else-if="mode === 'quick'" />
