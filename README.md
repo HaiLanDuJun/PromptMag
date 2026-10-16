@@ -8,6 +8,15 @@ CLI 提示词弹夹。为 Claude Code / Codex 等 CLI 编码 Agent 设计的桌�
 
 ## 中文
 
+### 下载（v1.5.1，Windows x64，开箱即用）
+
+| 包 | 说明 | 路径 |
+|------|------|------|
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.5.1.exe`](/installer/PromptMag-Portable-1.5.1.exe) |
+| 安装版 | NSIS 向导安装，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.5.1.exe`](/installer/PromptMag-Setup-1.5.1.exe) |
+
+也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
+
 ### 解决什么问题
 
 用 CLI Agent 干活时，终端被滚动输出占着：想法来了没法随手记，截图贴不进终端，好不容易贴进去还怕模型认错图片顺序；任务跑完一单，还得守在屏幕前手动传下一棒。
@@ -129,6 +138,13 @@ npm run dist            # 产出 release/ 下两个 exe
 ## English
 
 A desktop floating tool for people working with CLI coding agents (Claude Code / Codex, etc.). Capture prompts and screenshots the moment ideas strike, compile them into unambiguous image-text prompts, and hand tasks to your agent automatically via a local queue file.
+
+### Download (v1.5.1, Windows x64)
+
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.5.1.exe`](/installer/PromptMag-Portable-1.5.1.exe) — no install needed
+- Installer: [`installer/PromptMag-Setup-1.5.1.exe`](/installer/PromptMag-Setup-1.5.1.exe)
+
+Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases).
 
 ### The Problem
 

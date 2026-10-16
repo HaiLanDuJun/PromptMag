@@ -25,7 +25,8 @@ out/
 out2/
 out3/
 out4/
-installer/
+installer/*.blockmap
+installer/latest.yml
 .release-broken*
 out4/
 out5/
