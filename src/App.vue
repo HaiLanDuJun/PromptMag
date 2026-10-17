@@ -28,9 +28,9 @@ function notifyPointerOut() { window.pm.pointerOut() }
 /** 胶囊 -> 快捷输入面板（悬停 70ms 展开，极速灵动响应） */
 function hoverOpenQuick() {
   clearTimeout(hoverTimer)
-  if (pointerDown) return
+  if (pointerDown || state.isDialogOpening) return
   hoverTimer = setTimeout(() => {
-    if (pointerDown) return
+    if (pointerDown || state.isDialogOpening) return
     if (mode.value !== 'capsule') return
     lastExpandAt = Date.now()
     setMode('quick')
@@ -40,11 +40,11 @@ function hoverOpenQuick() {
 let isPickerOpen = false
 
 function scheduleCollapse() {
-  if (isPickerOpen || state.preview) return
+  if (isPickerOpen || state.preview || state.isDialogOpening) return
   if (!hasEntered || pointerDown) return
   clearTimeout(collapseTimer)
   collapseTimer = setTimeout(() => {
-    if (isPickerOpen || state.preview) return
+    if (isPickerOpen || state.preview || state.isDialogOpening) return
     if (pointerDown) return
     if (Date.now() - lastExpandAt < 220) return   // 极短缓冲期防抖，告别漫长等待
     if (document.hasFocus()) return               // 正在输入，不收起
@@ -66,7 +66,10 @@ function onShellLeave() {
   notifyPointerOut()
   if (mode.value !== 'capsule') scheduleCollapse()
 }
-function onWinBlur() { if (mode.value !== 'capsule') scheduleCollapse() }
+function onWinBlur() {
+  if (state.isDialogOpening) return
+  if (mode.value !== 'capsule') scheduleCollapse()
+}
 function onWinFocus() {
   clearTimeout(collapseTimer)
   notifyPointerIn()

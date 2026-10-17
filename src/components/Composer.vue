@@ -20,17 +20,27 @@ const promptEditor = ref(null)
 
 /* ---------- 点击「添加/上传图片」按钮 ---------- */
 async function onPickImages() {
+  state.isDialogOpening = true
   if (promptEditor.value) {
     promptEditor.value.saveSelection()
   }
-  const res = await window.pm.chooseImageFiles()
-  if (res && res.ok && res.images && res.images.length) {
-    if (promptEditor.value) {
-      await promptEditor.value.bindImageToSelection(res.images)
-    } else {
-      addImages(res.images)
+  try {
+    const res = await window.pm.chooseImageFiles()
+    if (res && res.ok && res.images && res.images.length) {
+      if (promptEditor.value) {
+        await promptEditor.value.bindImageToSelection(res.images)
+      } else {
+        addImages(res.images)
+      }
+      toast(t('toast.imagesAdded', { count: res.images.length }))
     }
-    toast(t('toast.imagesAdded', { count: res.images.length }))
+  } catch (e) {
+    console.error('chooseImageFiles error:', e)
+  } finally {
+    state.isDialogOpening = false
+    nextTick(() => {
+      promptEditor.value && promptEditor.value.focus()
+    })
   }
 }
 
@@ -69,7 +79,7 @@ async function copyCurrent() {
 function enqueue() {
   const resTask = pushComposerToQueue()
   if (!resTask) toast(t('toast.pleaseInputOrImg'))
-  else toast(t('toast.savedPrompt'))
+  else toast(t('toast.savedAndCopied'))
 }
 
 function onEditorEnter(e) {
@@ -117,6 +127,7 @@ function openSnippetPicker() {
       <button
         class="btn text-sky-400 border-sky-400/30 hover:border-sky-400"
         :title="t('composer.uploadBtnTitle')"
+        @mousedown.prevent
         @click="onPickImages"
       >
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -131,6 +142,7 @@ function openSnippetPicker() {
       <button
         class="btn text-amber-300 border-amber-400/30 hover:border-amber-400 hover:text-amber-200"
         :title="t('composer.snippetsBtnTitle')"
+        @mousedown.prevent
         @click="openSnippetPicker"
       >
         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

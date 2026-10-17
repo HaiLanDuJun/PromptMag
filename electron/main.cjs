@@ -72,7 +72,7 @@ const FULL_DEFAULT = { width: 420, height: 560 }
 const FULL_MIN = { width: 360, height: 460 }
 /* 边缘吸附：离边小于该距离且窗口失焦时，半缩进屏幕边缘 */
 const EDGE_THRESHOLD = 90
-const TUCK_DELAY = 1200
+const TUCK_DELAY = 350
 
 const isDev = !app.isPackaged
 

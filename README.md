@@ -8,12 +8,12 @@ CLI 提示词弹夹。为 Claude Code / Codex 等 CLI 编码 Agent 设计的桌�
 
 ## 中文
 
-### 下载（v1.8.0，Windows x64，开箱即用）
+### 下载（v1.8.1，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.8.0.exe`](/installer/PromptMag-Portable-1.8.0.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.8.0.exe`](/installer/PromptMag-Setup-1.8.0.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.8.1.exe`](/installer/PromptMag-Portable-1.8.1.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.8.1.exe`](/installer/PromptMag-Setup-1.8.1.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -147,10 +147,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 A desktop floating tool for people working with CLI coding agents (Claude Code / Codex, etc.). Capture prompts and screenshots the moment ideas strike, compile them into unambiguous image-text prompts, and hand tasks to your agent automatically via a local queue file.
 
-### Download (v1.8.0, Windows x64)
+### Download (v1.8.1, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.8.0.exe`](/installer/PromptMag-Portable-1.8.0.exe) — no install needed
-- Installer: [`installer/PromptMag-Setup-1.8.0.exe`](/installer/PromptMag-Setup-1.8.0.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.8.1.exe`](/installer/PromptMag-Portable-1.8.1.exe) — no install needed
+- Installer: [`installer/PromptMag-Setup-1.8.1.exe`](/installer/PromptMag-Setup-1.8.1.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases).
 

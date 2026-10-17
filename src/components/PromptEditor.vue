@@ -26,13 +26,20 @@ let savedSelection = null
 function saveSelection() {
   const sel = window.getSelection()
   if (!sel || !sel.rangeCount) return
-  const range = sel.getRangeAt(0)
-  if (editorRef.value && editorRef.value.contains(range.commonAncestorContainer)) {
-    savedSelection = {
-      range: range.cloneRange(),
-      text: sel.toString().trim()
+  try {
+    const range = sel.getRangeAt(0)
+    if (editorRef.value && (editorRef.value === range.commonAncestorContainer || editorRef.value.contains(range.commonAncestorContainer))) {
+      const text = sel.toString().trim()
+      // 如果失焦且获取到的文字为空，但此前已记住有有效选中文本，则保留已有选区，避免失焦瞬间被置空
+      if (!text && savedSelection && savedSelection.text && !document.hasFocus()) {
+        return
+      }
+      savedSelection = {
+        range: range.cloneRange(),
+        text
+      }
     }
-  }
+  } catch { /* ignore */ }
 }
 
 /* ---------- 序列化：DOM -> 标准格式字符串 (如: "把 [图1: 导航栏] 改成深色") ---------- */
@@ -247,10 +254,21 @@ async function bindImageToSelection(imagesList, forcedRange = null, forcedText =
     const sel = window.getSelection()
     if (sel && sel.rangeCount) {
       const r = sel.getRangeAt(0)
-      if (editorRef.value && editorRef.value.contains(r.commonAncestorContainer)) {
+      if (editorRef.value && (editorRef.value === r.commonAncestorContainer || editorRef.value.contains(r.commonAncestorContainer))) {
         range = r
         selectedWord = selectedWord || sel.toString().trim()
       }
+    }
+  }
+
+  // 智能兜底：若没有明确选中文本，但编辑器内只有纯文本且无任何已有 chip，则自动将全部纯文本作为关联词框选
+  if ((!selectedWord || !selectedWord.trim()) && editorRef.value) {
+    const existingChips = editorRef.value.querySelectorAll('.kw-chip')
+    const rawText = editorRef.value.textContent.trim()
+    if (existingChips.length === 0 && rawText) {
+      range = document.createRange()
+      range.selectNodeContents(editorRef.value)
+      selectedWord = rawText
     }
   }
 

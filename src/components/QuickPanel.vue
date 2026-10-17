@@ -17,17 +17,28 @@ const promptEditor = ref(null)
 
 /* ---------- 点击「添加/上传图片」按钮 ---------- */
 async function onPickImages() {
+  state.isDialogOpening = true
   if (promptEditor.value) {
     promptEditor.value.saveSelection()
   }
-  const res = await window.pm.chooseImageFiles()
-  if (res && res.ok && res.images && res.images.length) {
-    if (promptEditor.value) {
-      await promptEditor.value.bindImageToSelection(res.images)
-    } else {
-      addImages(res.images)
+  try {
+    const res = await window.pm.chooseImageFiles()
+    if (res && res.ok && res.images && res.images.length) {
+      if (promptEditor.value) {
+        await promptEditor.value.bindImageToSelection(res.images)
+      } else {
+        addImages(res.images)
+      }
+      toast(t('toast.imagesAdded', { count: res.images.length }))
     }
-    toast(t('toast.imagesAdded', { count: res.images.length }))
+  } catch (e) {
+    console.error('chooseImageFiles error:', e)
+  } finally {
+    state.isDialogOpening = false
+    setMode('quick')
+    nextTick(() => {
+      promptEditor.value && promptEditor.value.focus()
+    })
   }
 }
 
@@ -64,7 +75,7 @@ function save() {
     toast(t('toast.pleaseInputOrImg'))
     return
   }
-  toast(t('toast.savedPrompt'))
+  toast(t('toast.savedAndCopied'))
   nextTick(() => promptEditor.value && promptEditor.value.focus())
 }
 </script>
@@ -136,6 +147,7 @@ function save() {
       <button
         class="btn text-sky-400 border-sky-400/30 hover:border-sky-400 !py-1"
         :title="t('composer.uploadBtnTitle')"
+        @mousedown.prevent
         @click="onPickImages"
       >
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

@@ -69,7 +69,8 @@ export const state = reactive({
   snippets: [],
   composer: { text: '', images: [] },
   queue: [],
-  preview: null
+  preview: null,
+  isDialogOpening: false
 })
 
 /* ---------------- 图片全屏/放大预览 ---------------- */
@@ -296,6 +297,7 @@ export function addImages(imgs, initialNote = '') {
 }
 
 export async function pickAndAddImages(initialNote = '') {
+  state.isDialogOpening = true
   try {
     const res = await window.pm.chooseImageFiles()
     if (res && res.ok && res.images && res.images.length) {
@@ -305,6 +307,8 @@ export async function pickAndAddImages(initialNote = '') {
     }
   } catch (e) {
     toast('选择图片失败')
+  } finally {
+    state.isDialogOpening = false
   }
   return []
 }
@@ -350,6 +354,8 @@ export function pushComposerToQueue() {
     done: false
   }
   state.queue.push(task)
+  // 保存完后自动把编译后的结构化 Prompt 写入当前用户的系统剪贴板
+  copyCompiled(task).catch(() => {})
   c.text = ''
   c.images = []
   return task
@@ -445,13 +451,18 @@ export function bindModeSync(applyFn) {
 
 /* ---------------- 数据目录 ---------------- */
 export async function chooseDataDir() {
-  const r = await window.pm.chooseDataDir()
-  if (r && r.ok) {
-    toast('数据目录已更改，应用即将重启')
-  } else if (r && r.error) {
-    toast('更改失败：' + r.error)
+  state.isDialogOpening = true
+  try {
+    const r = await window.pm.chooseDataDir()
+    if (r && r.ok) {
+      toast('数据目录已更改，应用即将重启')
+    } else if (r && r.error) {
+      toast('更改失败：' + r.error)
+    }
+    return r
+  } finally {
+    state.isDialogOpening = false
   }
-  return r
 }
 
 /* ---------------- 词库 ---------------- */
