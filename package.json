@@ -2,7 +2,7 @@
   "name": "prompt-mag",
   "version": "1.7.4",
   "private": true,
-  "description": "PromptMag - 关键词与提示词弹夹：多图锚定 + 悬浮输入 + 历史关键词接力",
+  "description": "PromptMag - 桌面提示词弹夹：多图强关联锚定、极速悬浮输入、全局快捷键光标粘贴与 CLI Agent 任务自动接力",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
