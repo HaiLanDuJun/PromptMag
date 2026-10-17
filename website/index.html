@@ -36,6 +36,8 @@ h1 .grad{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-backgr
 .btn-ghost{border:1px solid var(--line);background:var(--card);color:var(--txt);border-radius:12px;padding:14px 34px;font-size:16px;cursor:pointer;text-decoration:none;display:inline-block}
 .btn-ghost:hover{border-color:var(--acc)}
 .meta{margin-top:18px;color:var(--mut);font-size:13px}
+.verline{margin-top:6px;color:var(--mut);font-size:13px}
+.verline #verTag{color:var(--txt);font-weight:700}
 /* ball demo */
 .ballstage{margin:56px auto 0;width:120px;height:120px;position:relative}
 .ball{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 32% 30%,#8fa4ff,#4a5fd6 70%);box-shadow:0 0 44px rgba(108,140,255,.55);position:absolute;left:18px;top:18px;animation:float 4s ease-in-out infinite;display:flex;align-items:center;justify-content:center;font-size:30px}
@@ -112,10 +114,11 @@ html[data-lang="en"] body span[lang="en"]{display:inline}
     <span lang="en">If you code with AI every day, you know the pain: endless copy-pasting, and good prompts scattered everywhere when you need them. PromptMag is a prompt magazine that lives as a floating widget on your Windows desktop — all data stays local, no login needed, download and use.</span>
   </p>
   <div class="cta">
-    <a class="btn-primary" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener"><span lang="zh">⬇ 免费下载</span><span lang="en">⬇ Download free</span></a>
+    <a class="btn-primary" id="dlBtn" href="https://github.com/HaiLanDuJun/PromptMag/releases/latest" target="_blank" rel="noopener"><span lang="zh">⬇ 免费下载</span><span lang="en">⬇ Download free</span></a>
     <a class="btn-ghost" href="#features"><span lang="zh">看看功能</span><span lang="en">See features</span></a>
   </div>
   <div class="meta"><span lang="zh">✓ 本地存储 &nbsp; ✓ 无需登录 &nbsp; ✓ 中英双语</span><span lang="en">✓ Local storage &nbsp; ✓ No login &nbsp; ✓ EN / 中文</span></div>
+  <div class="verline"><span lang="zh">当前版本：</span><span lang="en">Latest: </span><span id="verTag">…</span></div>
   <div class="ballstage"><div class="ring"></div><div class="ball">💬</div></div>
 </div></header>
 
@@ -166,6 +169,23 @@ function toggleLang(){
   h.dataset.lang = h.dataset.lang==='zh' ? 'en' : 'zh';
   document.documentElement.lang = h.dataset.lang==='zh' ? 'zh-CN' : 'en';
 }
+/* 动态获取最新版安装器：优先 Setup 安装版，失败则回退到 Releases 页面 */
+fetch('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest')
+  .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+  .then(function(d){
+    var assets=d.assets||[];
+    var exe=null;
+    for(var i=0;i<assets.length;i++){ if(/setup.*\.exe$/i.test(assets[i].name)){ exe=assets[i]; break; } }
+    if(!exe){ for(var j=0;j<assets.length;j++){ if(/\.exe$/i.test(assets[j].name)){ exe=assets[j]; break; } } }
+    var v=document.getElementById('verTag');
+    if(v) v.textContent=d.tag_name||'';
+    if(exe){
+      var b=document.getElementById('dlBtn');
+      b.href=exe.browser_download_url;
+      b.removeAttribute('target');
+    }
+  })
+  .catch(function(){});
 </script>
 </body>
 </html>
