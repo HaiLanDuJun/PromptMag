@@ -10,7 +10,7 @@ import { computed } from 'vue'
 import {
   state, removeTask, editBackfill, copyCompiled, clearAllQueue,
   toggleTaskDone, resetAllTasksPending, formatDateTime, toast, imgUrl, openImagePreview,
-  t, currentLocale
+  cyclePopMode, t, currentLocale
 } from '../lib/store'
 
 // 历史列表按时间倒序（最新的在最前）
@@ -20,6 +20,27 @@ const historyItems = computed(() => {
 
 const pendingCount = computed(() => state.queue.filter(tTask => !tTask.done).length)
 const hasDoneItems = computed(() => state.queue.some(tTask => tTask.done))
+
+const popMode = computed(() => state.settings.popMode || 'shotgun')
+const popModeIcon = computed(() => {
+  if (popMode.value === 'revolver') return '🎲'
+  if (popMode.value === 'pistol') return '🎯'
+  return '💥'
+})
+const popModeLabel = computed(() => {
+  if (popMode.value === 'revolver') return t('settings.popModeRevolver')
+  if (popMode.value === 'pistol') return t('settings.popModePistol')
+  return t('settings.popModeShotgun')
+})
+const popModeTooltip = computed(() => {
+  const desc = popMode.value === 'revolver' ? t('settings.popModeRevolverDesc') : popMode.value === 'pistol' ? t('settings.popModePistolDesc') : t('settings.popModeShotgunDesc')
+  return `${popModeLabel.value} · ${desc} (${t('queue.clickToSwitch')})`
+})
+const popModeBadgeClass = computed(() => {
+  if (popMode.value === 'revolver') return 'bg-amber-500/15 border-amber-400/40 text-amber-300 hover:bg-amber-500/25'
+  if (popMode.value === 'pistol') return 'bg-purple-500/15 border-purple-400/40 text-purple-300 hover:bg-purple-500/25'
+  return 'bg-sky-500/15 border-sky-400/40 text-sky-300 hover:bg-sky-500/25'
+})
 
 async function onCopy(tTask) {
   await copyCompiled(tTask)
@@ -80,6 +101,17 @@ function displayTitle(item) {
         >
           {{ t('queue.pendingTag', { count: pendingCount }) }}
         </span>
+
+        <!-- 出弹模式快速切换徽标 -->
+        <button
+          class="ml-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold transition-all border flex items-center gap-1 cursor-pointer select-none"
+          :class="popModeBadgeClass"
+          :title="popModeTooltip"
+          @click="cyclePopMode"
+        >
+          <span class="text-[9.5px]">{{ popModeIcon }}</span>
+          <span>{{ popModeLabel }}</span>
+        </button>
       </div>
 
       <div class="flex items-center gap-2">

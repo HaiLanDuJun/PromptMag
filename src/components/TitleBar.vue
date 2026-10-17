@@ -7,7 +7,7 @@
 import { ref } from 'vue'
 import {
   state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir,
-  setHotkeys, changeLocale, t, currentLocale
+  setHotkeys, changeLocale, setPopMode, t, currentLocale
 } from '../lib/store'
 import HotkeyInput from './HotkeyInput.vue'
 
@@ -144,6 +144,53 @@ function toggleLang() {
           @click="changeLocale('en')"
         >
           {{ t('settings.langEn') }}
+        </button>
+      </div>
+
+      <!-- 出弹模式选择器 (卡片三选一) -->
+      <div class="settings-label mt-2">{{ t('settings.popModeTitle') }}</div>
+      <div class="text-[10px] text-slate-400 mb-1.5 leading-snug">{{ t('settings.popModeDesc') }}</div>
+      <div class="grid grid-cols-3 gap-1.5 mb-3">
+        <!-- 霰弹枪模式 -->
+        <button
+          class="flex flex-col items-center text-center p-1.5 rounded-lg border transition-all text-xs cursor-pointer select-none"
+          :class="state.settings.popMode === 'shotgun'
+            ? 'bg-sky-500/20 border-sky-400 text-sky-200 shadow-[0_0_8px_rgba(56,189,248,0.25)] font-semibold'
+            : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'"
+          :title="t('settings.popModeShotgunDesc')"
+          @click="setPopMode('shotgun')"
+        >
+          <span class="text-sm mb-0.5">💥</span>
+          <span class="text-[10px] leading-tight">{{ t('settings.popModeShotgun') }}</span>
+          <span class="text-[8.5px] text-slate-400 mt-0.5 leading-tight opacity-75">{{ t('settings.popModeShotgunShort') }}</span>
+        </button>
+
+        <!-- 左轮模式 -->
+        <button
+          class="flex flex-col items-center text-center p-1.5 rounded-lg border transition-all text-xs cursor-pointer select-none"
+          :class="state.settings.popMode === 'revolver'
+            ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.25)] font-semibold'
+            : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'"
+          :title="t('settings.popModeRevolverDesc')"
+          @click="setPopMode('revolver')"
+        >
+          <span class="text-sm mb-0.5">🎲</span>
+          <span class="text-[10px] leading-tight">{{ t('settings.popModeRevolver') }}</span>
+          <span class="text-[8.5px] text-slate-400 mt-0.5 leading-tight opacity-75">{{ t('settings.popModeRevolverShort') }}</span>
+        </button>
+
+        <!-- 手枪模式 -->
+        <button
+          class="flex flex-col items-center text-center p-1.5 rounded-lg border transition-all text-xs cursor-pointer select-none"
+          :class="state.settings.popMode === 'pistol'
+            ? 'bg-purple-500/20 border-purple-400 text-purple-200 shadow-[0_0_8px_rgba(168,85,247,0.25)] font-semibold'
+            : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'"
+          :title="t('settings.popModePistolDesc')"
+          @click="setPopMode('pistol')"
+        >
+          <span class="text-sm mb-0.5">🎯</span>
+          <span class="text-[10px] leading-tight">{{ t('settings.popModePistol') }}</span>
+          <span class="text-[8.5px] text-slate-400 mt-0.5 leading-tight opacity-75">{{ t('settings.popModePistolShort') }}</span>
         </button>
       </div>
 

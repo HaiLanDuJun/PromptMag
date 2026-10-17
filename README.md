@@ -8,12 +8,12 @@ CLI 提示词弹夹。为 Claude Code / Codex 等 CLI 编码 Agent 设计的桌�
 
 ## 中文
 
-### 下载（v1.8.1，Windows x64，开箱即用）
+### 下载（v1.8.2，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.8.1.exe`](/installer/PromptMag-Portable-1.8.1.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.8.1.exe`](/installer/PromptMag-Setup-1.8.1.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.8.2.exe`](/installer/PromptMag-Portable-1.8.2.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.8.2.exe`](/installer/PromptMag-Setup-1.8.2.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -25,6 +25,11 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 
 ### 功能
 
+- **三种出弹模式（弹夹出弹规则自由切换）**：
+  - 💥 **霰弹枪模式（默认）**：先进先出（FIFO），最先保存的提示词最先弹出
+  - 🎲 **左轮模式**：轮盘随机，从所有待用提示词中随机挑选一条弹出
+  - 🎯 **手枪模式**：后进先出（LIFO），先入的提示词最后弹出（最新保存的先弹出）
+  - 历史关键词列表顶部提供快捷指示胶囊，点击即可一键循环切换；设置面板提供直观的 3 选 1 卡片式切换
 - **中英双语国际化（i18n）**：
   - 安装程序原生支持语言选择（默认简体中文，可选 English）
   - 应用界面（标题栏、输入框、历史列表、设置浮层、托盘菜单）与提示信息全面支持中英双语切换
@@ -33,7 +38,7 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 - **原生级安全光标粘贴**：
   - 独家原生输入辅助组件，智能等待用户物理按键释放，杜绝组合键冲突
   - 安全激活外部前台应用（微信、VS Code、记事本、终端等），彻底解决粘贴后导致目标窗口关闭或退出的问题
-  - 「弹出最旧未用」（默认 `Alt+V`）：自动将最老待办提示词直接粘贴至光标处并标记为已用
+  - 「弹出提示词」（默认 `Alt+V`）：根据所选出弹模式自动将待办提示词直接粘贴至光标处并标记为已用
   - 「专属常用词库弹窗」（默认 `Alt+C`）：独立悬浮弹窗，↑↓ 键盘选择、Enter 一键复制并直接自动粘贴到当前前台应用光标处
 - **光标处内联贴图**：`[图N]` 锚点 + 本地绝对路径；删除、拖拽重排后自动改号
 - **待发队列状态流转**：清晰显示「待使用 / 已使用」状态标签，点击自由切换，支持一键全部重置为待用；快捷键弹出时智能提示剩余待用数量
@@ -41,7 +46,7 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 - **悬浮窗**：无边框深色圆球（青色发光核心）造型、置顶、透明度 40%–100%、全局快捷键
 - **自定义全局快捷键**（设置面板可录制）：
   - 「呼出专属收藏夹」（默认 `Alt+C`）：呼出专属常用提示词弹窗，选中直接复制并自动粘贴到当前窗口光标处
-  - 「弹出最旧未用」（默认 `Alt+V`）：一键复制弹夹里最老的未使用提示词并自动标记为已使用，按一次消耗一条
+  - 「弹出提示词」（默认 `Alt+V`）：一键复制弹夹里的待用提示词并自动标记为已使用，按一次消耗一条
   - 「收录选中文字」（默认 `Alt+S`）：在其他应用里选中文字后按下，自动收藏进词库（后台借用剪贴板并自动还原，不打扰用户）
 
 ### 编译效果
@@ -147,10 +152,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 A desktop floating tool for people working with CLI coding agents (Claude Code / Codex, etc.). Capture prompts and screenshots the moment ideas strike, compile them into unambiguous image-text prompts, and hand tasks to your agent automatically via a local queue file.
 
-### Download (v1.8.1, Windows x64)
+### Download (v1.8.2, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.8.1.exe`](/installer/PromptMag-Portable-1.8.1.exe) — no install needed
-- Installer: [`installer/PromptMag-Setup-1.8.1.exe`](/installer/PromptMag-Setup-1.8.1.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.8.2.exe`](/installer/PromptMag-Portable-1.8.2.exe) — no install needed
+- Installer: [`installer/PromptMag-Setup-1.8.2.exe`](/installer/PromptMag-Setup-1.8.2.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases).
 
@@ -162,6 +167,11 @@ PromptMag is a small always-on-top window. `Alt+Q` summons it; `Ctrl+V` pastes a
 
 ### Features
 
+- **Three Firing Modes (Magazine Rules)**:
+  - 💥 **Shotgun Mode (Default)**: First-In First-Out (FIFO) — oldest saved prompt pops first
+  - 🎲 **Revolver Mode**: Random chamber — randomly pops any pending prompt
+  - 🎯 **Pistol Mode**: Last-In First-Out (LIFO) — newest saved prompt pops first (bottom of magazine fired last)
+  - Interactive mode badge on top of history tab to switch with one click, plus a 3-card selector in Preferences
 - **Full Bilingual Support (i18n)**:
   - Installer with English / Simplified Chinese selection
   - Complete UI, settings, system tray, and notifications in English & Chinese
@@ -171,7 +181,7 @@ PromptMag is a small always-on-top window. `Alt+Q` summons it; `Ctrl+V` pastes a
   - Native helper detects physical modifier release to prevent key collision (`Ctrl+Alt+V`)
   - Safely brings external foreground apps (WeChat, VS Code, Notepad, Windows Terminal) into focus without closing or crashing windows
   - Snippet Picker popup (`Alt+C`): select and auto-insert into your active window's cursor position
-  - Pop oldest prompt (`Alt+V`): automatically paste next pending prompt directly into active cursor
+  - Pop Prompt (`Alt+V`): automatically paste next pending prompt directly into active cursor (by active firing mode)
 - **Inline Image Pinning**: `[Img N]` anchors + local absolute paths; auto-renumbering on delete / drag-reorder
 - **Storyboard Cards & Lightbox**: double-click thumbnail or keyword badge to zoom into full-resolution preview
 - **Prompt Compiler**: inline path expansion + precise bottom mapping table

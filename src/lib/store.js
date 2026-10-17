@@ -65,7 +65,7 @@ export const state = reactive({
   platform: 'win32',
   toast: '',
   paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '' },
-  settings: { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full', hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S' },
+  settings: { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full', hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S', hotkeySnippets: 'Alt+C', popMode: 'shotgun' },
   snippets: [],
   composer: { text: '', images: [] },
   queue: [],
@@ -139,11 +139,13 @@ export async function initStore() {
     {
       alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
       hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S', hotkeySnippets: 'Alt+C',
-      locale: 'zh'
+      locale: 'zh',
+      popMode: 'shotgun'
     },
     d.settings || {}
   )
   if (!['capsule', 'quick', 'full'].includes(state.settings.mode)) state.settings.mode = 'full'
+  if (!['shotgun', 'revolver', 'pistol'].includes(state.settings.popMode)) state.settings.popMode = 'shotgun'
   setLocale(state.settings.locale || 'zh')
 
   state.snippets =
@@ -168,6 +170,21 @@ export async function initStore() {
   bindHotkeyEvents()
 }
 
+/* ---------------- 出弹模式（霰弹枪: 先保存先出 / 左轮: 随机弹出 / 手枪: 先入后出） ---------------- */
+export function setPopMode(m) {
+  const mode = ['shotgun', 'revolver', 'pistol'].includes(m) ? m : 'shotgun'
+  state.settings.popMode = mode
+  const modeKey = mode === 'shotgun' ? 'settings.popModeShotgun' : mode === 'revolver' ? 'settings.popModeRevolver' : 'settings.popModePistol'
+  toast(t('toast.popModeChanged', { mode: t(modeKey) }))
+}
+
+export function cyclePopMode() {
+  const MODES = ['shotgun', 'revolver', 'pistol']
+  const curIdx = MODES.indexOf(state.settings.popMode || 'shotgun')
+  const next = MODES[(curIdx + 1) % MODES.length]
+  setPopMode(next)
+}
+
 /* ---------------- 语言切换 ---------------- */
 export function changeLocale(lang) {
   const next = lang === 'en' ? 'en' : 'zh'
@@ -177,13 +194,13 @@ export function changeLocale(lang) {
   toast(t('toast.langChanged', { lang: next === 'en' ? 'English' : '简体中文' }))
 }
 
-/* ---------------- 全局快捷键：弹出最旧未用 / 收录选中 / 插入常用词 ---------------- */
+/* ---------------- 全局快捷键：弹出提示词 / 收录选中 / 插入常用词 ---------------- */
 function bindHotkeyEvents() {
-  /* 快捷键 1：复制弹夹里最老的未使用提示词，标记为已使用（done），并自动粘贴到前台窗口光标处 */
+  /* 快捷键 1：根据出弹模式复制弹夹里未使用的提示词，标记为已使用（done），并自动粘贴到前台窗口光标处 */
   window.pm.onHotkeyPop(async (payload) => {
     const fgHwnd = payload && payload.fgHwnd ? payload.fgHwnd : '0'
-    const task = state.queue.find((t) => !t.done)
-    if (!task) {
+    const pending = state.queue.filter((t) => !t.done)
+    if (!pending.length) {
       if (state.queue.length > 0) {
         toast(t('toast.magAllDone'))
       } else {
@@ -191,11 +208,27 @@ function bindHotkeyEvents() {
       }
       return
     }
+
+    const mode = state.settings.popMode || 'shotgun'
+    let task = null
+    if (mode === 'revolver') {
+      // 左轮模式：随机轮盘抽取一条待用提示词
+      const rIdx = Math.floor(Math.random() * pending.length)
+      task = pending[rIdx]
+    } else if (mode === 'pistol') {
+      // 手枪模式：先入的最后弹出（后进先出 LIFO：最新保存的先弹出）
+      task = pending[pending.length - 1]
+    } else {
+      // 霰弹枪模式（默认）：先入先出 FIFO（最先保存的先弹出）
+      task = pending[0]
+    }
+
     try {
       await copyCompiled(task)
       task.done = true
       const remaining = state.queue.filter((t) => !t.done).length
-      toast(t('toast.poppedPrompt', { n: remaining }))
+      const modeKey = mode === 'shotgun' ? 'settings.popModeShotgun' : mode === 'revolver' ? 'settings.popModeRevolver' : 'settings.popModePistol'
+      toast(t('toast.poppedPrompt', { mode: t(modeKey), n: remaining }))
       // 关键：通知主进程将剪贴板内容直接粘贴到前台窗口光标处！
       if (window.pm && window.pm.pasteToForeground) {
         await window.pm.pasteToForeground(fgHwnd)

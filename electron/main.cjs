@@ -713,7 +713,7 @@ function sendToRenderer(channel, payload) {
   }
 }
 
-/** 快捷键 1：弹出弹夹里最老的未使用提示词（复制、标记使用并直接粘贴到光标处） */
+/** 快捷键 1：弹出提示词（按出弹模式：霰弹枪/左轮/手枪，复制、标记使用并直接粘贴到光标处） */
 function onHotkeyPop() {
   const fgHwnd = getForegroundHwndSync()
   log('hotkey pop ->', customHotkeys.pop, 'fgHwnd:', fgHwnd)
