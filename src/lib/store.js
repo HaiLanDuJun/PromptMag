@@ -5,6 +5,7 @@
  */
 import { reactive, watch, toRaw } from 'vue'
 import { compilePrompt, buildTasksFile } from './compilePrompt'
+import { t, currentLocale, setLocale } from './i18n'
 
 /* 浏览器直跑 vite（无 Electron 桥）时的兜底 mock，便于纯前端调试 */
 if (typeof window !== 'undefined' && !window.pm) {
@@ -121,7 +122,7 @@ export function syncTasksFile() {
   if (!state.ready || !state.settings.relay) return
   clearTimeout(tasksTimer)
   tasksTimer = setTimeout(() => {
-    window.pm.writeTasks(buildTasksFile(state.queue))
+    window.pm.writeTasks(buildTasksFile(state.queue, state.settings.locale))
   }, 150)
 }
 
@@ -136,11 +137,14 @@ export async function initStore() {
   state.settings = Object.assign(
     {
       alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
-      hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S', hotkeySnippets: 'Alt+C'
+      hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S', hotkeySnippets: 'Alt+C',
+      locale: 'zh'
     },
     d.settings || {}
   )
   if (!['capsule', 'quick', 'full'].includes(state.settings.mode)) state.settings.mode = 'full'
+  setLocale(state.settings.locale || 'zh')
+
   state.snippets =
     Array.isArray(d.snippets) && d.snippets.length
       ? d.snippets
@@ -163,6 +167,15 @@ export async function initStore() {
   bindHotkeyEvents()
 }
 
+/* ---------------- 语言切换 ---------------- */
+export function changeLocale(lang) {
+  const next = lang === 'en' ? 'en' : 'zh'
+  state.settings.locale = next
+  setLocale(next)
+  if (state.settings.relay) syncTasksFile()
+  toast(t('toast.langChanged', { lang: next === 'en' ? 'English' : '简体中文' }))
+}
+
 /* ---------------- 全局快捷键：弹出最旧未用 / 收录选中 / 插入常用词 ---------------- */
 function bindHotkeyEvents() {
   /* 快捷键 1：复制弹夹里最老的未使用提示词，标记为已使用（done），并自动粘贴到前台窗口光标处 */
@@ -171,9 +184,9 @@ function bindHotkeyEvents() {
     const task = state.queue.find((t) => !t.done)
     if (!task) {
       if (state.queue.length > 0) {
-        toast('弹夹中提示词已全部使用过（点击列表标签可一键恢复为待使用）')
+        toast(t('toast.magAllDone'))
       } else {
-        toast('弹夹空了：暂无提示词')
+        toast(t('toast.magEmpty'))
       }
       return
     }
@@ -181,13 +194,13 @@ function bindHotkeyEvents() {
       await copyCompiled(task)
       task.done = true
       const remaining = state.queue.filter((t) => !t.done).length
-      toast(`已弹出最旧未用提示词并自动粘贴（已标记为已使用，剩余 ${remaining} 条待用）`)
+      toast(t('toast.poppedPrompt', { n: remaining }))
       // 关键：通知主进程将剪贴板内容直接粘贴到前台窗口光标处！
       if (window.pm && window.pm.pasteToForeground) {
         await window.pm.pasteToForeground(fgHwnd)
       }
     } catch (e) {
-      toast('弹出失败')
+      toast(t('toast.popFailed'))
     }
   })
 
@@ -195,9 +208,9 @@ function bindHotkeyEvents() {
   window.pm.onHotkeyCollected(({ ok, text }) => {
     if (ok && text && text.trim()) {
       addSnippet(text.trim())
-      toast('已收录选中文字到词库')
+      toast(t('toast.collectedSnippet'))
     } else {
-      toast('没有捕获到选中文本')
+      toast(t('toast.noSelectedText'))
     }
   })
 
@@ -216,7 +229,7 @@ function bindHotkeyEvents() {
       } else {
         state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + text
       }
-      toast('已填入常用提示词')
+      toast(t('toast.copiedSnippet'))
     })
   }
 }
@@ -356,19 +369,19 @@ export function editBackfill(id) {
 }
 
 export function toggleTaskDone(id) {
-  const t = state.queue.find((x) => x.id === id)
-  if (!t) return
-  t.done = !t.done
-  toast(t.done ? '已标记为已使用' : '已恢复为待使用')
+  const tTask = state.queue.find((x) => x.id === id)
+  if (!tTask) return
+  tTask.done = !tTask.done
+  toast(tTask.done ? t('toast.taskMarkedDone') : t('toast.taskMarkedPending'))
 }
 
 export function resetAllTasksPending() {
-  state.queue.forEach((t) => { t.done = false })
-  toast('已全部重置为待使用')
+  state.queue.forEach((tTask) => { tTask.done = false })
+  toast(t('toast.resetAllPending'))
 }
 
 export function clearDoneTasks() {
-  state.queue = state.queue.filter((t) => !t.done)
+  state.queue = state.queue.filter((tTask) => !tTask.done)
 }
 
 export function clearAllQueue() {
@@ -378,7 +391,8 @@ export function clearAllQueue() {
 export async function copyCompiled(task, { pop = false } = {}) {
   const text = compilePrompt(task, {
     tasksPath: state.paths.tasksFile,
-    relay: state.settings.relay
+    relay: state.settings.relay,
+    locale: state.settings.locale
   })
   await window.pm.copyText(text)
   if (pop) removeTask(task.id)
@@ -401,9 +415,9 @@ export function setRelay(v) {
   state.settings.relay = !!v
   if (v) {
     syncTasksFile()
-    toast('自动接力已开启')
+    toast(t('toast.autoRelayOn'))
   } else {
-    toast('自动接力已关闭（next_tasks.md 保留）')
+    toast(t('toast.autoRelayOff'))
   }
 }
 
@@ -451,3 +465,5 @@ export function removeSnippet(id) {
   const i = state.snippets.findIndex((s) => s.id === id)
   if (i > -1) state.snippets.splice(i, 1)
 }
+
+export { t, currentLocale } from './i18n'

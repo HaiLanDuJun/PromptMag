@@ -1,13 +1,14 @@
 <script setup>
 /**
  * 快捷输入面板（QuickPanel）
- *  - 契合用户需求：弹窗输入框粘贴图片不需要显示底部的图片卡片排，直接在框内呈现关联高亮框效果（同图二）
- *  - 紧凑精致，操作流畅
+ *  - 契合用户需求：弹窗输入框粘贴图片不需要显示底部的图片卡片排，直接在框内呈现关联高亮框效果
+ *  - 紧凑精致，操作流畅，支持双语国际化（i18n）
  */
 import { nextTick, ref } from 'vue'
 import {
   state, addImages, removeImage, pushComposerToQueue,
-  toast, setMode, setAlwaysOnTop, readClipboardText
+  toast, setMode, setAlwaysOnTop, readClipboardText,
+  t, currentLocale
 } from '../lib/store'
 import { parseCompiledPrompt } from '../lib/compilePrompt'
 import PromptEditor from './PromptEditor.vue'
@@ -26,7 +27,7 @@ async function onPickImages() {
     } else {
       addImages(res.images)
     }
-    toast(`已添加并关联 ${res.images.length} 张图片`)
+    toast(t('toast.imagesAdded', { count: res.images.length }))
   }
 }
 
@@ -40,14 +41,14 @@ async function pasteText() {
         state.composer.images = parsed.images
       }
       state.composer.text = parsed.text
-      toast(`已智能还原 ${parsed.images.length} 张图片关联`)
+      toast(t('toast.restoredPrompt', { count: parsed.images.length }))
       return
     }
     state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + txt
-    toast('已粘贴文本')
+    toast(t('toast.pastedText'))
     return
   }
-  toast('剪贴板中无文本')
+  toast(t('toast.noClipboardText'))
 }
 
 /* ---------- 保存入库 ---------- */
@@ -58,12 +59,12 @@ function onEnter(e) {
 }
 
 function save() {
-  const t = pushComposerToQueue()
-  if (!t) {
-    toast('请输入关键词或添加图片')
+  const resTask = pushComposerToQueue()
+  if (!resTask) {
+    toast(t('toast.pleaseInputOrImg'))
     return
   }
-  toast('已保存关键词')
+  toast(t('toast.savedPrompt'))
   nextTick(() => promptEditor.value && promptEditor.value.focus())
 }
 </script>
@@ -81,7 +82,7 @@ function save() {
             <line x1="16" y1="17" x2="8" y2="17" />
           </svg>
         </span>
-        <span class="text-slate-100 font-semibold text-[11px] tracking-wide">PromptMag · 快捷输入</span>
+        <span class="text-slate-100 font-semibold text-[11px] tracking-wide">{{ t('quickPanel.title') }}</span>
       </div>
 
       <div class="no-drag flex items-center gap-1">
@@ -89,7 +90,7 @@ function save() {
         <button
           class="icon-btn !w-5 !h-5"
           :class="{ active: state.settings.alwaysOnTop }"
-          :title="state.settings.alwaysOnTop ? '已置顶' : '点击置顶'"
+          :title="state.settings.alwaysOnTop ? t('quickPanel.pinned') : t('quickPanel.clickPin')"
           @click="setAlwaysOnTop(!state.settings.alwaysOnTop)"
         >
           <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -99,7 +100,7 @@ function save() {
         <!-- 展开完整视图 -->
         <button
           class="icon-btn !w-5 !h-5"
-          title="展开为完整窗口"
+          :title="t('quickPanel.expandFull')"
           @click="setMode('full')"
         >
           <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -109,7 +110,7 @@ function save() {
         <!-- 收起为悬浮图标 -->
         <button
           class="icon-btn !w-5 !h-5 hover:!text-rose-400"
-          title="收起为悬浮图标 (Esc)"
+          :title="t('quickPanel.collapseOrb') + ' (Esc)'"
           @click="setMode('capsule')"
         >
           <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -125,7 +126,7 @@ function save() {
         ref="promptEditor"
         class="h-full flex-1 min-h-0"
         min-height="40px"
-        placeholder="输入关键词… 选中词按 Ctrl+V 贴图，可将图片与该词强关联并在框内修改"
+        :placeholder="t('quickPanel.placeholder')"
         @keydown-enter="onEnter"
       />
     </div>
@@ -134,7 +135,7 @@ function save() {
     <div class="no-drag flex items-center gap-1.5 shrink-0 px-0.5">
       <button
         class="btn text-sky-400 border-sky-400/30 hover:border-sky-400 !py-1"
-        title="上传图片文件（选中文字后点击，将与选中文本强关联）"
+        :title="t('composer.uploadBtnTitle')"
         @click="onPickImages"
       >
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -142,22 +143,22 @@ function save() {
           <circle cx="8.5" cy="8.5" r="1.5" />
           <polyline points="21 15 16 10 5 21" />
         </svg>
-        贴图 / 上传
+        {{ t('quickPanel.uploadImg') }}
       </button>
 
-      <button class="btn !py-1" title="粘贴剪贴板文字" @click="pasteText">
-        粘贴文本
+      <button class="btn !py-1" :title="t('composer.pasteBtnTitle')" @click="pasteText">
+        {{ t('quickPanel.pasteText') }}
       </button>
 
       <div class="flex-1" />
 
       <!-- 保存入库 (Enter) -->
-      <button class="btn btn-primary !py-1 px-4" title="保存关键词 (Enter)" @click="save">
+      <button class="btn btn-primary !py-1 px-4" :title="t('quickPanel.saveBtn') + ' (Enter)'" @click="save">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        保存
+        {{ t('quickPanel.saveBtn') }}
       </button>
     </div>
   </div>

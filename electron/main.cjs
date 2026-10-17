@@ -962,29 +962,39 @@ function registerCustomHotkeys() {
   return allOk
 }
 
+let appLocale = 'zh'
+
+/** 从 data.json 读取应用语言设置 */
+function readLocaleFromData() {
+  const d = readJsonSafe(P.dataFile) || {}
+  const s = d.settings || {}
+  appLocale = s.locale === 'en' ? 'en' : 'zh'
+}
+
 function buildTrayMenu() {
+  const isEn = appLocale === 'en'
   return Menu.buildFromTemplate([
-    { label: '显示 / 隐藏 (Alt+Q)', click: () => toggleWindow() },
-    { label: `常用词库收藏夹 (${customHotkeys.snippets})`, click: () => toggleSnippetPicker() },
+    { label: isEn ? 'Show / Hide (Alt+Q)' : '显示 / 隐藏 (Alt+Q)', click: () => toggleWindow() },
+    { label: isEn ? `Snippets Picker (${customHotkeys.snippets})` : `常用词库收藏夹 (${customHotkeys.snippets})`, click: () => toggleSnippetPicker() },
     { type: 'separator' },
     {
-      label: '窗口置顶（不被其他窗口覆盖）',
+      label: isEn ? 'Always on Top' : '窗口置顶（不被其他窗口覆盖）',
       type: 'checkbox',
       checked: alwaysOnTop,
       click: (item) => setAlwaysOnTopState(item.checked)
     },
     { type: 'separator' },
     {
-      label: '打开数据目录',
+      label: isEn ? 'Open Data Directory' : '打开数据目录',
       click: () => shell.openPath(P.home)
     },
     {
-      label: '打开 next_tasks.md',
+      label: isEn ? 'Open next_tasks.md' : '打开 next_tasks.md',
       click: () => shell.openPath(P.tasksFile)
     },
     { type: 'separator' },
     {
-      label: '退出',
+      label: isEn ? 'Quit' : '退出',
       click: () => {
         quitting = true
         app.quit()
@@ -999,7 +1009,7 @@ function refreshTrayMenu() {
 
 function createTray() {
   tray = new Tray(makeTrayIcon())
-  tray.setToolTip('PromptMag · CLI 提示词弹夹 (Alt+Q)')
+  tray.setToolTip(appLocale === 'en' ? 'PromptMag · CLI Prompt Magazine (Alt+Q)' : 'PromptMag · CLI 提示词弹夹 (Alt+Q)')
   refreshTrayMenu()
   tray.on('click', () => toggleWindow())
 }
@@ -1191,7 +1201,7 @@ function registerIpc() {
         }
       } else {
         // 用户是在外部应用（VS Code / 微信 / 记事本 / 浏览器等）中呼出的：激活前台并模拟粘贴
-        await sleep(60)
+        await sleep(80)
         await sendPasteKeys(lastExternalHwnd)
         if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && mainWindow.isFocused()) {
           mainWindow.webContents.send('pm:snippet-inserted', text)
@@ -1207,12 +1217,22 @@ function registerIpc() {
   ipcMain.handle('pm:paste-to-foreground', async (_e, hwnd) => {
     try {
       log('paste-to-foreground to hwnd:', hwnd)
-      await sleep(60)
+      await sleep(80)
       await sendPasteKeys(hwnd || '0')
       return { ok: true }
     } catch (e) {
       log('paste-to-foreground error:', e && e.message)
       return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  /* 语言切换 (zh / en) 同步托盘菜单与提示 */
+  ipcMain.on('pm:set-locale', (_e, lang) => {
+    appLocale = lang === 'en' ? 'en' : 'zh'
+    log('locale changed ->', appLocale)
+    if (tray && !tray.isDestroyed()) {
+      tray.setToolTip(appLocale === 'en' ? 'PromptMag · CLI Prompt Magazine (Alt+Q)' : 'PromptMag · CLI 提示词弹夹 (Alt+Q)')
+      refreshTrayMenu()
     }
   })
 
@@ -1262,7 +1282,8 @@ if (!process.env.PM_ALLOW_MULTI && !app.requestSingleInstanceLock()) {
 
     globalShortcut.register(SHORTCUT, () => toggleWindow())
 
-    // 自定义快捷键（弹出最旧未用 / 收录选中文字），配置来自 data.json settings
+    // 读取应用语言配置与自定义快捷键配置
+    readLocaleFromData()
     readHotkeysFromData()
     registerCustomHotkeys()
 

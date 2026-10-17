@@ -4,10 +4,10 @@
  *  - 契合需求 3：添加快捷键（默认 Alt+C）开启专属弹窗，
  *    用户选择之后直接复制并且自动粘贴到光标处（无缝支持 VS Code/浏览器/微信/系统任何前台应用）
  *  - 支持全键盘操作：↑↓ 选择、Enter 填入、1-9 快捷数字键、Esc 关闭
- *  - 支持关键词实时模糊搜索
+ *  - 支持关键词实时模糊搜索与双语国际化
  */
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { state, initStore } from '../lib/store'
+import { state, initStore, t, currentLocale } from '../lib/store'
 
 const searchQuery = ref('')
 const activeIndex = ref(0)
@@ -98,7 +98,7 @@ onMounted(async () => {
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
         </span>
-        <span class="text-slate-100 font-semibold text-[12px] tracking-wide">常用提示词收藏夹</span>
+        <span class="text-slate-100 font-semibold text-[12px] tracking-wide">{{ t('snippetPicker.title') }}</span>
         <span class="px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-400/30 text-[9px] text-amber-300 font-bold ml-1">
           {{ state.settings.hotkeySnippets || 'Alt+C' }}
         </span>
@@ -107,7 +107,7 @@ onMounted(async () => {
       <div class="no-drag flex items-center gap-1">
         <button
           class="icon-btn !w-5 !h-5 hover:!text-rose-400"
-          title="关闭 (Esc)"
+          :title="t('common.close') + ' (Esc)'"
           @click="onClose"
         >
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -131,7 +131,7 @@ onMounted(async () => {
           v-model="searchQuery"
           type="text"
           class="picker-search-input"
-          placeholder="搜索提示词... (Enter 插入光标处，Esc 关闭)"
+          :placeholder="t('snippetPicker.searchPlaceholder')"
           @keydown="onKeydown"
         />
         <button
@@ -153,8 +153,7 @@ onMounted(async () => {
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
         </div>
-        <p>{{ searchQuery ? '未找到匹配的提示词' : '收藏夹为空' }}</p>
-        <p class="text-[11px] text-slate-500 mt-1">选中文本按 {{ state.settings.hotkeyCollect || 'Alt+S' }} 可快速收录到此处</p>
+        <p>{{ searchQuery ? t('snippetPicker.emptySearch') : t('snippets.emptyTitle') }}</p>
       </div>
 
       <!-- 列表条目 -->
@@ -171,9 +170,9 @@ onMounted(async () => {
         <span
           class="picker-num-badge shrink-0"
           :class="idx < 9 && !searchQuery ? 'is-shortcut' : ''"
-          :title="idx < 9 && !searchQuery ? `按数字键 ${idx + 1} 快速选择` : ''"
+          :title="idx < 9 && !searchQuery ? (currentLocale === 'en' ? `Press ${idx + 1} to select` : `按数字键 ${idx + 1} 快速选择`) : ''"
         >
-          {{ idx < 9 && !searchQuery ? idx + 1 : idx + 1 }}
+          {{ idx + 1 }}
         </span>
 
         <!-- 提示词文字 -->
@@ -187,7 +186,7 @@ onMounted(async () => {
             <polyline points="9 10 4 15 9 20" />
             <path d="M20 4v7a4 4 0 0 1-4 4H4" />
           </svg>
-          填入
+          {{ currentLocale === 'en' ? 'Insert' : '填入' }}
         </span>
       </div>
     </div>
@@ -195,12 +194,12 @@ onMounted(async () => {
     <!-- 底部状态说明栏 -->
     <div class="no-drag flex items-center justify-between px-1 pt-2 shrink-0 border-t border-slate-700/40 text-[10px] text-slate-400">
       <div class="flex items-center gap-2">
-        <span><kbd class="picker-kbd">↑↓</kbd> 选择</span>
-        <span><kbd class="picker-kbd">Enter</kbd> 填入光标处</span>
-        <span><kbd class="picker-kbd">1-9</kbd> 快捷键</span>
-        <span><kbd class="picker-kbd">Esc</kbd> 关闭</span>
+        <span><kbd class="picker-kbd">↑↓</kbd> {{ currentLocale === 'en' ? 'Select' : '选择' }}</span>
+        <span><kbd class="picker-kbd">Enter</kbd> {{ currentLocale === 'en' ? 'Paste to cursor' : '填入光标处' }}</span>
+        <span><kbd class="picker-kbd">1-9</kbd> {{ currentLocale === 'en' ? 'Quick' : '快捷键' }}</span>
+        <span><kbd class="picker-kbd">Esc</kbd> {{ currentLocale === 'en' ? 'Close' : '关闭' }}</span>
       </div>
-      <span class="text-amber-400/80 font-medium">共 {{ state.snippets.length }} 条</span>
+      <span class="text-amber-400/80 font-medium">{{ currentLocale === 'en' ? state.snippets.length + ' Total' : '共 ' + state.snippets.length + ' 条' }}</span>
     </div>
   </div>
 </template>

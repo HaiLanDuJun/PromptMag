@@ -2,10 +2,10 @@
 /**
  * ImagePreviewModal - 图片放大预览弹窗（Lightbox）
  *  - 响应用户需求：图片框选位置，双击可以放大预览
- *  - 支持方向键 ← → 翻页、ESC 关闭、在文件夹中定位原图、复制原图路径
+ *  - 支持方向键 ← → 翻页、ESC 关闭、在文件夹中定位原图、复制原图路径与国际化
  */
 import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { state, closeImagePreview, imgUrl, toast } from '../lib/store'
+import { state, closeImagePreview, imgUrl, toast, t, currentLocale } from '../lib/store'
 
 const preview = computed(() => state.preview || {})
 const list = computed(() => preview.value.list || [])
@@ -37,7 +37,7 @@ function showInFolder() {
 async function copyPath() {
   if (preview.value.img?.path) {
     await window.pm.copyText(preview.value.img.path)
-    toast('已复制图片本地路径')
+    toast(t('toast.copiedImgPath'))
   }
 }
 
@@ -70,10 +70,10 @@ onBeforeUnmount(() => {
     <div class="flex items-center justify-between px-3 py-1.5 shrink-0 bg-slate-900/90 rounded-xl border border-sky-400/25 mb-2 shadow-lg">
       <div class="flex items-center gap-2 min-w-0">
         <span class="px-2 py-0.5 rounded-full bg-sky-500 text-slate-950 text-[10px] font-bold shrink-0 shadow-sm">
-          图{{ curIdx + 1 }}
+          {{ currentLocale === 'en' ? 'Img ' + (curIdx + 1) : '图' + (curIdx + 1) }}
         </span>
-        <span class="text-sky-200 text-xs font-semibold truncate" :title="preview.img?.note || '图片预览'">
-          {{ preview.img?.note || '图片预览' }}
+        <span class="text-sky-200 text-xs font-semibold truncate" :title="preview.img?.note || t('preview.title')">
+          {{ preview.img?.note || t('preview.title') }}
         </span>
         <span v-if="list.length > 1" class="text-[10px] text-slate-400 shrink-0 font-mono">
           ({{ curIdx + 1 }} / {{ list.length }})
@@ -84,7 +84,7 @@ onBeforeUnmount(() => {
         <!-- 在文件夹中定位 -->
         <button
           class="icon-btn !w-6 !h-6 hover:!text-sky-300"
-          title="在文件夹中定位原图文件"
+          :title="t('preview.showInFolder')"
           @click="showInFolder"
         >
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -95,7 +95,7 @@ onBeforeUnmount(() => {
         <!-- 复制路径 -->
         <button
           class="icon-btn !w-6 !h-6 hover:!text-sky-300"
-          title="复制图片绝对路径"
+          :title="t('preview.copyPath')"
           @click="copyPath"
         >
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -107,7 +107,7 @@ onBeforeUnmount(() => {
         <!-- 关闭 -->
         <button
           class="icon-btn !w-6 !h-6 hover:!text-rose-400 ml-1"
-          title="关闭预览 (Esc)"
+          :title="t('preview.close')"
           @click="closeImagePreview"
         >
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
@@ -118,49 +118,46 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- 中部主展示大图 -->
-    <div
-      class="flex-1 min-h-0 relative flex items-center justify-center p-1 overflow-hidden"
-      @click.self="closeImagePreview"
-    >
+    <!-- 主展示区域：大图与翻页按钮 -->
+    <div class="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden">
       <!-- 上一张 -->
       <button
         v-if="hasPrev"
-        class="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-slate-900/80 hover:bg-sky-500 hover:text-slate-950 text-slate-200 border border-sky-400/30 flex items-center justify-center transition-all shadow-xl cursor-pointer"
-        title="上一张 (←)"
-        @click="prev"
+        class="absolute left-2 z-10 w-9 h-9 rounded-full bg-slate-900/80 hover:bg-sky-500 text-slate-200 hover:text-slate-950 flex items-center justify-center border border-sky-400/30 transition-all shadow-xl cursor-pointer"
+        :title="t('preview.prev')"
+        @click.stop="prev"
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
       </button>
 
-      <!-- 放大图片核心 -->
-      <img
-        :src="imgUrl(preview.img?.path)"
-        class="max-w-full max-h-full object-contain rounded-xl shadow-2xl border border-sky-400/35 cursor-zoom-out select-none transition-transform duration-150"
-        alt="preview"
-        title="点击图片或背景关闭"
-        @click="closeImagePreview"
-      />
+      <!-- 居中高保真大图 -->
+      <div class="w-full h-full flex items-center justify-center p-2">
+        <img
+          v-if="preview.img?.path"
+          :src="imgUrl(preview.img.path)"
+          class="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-sky-400/20"
+          alt="preview-full"
+        />
+      </div>
 
       <!-- 下一张 -->
       <button
         v-if="hasNext"
-        class="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-slate-900/80 hover:bg-sky-500 hover:text-slate-950 text-slate-200 border border-sky-400/30 flex items-center justify-center transition-all shadow-xl cursor-pointer"
-        title="下一张 (→)"
-        @click="next"
+        class="absolute right-2 z-10 w-9 h-9 rounded-full bg-slate-900/80 hover:bg-sky-500 text-slate-200 hover:text-slate-950 flex items-center justify-center border border-sky-400/30 transition-all shadow-xl cursor-pointer"
+        :title="t('preview.next')"
+        @click.stop="next"
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="9 18 15 12 9 6"></polyline>
         </svg>
       </button>
     </div>
 
-    <!-- 底部快捷提示 -->
-    <div class="text-center py-1 text-[10px] text-slate-400 flex items-center justify-center gap-2">
-      <span>按 <kbd class="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">Esc</kbd> 或点击关闭</span>
-      <span v-if="list.length > 1">· 支持方向键 <kbd class="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">←</kbd> <kbd class="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">→</kbd> 翻页</span>
+    <!-- 底部简要提示 -->
+    <div class="text-center py-1 text-[11px] text-slate-400 shrink-0">
+      <span>{{ preview.img?.path }}</span>
     </div>
   </div>
 </template>

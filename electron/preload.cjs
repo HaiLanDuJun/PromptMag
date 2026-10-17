@@ -51,6 +51,9 @@ const api = {
   closeSnippetPicker: () => ipcRenderer.send('pm:close-snippet-picker'),
   pasteSnippetAtCursor: (text) => ipcRenderer.invoke('pm:paste-snippet-at-cursor', text),
 
+  /* 语言切换 (zh / en) */
+  setLocale: (lang) => ipcRenderer.send('pm:set-locale', lang),
+
   /* 文件系统辅助 */
   openPath: (p) => ipcRenderer.send('pm:open-path', p),
   showItemInFolder: (p) => ipcRenderer.send('pm:show-item-in-folder', p),

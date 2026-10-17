@@ -1,6 +1,6 @@
 {
   "name": "prompt-mag",
-  "version": "1.7.4",
+  "version": "1.8.0",
   "private": true,
   "description": "PromptMag - 桌面提示词弹夹：多图强关联锚定、极速悬浮输入、全局快捷键光标粘贴与 CLI Agent 任务自动接力",
   "main": "electron/main.cjs",
@@ -62,7 +62,12 @@
       "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "artifactName": "PromptMag-Setup-${version}.${ext}"
+      "artifactName": "PromptMag-Setup-${version}.${ext}",
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ]
     },
     "portable": {
       "artifactName": "PromptMag-Portable-${version}.${ext}"

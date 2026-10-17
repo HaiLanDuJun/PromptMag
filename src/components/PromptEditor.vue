@@ -8,12 +8,12 @@
  *  4. 支持框内随时修改关键词，强关联持续生效
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { state, addImages, removeImage, openImagePreview, toast } from '../lib/store'
+import { state, addImages, removeImage, openImagePreview, toast, t, currentLocale } from '../lib/store'
 import { TOKEN_RE, parseCompiledPrompt } from '../lib/compilePrompt'
 
 const props = defineProps({
   minHeight: { type: String, default: '100px' },
-  placeholder: { type: String, default: '输入提示词… 选中关键词按 Ctrl+V 贴图，可将图片与该词强关联' }
+  placeholder: { type: String, default: '' }
 })
 
 const emit = defineEmits(['keydown-enter'])
@@ -49,7 +49,8 @@ function serializeEditor() {
         const textEl = node.querySelector('.kw-text')
         const note = (textEl ? textEl.textContent : '').trim()
         const imgNum = idx + 1
-        result += note ? `[图${imgNum}: ${note}]` : `[图${imgNum}]`
+        const prefix = currentLocale.value === 'en' ? 'Img ' : '图'
+        result += note ? `[${prefix}${imgNum}: ${note}]` : `[${prefix}${imgNum}]`
         // 强关联同步：同步写回 state.composer.images 对应图片的 note
         if (state.composer.images[idx]) {
           state.composer.images[idx].note = note
@@ -79,11 +80,11 @@ function createChipNode(imgIdx, keyword = '') {
   chip.setAttribute('contenteditable', 'false')
   chip.setAttribute('data-img-idx', String(imgIdx))
 
-  // 右上角角标：图N（支持点击或双击放大查看大图）
+  // 右上角角标：图N / Img N（支持点击或双击放大查看大图）
   const badge = document.createElement('span')
   badge.className = 'kw-badge'
-  badge.textContent = `图${imgIdx + 1}`
-  badge.title = '点击或双击放大查看图片'
+  badge.textContent = currentLocale.value === 'en' ? `Img ${imgIdx + 1}` : `图${imgIdx + 1}`
+  badge.title = t('editor.badgeTitle')
   badge.addEventListener('click', (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -142,7 +143,7 @@ function createChipNode(imgIdx, keyword = '') {
   const closeBtn = document.createElement('span')
   closeBtn.className = 'kw-close'
   closeBtn.textContent = '×'
-  closeBtn.title = '删除此图片关联'
+  closeBtn.title = t('editor.deleteBinding')
   closeBtn.addEventListener('click', (e) => {
     e.preventDefault()
     e.stopPropagation()

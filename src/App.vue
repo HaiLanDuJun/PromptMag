@@ -8,7 +8,7 @@ import QueueTab from './components/QueueTab.vue'
 import SnippetsTab from './components/SnippetsTab.vue'
 import SnippetPicker from './components/SnippetPicker.vue'
 import ImagePreviewModal from './components/ImagePreviewModal.vue'
-import { state, initStore, bindExternalEvents, setMode, bindModeSync } from './lib/store'
+import { state, initStore, bindExternalEvents, setMode, bindModeSync, t } from './lib/store'
 
 const isSnippetPicker = ref(window.location.hash === '#snippet-picker')
 const tab = ref('queue')
@@ -142,14 +142,14 @@ onBeforeUnmount(() => {
             :class="tab === 'queue' ? 'bg-sky-500/15 border border-sky-400/40 text-sky-300' : 'text-slate-400 hover:text-slate-200'"
             @click="tab = 'queue'"
           >
-            历史关键词
+            {{ t('tabs.history') }}
           </button>
           <button
             class="px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all"
             :class="tab === 'snippets' ? 'bg-sky-500/15 border border-sky-400/40 text-sky-300' : 'text-slate-400 hover:text-slate-200'"
             @click="tab = 'snippets'"
           >
-            常用词库
+            {{ t('tabs.snippets') }}
           </button>
         </nav>
         <main class="flex-1 overflow-y-auto min-h-0 px-3.5 pb-3">

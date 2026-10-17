@@ -2,10 +2,13 @@
 /**
  * 完整形态标题栏（契合设计图 6 顶部栏）
  *  - 左侧：[文档图标] 保存关键词
- *  - 右侧：置顶、透明度、设置、迷你、收起、关闭
+ *  - 右侧：置顶、透明度、语言切换、设置、迷你、收起、关闭
  */
 import { ref } from 'vue'
-import { state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir, setHotkeys } from '../lib/store'
+import {
+  state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir,
+  setHotkeys, changeLocale, t, currentLocale
+} from '../lib/store'
 import HotkeyInput from './HotkeyInput.vue'
 
 defineEmits(['collapse', 'mini'])
@@ -26,11 +29,15 @@ function onHotkeyChange(which, v) {
     which === 'pop' ? { pop: v } : which === 'collect' ? { collect: v } : { snippets: v }
   )
 }
+
+function toggleLang() {
+  changeLocale(currentLocale.value === 'zh' ? 'en' : 'zh')
+}
 </script>
 
 <template>
   <header class="drag-region relative flex items-center justify-between px-3.5 h-10 shrink-0 hairline">
-    <!-- 图 6 顶栏左侧：[文档图标] 保存关键词 -->
+    <!-- 顶栏左侧：[文档图标] 标题 -->
     <div class="flex items-center gap-2">
       <span class="text-sky-400 flex items-center shrink-0">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -40,22 +47,31 @@ function onHotkeyChange(which, v) {
           <line x1="16" y1="17" x2="8" y2="17" />
         </svg>
       </span>
-      <span class="font-semibold text-slate-100 text-[13px] tracking-wide">保存关键词</span>
+      <span class="font-semibold text-slate-100 text-[13px] tracking-wide">{{ t('titleBar.title') }}</span>
       <!-- 状态指示灯：接力开启时发光 -->
       <span
         v-if="state.settings.relay"
         class="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_6px_#38bdf8] shrink-0"
-        title="Agent 自动接力已开启"
+        :title="t('titleBar.relayActive')"
       />
     </div>
 
-    <!-- 图 6 顶栏右侧：操作按钮 -->
+    <!-- 顶栏右侧：操作按钮 -->
     <div class="no-drag flex items-center gap-1">
+      <!-- 快捷语言切换按键 -->
+      <button
+        class="icon-btn !w-7 !h-6 text-[10px] font-bold tracking-tight text-slate-300 hover:text-sky-300 border border-slate-700/60 rounded px-1"
+        :title="t('titleBar.switchLang')"
+        @click="toggleLang"
+      >
+        {{ currentLocale === 'zh' ? 'EN' : '中' }}
+      </button>
+
       <!-- 置顶 -->
       <button
         class="icon-btn"
         :class="{ active: state.settings.alwaysOnTop }"
-        :title="state.settings.alwaysOnTop ? '窗口置顶（开启中）' : '点击置顶窗口'"
+        :title="state.settings.alwaysOnTop ? t('titleBar.alwaysOnTopOn') : t('titleBar.alwaysOnTopOff')"
         @click="setAlwaysOnTop(!state.settings.alwaysOnTop)"
       >
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -64,7 +80,7 @@ function onHotkeyChange(which, v) {
       </button>
 
       <!-- 透明度 -->
-      <label class="flex items-center px-1 cursor-pointer" title="窗口透明度">
+      <label class="flex items-center px-1 cursor-pointer" :title="t('titleBar.opacity')">
         <input
           type="range" min="0.4" max="1" step="0.05"
           :value="state.settings.opacity"
@@ -76,7 +92,7 @@ function onHotkeyChange(which, v) {
       <button
         class="icon-btn"
         :class="{ active: showSettings }"
-        title="设置"
+        :title="t('titleBar.settings')"
         @click.stop="showSettings = !showSettings"
       >
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -86,21 +102,21 @@ function onHotkeyChange(which, v) {
       </button>
 
       <!-- 迷你胶囊输入 -->
-      <button class="icon-btn" title="迷你快捷输入面板" @click="$emit('mini')">
+      <button class="icon-btn" :title="t('titleBar.miniMode')" @click="$emit('mini')">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 6h16" /><path d="M4 12h10" /><path d="M4 18h13" />
         </svg>
       </button>
 
       <!-- 收起为悬浮图标 -->
-      <button class="icon-btn" title="收起为悬浮图标" @click="$emit('collapse')">
+      <button class="icon-btn" :title="t('titleBar.collapseToOrb')" @click="$emit('collapse')">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
         </svg>
       </button>
 
       <!-- 关闭 / 隐藏 -->
-      <button class="icon-btn hover:!text-rose-400" title="关闭窗口 (Alt+Q 重新呼出)" @click="hide">
+      <button class="icon-btn hover:!text-rose-400" :title="t('titleBar.closeWindow')" @click="hide">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
         </svg>
@@ -110,49 +126,68 @@ function onHotkeyChange(which, v) {
     <!-- 设置浮层 -->
     <div v-if="showSettings" class="settings-backdrop" @click="showSettings = false" />
     <div v-if="showSettings" class="settings-panel no-drag" @click.stop>
-      <div class="settings-title">应用设置</div>
+      <div class="settings-title">{{ t('settings.title') }}</div>
 
-      <div class="settings-label">全局快捷键</div>
+      <!-- 语言切换设置 -->
+      <div class="settings-label">{{ t('settings.language') }}</div>
+      <div class="flex items-center gap-2 mb-3">
+        <button
+          class="btn flex-1 !py-1 text-xs"
+          :class="currentLocale === 'zh' ? 'btn-primary' : ''"
+          @click="changeLocale('zh')"
+        >
+          {{ t('settings.langZh') }}
+        </button>
+        <button
+          class="btn flex-1 !py-1 text-xs"
+          :class="currentLocale === 'en' ? 'btn-primary' : ''"
+          @click="changeLocale('en')"
+        >
+          {{ t('settings.langEn') }}
+        </button>
+      </div>
+
+      <div class="settings-label">{{ t('settings.hotkeysTitle') }}</div>
       <div class="hotkey-row">
-        <span class="hotkey-desc" title="复制弹夹里最老的未使用提示词，并标记为已使用">弹出最旧未用</span>
+        <span class="hotkey-desc" :title="t('settings.hotkeyPopDesc')">{{ t('settings.hotkeyPopLabel') }}</span>
         <HotkeyInput
           :model-value="state.settings.hotkeyPop"
           @update:model-value="(v) => onHotkeyChange('pop', v)"
         />
       </div>
       <div class="hotkey-row">
-        <span class="hotkey-desc" title="把当前选中文字一键收录到词库">收录选中文字</span>
+        <span class="hotkey-desc" :title="t('settings.hotkeyCollectDesc')">{{ t('settings.hotkeyCollectLabel') }}</span>
         <HotkeyInput
           :model-value="state.settings.hotkeyCollect"
           @update:model-value="(v) => onHotkeyChange('collect', v)"
         />
       </div>
       <div class="hotkey-row">
-        <span class="hotkey-desc" title="呼出专属收藏夹提示词弹窗，选择后直接复制并粘贴到光标处">常用词库弹窗</span>
+        <span class="hotkey-desc" :title="t('settings.hotkeySnippetsDesc')">{{ t('settings.hotkeySnippetsLabel') }}</span>
         <HotkeyInput
           :model-value="state.settings.hotkeySnippets"
           @update:model-value="(v) => onHotkeyChange('snippets', v)"
         />
       </div>
       <div class="settings-tip">
-        支持直接键盘按键录制，录制完成后自动全局注册。
+        {{ t('settings.hotkeyTip') }}
       </div>
 
-      <div class="settings-label mt-3">Agent 自动接力 (next_tasks.md)</div>
+      <div class="settings-label mt-3">{{ t('settings.relayTitle') }}</div>
       <div class="flex items-center justify-between mb-2">
-        <span class="text-[11px] text-slate-300">双向同步 next_tasks.md</span>
+        <span class="text-[11px] text-slate-300">{{ t('settings.relayDesc') }}</span>
         <button
           class="btn !py-0.5 !px-2.5"
           :class="state.settings.relay ? 'btn-primary' : ''"
           @click="setRelay(!state.settings.relay)"
-        >{{ state.settings.relay ? '已开启' : '已关闭' }}</button>
+        >{{ state.settings.relay ? t('settings.relayOn') : t('settings.relayOff') }}</button>
       </div>
 
-      <div class="settings-label">数据存放目录</div>
+      <div class="settings-label">{{ t('settings.dataDirTitle') }}</div>
       <div class="settings-path" :title="state.paths.homeDir">{{ state.paths.homeDir }}</div>
       <div class="flex gap-2 mt-2">
-        <button class="btn flex-1" @click="onChooseDir">更改目录（迁移重启）</button>
-        <button class="btn" @click="openDataDir">打开</button>
+        <button class="btn flex-1" @click="onChooseDir">{{ t('settings.changeDir') }}</button>
+        <button class="btn" @click="openDataDir">{{ t('settings.openDir') }}</button>
       </div>
     </div>
   </header>

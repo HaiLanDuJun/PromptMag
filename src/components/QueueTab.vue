@@ -4,12 +4,13 @@
  *  - 头部：历史关键词 | 清空
  *  - 列表项：[🔍 图标] 关键词名称 ... 日期时间 (MM-DD HH:mm)
  *  - 悬停：微光高亮并显示快速操作（复制、回填、删除）
- *  - 支持 Agent 自动接力状态标识
+ *  - 支持 Agent 自动接力状态标识与双语国际化
  */
 import { computed } from 'vue'
 import {
   state, removeTask, editBackfill, copyCompiled, clearAllQueue,
-  toggleTaskDone, resetAllTasksPending, formatDateTime, toast, imgUrl, openImagePreview
+  toggleTaskDone, resetAllTasksPending, formatDateTime, toast, imgUrl, openImagePreview,
+  t, currentLocale
 } from '../lib/store'
 
 // 历史列表按时间倒序（最新的在最前）
@@ -17,28 +18,28 @@ const historyItems = computed(() => {
   return [...state.queue].reverse()
 })
 
-const pendingCount = computed(() => state.queue.filter(t => !t.done).length)
-const hasDoneItems = computed(() => state.queue.some(t => t.done))
+const pendingCount = computed(() => state.queue.filter(tTask => !tTask.done).length)
+const hasDoneItems = computed(() => state.queue.some(tTask => tTask.done))
 
-async function onCopy(t) {
-  await copyCompiled(t)
-  toast('已复制关键词')
+async function onCopy(tTask) {
+  await copyCompiled(tTask)
+  toast(t('toast.copiedKeyword'))
 }
 
-function onEdit(t) {
-  editBackfill(t.id)
-  toast('已回填到输入框')
+function onEdit(tTask) {
+  editBackfill(tTask.id)
+  toast(t('toast.backfilled'))
 }
 
-function onRemove(t) {
-  removeTask(t.id)
-  toast('已移除')
+function onRemove(tTask) {
+  removeTask(tTask.id)
+  toast(t('toast.removed'))
 }
 
 function onClearAll() {
   if (!state.queue.length) return
   clearAllQueue()
-  toast('已清空历史关键词')
+  toast(t('toast.clearedHistory'))
 }
 
 function onResetAll() {
@@ -47,21 +48,21 @@ function onResetAll() {
 
 function displayTitle(item) {
   if (!item) return ''
-  const t = String(item.text || '').trim()
-  if (!t) {
+  const txt = String(item.text || '').trim()
+  if (!txt) {
     if (item.images && item.images.length) {
       const firstNote = item.images.find(im => im.note && im.note.trim())
       if (firstNote) return firstNote.note.trim()
-      return `[${item.images.length} 张图片]`
+      return t('queue.imageCount', { count: item.images.length })
     }
-    return '未命名关键词'
+    return t('queue.unnamed')
   }
-  // 若内容为单个 [图N: 关键词]，在历史列表中直接优雅展示关键词文字（同图二）
-  const singleMatch = t.match(/^\[图\s*\d+\s*[:：]\s*([^\]]+)\]$/)
+  // 若内容为单个 [图N: 关键词] 或 [Img N: 关键词]，在历史列表中直接优雅展示关键词文字
+  const singleMatch = txt.match(/^\[(?:图|Img|Image)\s*\d+\s*[:：]\s*([^\]]+)\]$/i)
   if (singleMatch && singleMatch[1]) {
     return singleMatch[1].trim()
   }
-  return t
+  return txt
 }
 </script>
 
@@ -70,14 +71,14 @@ function displayTitle(item) {
     <!-- 模块头：历史关键词 + 待用统计 + 重置待用 + 清空 -->
     <div class="history-section-header">
       <div class="flex items-center gap-1.5">
-        <span class="text-slate-300 font-semibold text-[12px]">历史关键词</span>
+        <span class="text-slate-300 font-semibold text-[12px]">{{ t('queue.title') }}</span>
         <span v-if="state.queue.length" class="text-[10px] text-sky-400 font-normal">({{ state.queue.length }})</span>
         <span
           v-if="pendingCount > 0"
           class="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[9px] text-emerald-300 font-semibold"
-          title="弹夹中尚未使用的提示词数量"
+          :title="t('queue.pendingTag', { count: pendingCount })"
         >
-          待用 {{ pendingCount }}
+          {{ t('queue.pendingTag', { count: pendingCount }) }}
         </span>
       </div>
 
@@ -85,17 +86,18 @@ function displayTitle(item) {
         <button
           v-if="hasDoneItems"
           class="text-[11px] text-emerald-400/80 hover:text-emerald-300 transition-colors cursor-pointer"
-          title="将所有已使用的提示词一键恢复为待使用"
+          :title="t('queue.resetAllPendingTitle')"
           @click="onResetAll"
         >
-          全部重置待用
+          {{ t('queue.resetAllPending') }}
         </button>
         <button
           v-if="state.queue.length"
           class="text-[11px] text-sky-400/80 hover:text-sky-300 transition-colors cursor-pointer"
+          :title="t('queue.clearTitle')"
           @click="onClearAll"
         >
-          清空
+          {{ t('queue.clear') }}
         </button>
       </div>
     </div>
@@ -108,8 +110,7 @@ function displayTitle(item) {
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       </div>
-      <p class="text-slate-400 text-[12px]">暂无历史关键词</p>
-      <p class="text-[11px] text-slate-500">在上方输入框输入关键词或上传图片，按 Enter 保存</p>
+      <p class="text-slate-400 text-[12px]">{{ t('queue.empty') }}</p>
     </div>
 
     <!-- 历史列表：状态 + 关键词名 + 图片角标 + 状态标签 + 时间 -->
@@ -125,7 +126,7 @@ function displayTitle(item) {
         <span
           class="shrink-0 flex items-center transition-colors cursor-pointer"
           :class="item.done ? 'text-slate-500 hover:text-emerald-400' : 'text-sky-400 group-hover:text-sky-300'"
-          :title="item.done ? '已使用（点击恢复为待用）' : '待使用（点击标记为已用）'"
+          :title="t('queue.toggleDoneTitle')"
           @click.stop="toggleTaskDone(item.id)"
         >
           <svg v-if="item.done" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -141,7 +142,7 @@ function displayTitle(item) {
         <span
           class="history-title truncate"
           :class="{ 'line-through !text-slate-500': item.done }"
-          :title="item.text || '纯图片记录'"
+          :title="item.text || 'Image record'"
         >
           {{ displayTitle(item) }}
         </span>
@@ -150,40 +151,40 @@ function displayTitle(item) {
         <span
           v-if="item.images && item.images.length"
           class="shrink-0 px-1.5 py-0.2 rounded bg-sky-500/10 hover:bg-sky-500/25 border border-sky-400/25 hover:border-sky-400/50 text-[9px] text-sky-400 cursor-pointer transition-colors"
-          title="点击放大查看此关键词关联的所有图片"
+          :title="t('editor.badgeTitle')"
           @click.stop="openImagePreview(item.images[0], 0, item.images)"
         >
-          {{ item.images.length }}图
+          {{ currentLocale === 'en' ? item.images.length + ' Img' : item.images.length + '图' }}
         </span>
 
         <!-- 状态标签：待使用（高亮） / 已使用（灰色），点击切换 -->
         <span
           class="queue-status-badge"
           :class="item.done ? 'done' : 'pending'"
-          :title="item.done ? '已使用过（点击恢复为待使用）' : '待使用（点击标记为已使用）'"
+          :title="t('queue.toggleDoneTitle')"
           @click.stop="toggleTaskDone(item.id)"
         >
-          {{ item.done ? '已使用' : '待使用' }}
+          {{ item.done ? t('common.done') : t('common.pending') }}
         </span>
 
         <!-- 悬停快捷按钮（切换状态 / 复制 / 删除） -->
         <div class="hidden group-hover:flex items-center gap-1 shrink-0" @click.stop>
           <button
             class="icon-btn !w-5 !h-5"
-            :title="item.done ? '恢复为待使用' : '标记为已使用'"
+            :title="t('queue.toggleDoneTitle')"
             @click="toggleTaskDone(item.id)"
           >
             <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </button>
-          <button class="icon-btn !w-5 !h-5" title="复制" @click="onCopy(item)">
+          <button class="icon-btn !w-5 !h-5" :title="t('queue.copyTitle')" @click="onCopy(item)">
             <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
             </svg>
           </button>
-          <button class="icon-btn !w-5 !h-5 danger" title="删除" @click="onRemove(item)">
+          <button class="icon-btn !w-5 !h-5 danger" :title="t('queue.deleteTitle')" @click="onRemove(item)">
             <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>

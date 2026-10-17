@@ -6,7 +6,7 @@
  *  - 按住拖动可移动（位移 > 4px 算拖动，否则算点击）
  */
 import { computed, onBeforeUnmount } from 'vue'
-import { state } from '../lib/store'
+import { state, currentLocale } from '../lib/store'
 
 const emit = defineEmits(['open'])
 
@@ -60,7 +60,7 @@ onBeforeUnmount(() => {
   <!-- 悬浮图标：契合设计图的深蓝微光毛玻璃 + 关键词文档图标 -->
   <div
     class="ball"
-    title="悬浮图标 · 悬停或点击直接输入 · 按住可拖拽移动"
+    :title="currentLocale === 'en' ? 'Floating Orb · Hover or click to open · Drag to move' : '悬浮图标 · 悬停或点击直接输入 · 按住可拖拽移动'"
     @mousedown="onDown"
     @mouseenter="$emit('open')"
   >

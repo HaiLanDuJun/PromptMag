@@ -8,12 +8,12 @@ CLI 提示词弹夹。为 Claude Code / Codex 等 CLI 编码 Agent 设计的桌�
 
 ## 中文
 
-### 下载（v1.7.4，Windows x64，开箱即用）
+### 下载（v1.8.0，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.7.4.exe`](/installer/PromptMag-Portable-1.7.4.exe) |
-| 安装版 | NSIS 向导安装，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.7.4.exe`](/installer/PromptMag-Setup-1.7.4.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.8.0.exe`](/installer/PromptMag-Portable-1.8.0.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.8.0.exe`](/installer/PromptMag-Setup-1.8.0.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -25,16 +25,20 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 
 ### 功能
 
-- 光标处内联贴图：`[图N]` 锚点 + 本地绝对路径；删除、拖拽重排后自动改号
-- 图片分镜卡片：每张图一条批注；点击缩略图可在光标处补插锚点
-- Prompt 编译器：内联路径展开 + 底部精确映射表，兼容「第二张图」这类口语指代
+- **中英双语国际化（i18n）**：
+  - 安装程序原生支持语言选择（默认简体中文，可选 English）
+  - 应用界面（标题栏、输入框、历史列表、设置浮层、托盘菜单）与提示信息全面支持中英双语切换
+  - 编译器输出与 Agent 接力指令完全遵循用户当前语言（中文生成 `[图1]` / 英文生成 `[Img 1]` 及其双语指令块）
+  - 顶栏一键 `中 / EN` 极速切换，设置面板同步持久化保存
+- **原生级安全光标粘贴**：
+  - 独家原生输入辅助组件，智能等待用户物理按键释放，杜绝组合键冲突
+  - 安全激活外部前台应用（微信、VS Code、记事本、终端等），彻底解决粘贴后导致目标窗口关闭或退出的问题
+  - 「弹出最旧未用」（默认 `Alt+V`）：自动将最老待办提示词直接粘贴至光标处并标记为已用
+  - 「专属常用词库弹窗」（默认 `Alt+C`）：独立悬浮弹窗，↑↓ 键盘选择、Enter 一键复制并直接自动粘贴到当前前台应用光标处
+- **光标处内联贴图**：`[图N]` 锚点 + 本地绝对路径；删除、拖拽重排后自动改号
 - **待发队列状态流转**：清晰显示「待使用 / 已使用」状态标签，点击自由切换，支持一键全部重置为待用；快捷键弹出时智能提示剩余待用数量
-- **清爽输入面板**：移除了输入框下方拥挤局促的横排词库条，专注高效输入与图文锚定
-- **专属收藏夹弹窗（直接贴入光标）**：全新设计独立悬浮弹窗，全局快捷键呼出，实时关键词过滤，↑↓ 键盘选择、Enter 一键复制并直接自动粘贴到当前前台应用（VS Code/微信/浏览器/终端等）光标处
-- Agent 自动接力：`next_tasks.md` 双向同步（`fs.watch`），复制时可选注入接力指令
-- 悬浮窗：无边框深色圆球（青色发光核心）造型、置顶、透明度 40%–100%、全局快捷键
-- 置顶开关三处可达：完整窗口标题栏图钉、快捷面板图钉、托盘菜单「窗口置顶」（状态写入 `data.json`）
-- `Ctrl+V` 智能粘贴：剪贴板是图片则落盘并插入 `[图N]` 锚点，是纯文本则直接粘贴到光标处
+- **Agent 自动接力**：`next_tasks.md` 双向同步（`fs.watch`），复制时可选注入接力指令
+- **悬浮窗**：无边框深色圆球（青色发光核心）造型、置顶、透明度 40%–100%、全局快捷键
 - **自定义全局快捷键**（设置面板可录制）：
   - 「呼出专属收藏夹」（默认 `Alt+C`）：呼出专属常用提示词弹窗，选中直接复制并自动粘贴到当前窗口光标处
   - 「弹出最旧未用」（默认 `Alt+V`）：一键复制弹夹里最老的未使用提示词并自动标记为已使用，按一次消耗一条
@@ -143,10 +147,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 A desktop floating tool for people working with CLI coding agents (Claude Code / Codex, etc.). Capture prompts and screenshots the moment ideas strike, compile them into unambiguous image-text prompts, and hand tasks to your agent automatically via a local queue file.
 
-### Download (v1.7.4, Windows x64)
+### Download (v1.8.0, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.7.4.exe`](/installer/PromptMag-Portable-1.7.4.exe) — no install needed
-- Installer: [`installer/PromptMag-Setup-1.7.4.exe`](/installer/PromptMag-Setup-1.7.4.exe)
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.8.0.exe`](/installer/PromptMag-Portable-1.8.0.exe) — no install needed
+- Installer: [`installer/PromptMag-Setup-1.8.0.exe`](/installer/PromptMag-Setup-1.8.0.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases).
 
@@ -154,17 +158,26 @@ Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMa
 
 While a CLI agent is running, the terminal is flooded with output: you can't jot down the next idea, screenshots won't paste, and when they do, the model may mix up image order. When a task finishes, you still have to babysit the terminal to feed the next one.
 
-PromptMag is a small always-on-top window. `Alt+Q` summons it; `Ctrl+V` pastes a clipboard image at your cursor (saved to a local file, with an inline `[图1]` anchor); `Ctrl+Enter` queues the task. On copy, the compiler expands anchors into structured text with absolute paths — the model can't misread which image is which. With relay mode on, the queue is mirrored to `~/.prompt-mag/next_tasks.md`; every line the agent ticks off syncs back to the UI in real time.
+PromptMag is a small always-on-top window. `Alt+Q` summons it; `Ctrl+V` pastes a clipboard image at your cursor (saved to a local file, with an inline `[图1]` or `[Img 1]` anchor); `Ctrl+Enter` queues the task. On copy, the compiler expands anchors into structured text with absolute paths — the model can't misread which image is which. With relay mode on, the queue is mirrored to `~/.prompt-mag/next_tasks.md`; every line the agent ticks off syncs back to the UI in real time.
 
 ### Features
 
-- Inline image pinning at the cursor: `[图N]` anchors + local absolute paths; auto-renumbering on delete / drag-reorder
-- Storyboard cards: one note per image; click a thumbnail to insert its anchor at the cursor
-- Prompt compiler: inline path expansion + a precise bottom mapping table; handles natural references like "the second image"
-- Queue: copy & pop / copy only / edit backfill / delete
-- Snippet library: high-frequency directives as one-click capsules
-- Agent auto-relay: two-way `next_tasks.md` sync via `fs.watch`, optional relay instruction appended on copy
-- Floating window: frameless dark orb with glowing core, always-on-top, 40%–100% opacity, global hotkey
+- **Full Bilingual Support (i18n)**:
+  - Installer with English / Simplified Chinese selection
+  - Complete UI, settings, system tray, and notifications in English & Chinese
+  - Dynamic compiled prompts and Agent relay directives matching your selected language
+  - Quick `中 / EN` toggle button on the title bar
+- **Safe Hardware-Level Cursor Paste**:
+  - Native helper detects physical modifier release to prevent key collision (`Ctrl+Alt+V`)
+  - Safely brings external foreground apps (WeChat, VS Code, Notepad, Windows Terminal) into focus without closing or crashing windows
+  - Snippet Picker popup (`Alt+C`): select and auto-insert into your active window's cursor position
+  - Pop oldest prompt (`Alt+V`): automatically paste next pending prompt directly into active cursor
+- **Inline Image Pinning**: `[Img N]` anchors + local absolute paths; auto-renumbering on delete / drag-reorder
+- **Storyboard Cards & Lightbox**: double-click thumbnail or keyword badge to zoom into full-resolution preview
+- **Prompt Compiler**: inline path expansion + precise bottom mapping table
+- **Queue State Management**: toggle Done / Pending status, one-click reset all to pending
+- **Agent Auto-Relay**: two-way `next_tasks.md` sync via `fs.watch`, optional relay instruction appended on copy
+- **Floating Window**: frameless dark orb with glowing core, always-on-top, 40%–100% opacity, customizable global hotkeys
 
 ### Compile Example
 
