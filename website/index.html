@@ -68,6 +68,24 @@ kbd{background:#0b0e17;border:1px solid var(--line);border-bottom-width:2px;bord
 .final h2{margin-bottom:10px}
 footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--mut);font-size:13px;text-align:center}
 footer a{color:var(--mut)}
+@media (max-width:640px){
+  nav .wrap{height:56px}
+  .logo{font-size:17px}
+  .langbtn{padding:6px 12px;font-size:12px}
+  .ghbtn{padding:7px 14px;font-size:12px}
+  .hero{padding:60px 0 40px}
+  .pill{font-size:12px;margin-bottom:20px}
+  section{padding:44px 0}
+  .grid,.steps{grid-template-columns:1fr}
+  .card{padding:20px}
+  .mode{padding:20px;gap:14px}
+  .mode .n{flex:0 0 40px;height:40px;font-size:16px;border-radius:10px}
+  .cta{flex-direction:column;align-items:stretch;padding:0 8px}
+  .btn-primary,.btn-ghost{text-align:center;padding:13px 20px;font-size:15px}
+  .ballstage{width:100px;height:100px;margin-top:44px}
+  .ball{width:70px;height:70px;left:15px;top:15px;font-size:26px}
+  .final{padding:48px 22px}
+}
 body [lang]{display:none}
 html[data-lang="zh"] body [lang="zh"]{display:block}
 html[data-lang="en"] body [lang="en"]{display:block}
