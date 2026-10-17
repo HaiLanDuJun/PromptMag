@@ -25,6 +25,10 @@
 
 A tiny floating window beside your terminal: press `Alt+Q`, pin multiple screenshots **precisely where your cursor is** (`[图1]`, `[图2]`...), and your AI agent — after finishing its current task — reads the queue file and picks up the next job all by itself.
 
+### 🌐 Official Website
+
+**[promptmag.dev](https://promptmag.dev)** — the project's bilingual landing page: what PromptMag is, the three eject modes (Shotgun / Revolver / Pistol), and download links. Pure static page deployed on Vercel; source lives in [`website/`](website/).
+
 ### 🌌 Why This Tool Exists
 
 The AI-agent era introduced a subtle mismatch into our workflow:
@@ -92,6 +96,10 @@ May this little floating window catch every flash of brilliance you have — and
 ### ⚡ 电梯演讲（3 秒看懂）
 
 一个悬浮在终端旁的小窗：按 `Alt+Q` 呼出，把多张截图**精准钉在光标所在的位置**（`[图1]`、`[图2]`…），跑完当前任务的 AI Agent 会自己去读队列文件，咬住下一单继续干。
+
+### 🌐 官方网站
+
+**[promptmag.dev](https://promptmag.dev)** ——项目的中英双语落地页：介绍 PromptMag 是什么、三种出弹模式（霰弹枪 / 左轮 / 手枪），以及下载入口。纯静态页面，部署在 Vercel 上；源码在 [`website/`](website/) 目录。
 
 ### 🌌 为什么要做这个工具？
 

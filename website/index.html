@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromptMag — 提示词弹夹 | Your floating prompt magazine</title>
+<meta name="description" content="PromptMag — 挂在 Windows 桌面上的提示词弹夹悬浮窗。数据全存本地，不用登录，下载即用。A floating prompt magazine for your Windows desktop.">
+<style>
+:root{
+  --bg:#0b0e17; --bg2:#111527; --card:#151b31; --line:#232b4d;
+  --txt:#eef1ff; --mut:#9aa3c7; --acc:#6c8cff; --acc2:#9d7bff;
+  --ok:#3ddc84;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",Inter,Roboto,sans-serif;line-height:1.7;overflow-x:hidden}
+a{color:inherit}
+.wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+/* nav */
+nav{position:sticky;top:0;z-index:50;background:rgba(11,14,23,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+.logo{font-weight:800;font-size:19px;letter-spacing:.5px}
+.logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav-r{display:flex;gap:10px;align-items:center}
+.langbtn{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:999px;padding:7px 16px;cursor:pointer;font-size:13px}
+.langbtn:hover{border-color:var(--acc)}
+.ghbtn{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:999px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none}
+/* hero */
+.hero{text-align:center;padding:96px 0 60px;position:relative}
+.hero::before{content:"";position:absolute;inset:-40px 0 0;background:radial-gradient(600px 320px at 50% 0%,rgba(108,140,255,.16),transparent 70%);pointer-events:none}
+.pill{display:inline-block;border:1px solid var(--line);background:var(--card);color:var(--mut);border-radius:999px;padding:6px 18px;font-size:13px;margin-bottom:26px}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.25;font-weight:800;letter-spacing:.5px}
+h1 .grad{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);font-size:clamp(15px,2.4vw,18px);max-width:640px;margin:22px auto 0}
+.cta{margin-top:34px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn-primary{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:12px;padding:14px 34px;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
+.btn-ghost{border:1px solid var(--line);background:var(--card);color:var(--txt);border-radius:12px;padding:14px 34px;font-size:16px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn-ghost:hover{border-color:var(--acc)}
+.meta{margin-top:18px;color:var(--mut);font-size:13px}
+/* ball demo */
+.ballstage{margin:56px auto 0;width:120px;height:120px;position:relative}
+.ball{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 32% 30%,#8fa4ff,#4a5fd6 70%);box-shadow:0 0 44px rgba(108,140,255,.55);position:absolute;left:18px;top:18px;animation:float 4s ease-in-out infinite;display:flex;align-items:center;justify-content:center;font-size:30px}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.ring{position:absolute;inset:0;border:1px dashed var(--line);border-radius:50%;animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* sections */
+section{padding:64px 0}
+h2{font-size:clamp(24px,4vw,34px);text-align:center;margin-bottom:12px;font-weight:800}
+.secsub{color:var(--mut);text-align:center;max-width:620px;margin:0 auto 40px;font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
+.card .ic{font-size:28px;margin-bottom:12px}
+.card h3{font-size:17px;margin-bottom:8px}
+.card p{color:var(--mut);font-size:14px}
+/* modes */
+.mode{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:26px;margin-bottom:16px;display:flex;gap:20px;align-items:flex-start}
+.mode .n{flex:0 0 46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+.mode h3{font-size:17px;margin-bottom:6px}
+.mode p{color:var(--mut);font-size:14px}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;counter-reset:st}
+.step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px;position:relative}
+.step::before{counter-increment:st;content:counter(st);position:absolute;top:18px;right:22px;font-size:34px;font-weight:800;color:var(--line)}
+.step h3{font-size:16px;margin-bottom:8px}
+.step p{color:var(--mut);font-size:14px}
+kbd{background:#0b0e17;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:2px 8px;font-family:inherit;font-size:13px}
+/* final cta */
+.final{background:linear-gradient(135deg,#182046,#241d4d);border:1px solid var(--line);border-radius:22px;text-align:center;padding:64px 30px;margin:20px 0 70px}
+.final h2{margin-bottom:10px}
+footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--mut);font-size:13px;text-align:center}
+footer a{color:var(--mut)}
+[lang]{display:none}
+html[data-lang="zh"] [lang="zh"]{display:block}
+html[data-lang="en"] [lang="en"]{display:block}
+span[lang]{display:none}
+html[data-lang="zh"] span[lang="zh"]{display:inline}
+html[data-lang="en"] span[lang="en"]{display:inline}
+</style>
+</head>
+<body data-lang="zh">
+<script>document.documentElement.dataset.lang='zh'</script>
+<nav><div class="wrap">
+  <div class="logo">Prompt<span>Mag</span></div>
+  <div class="nav-r">
+    <button class="langbtn" onclick="toggleLang()">EN / 中文</button>
+    <a class="ghbtn" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div class="pill"><span lang="zh">🪟 Windows 桌面工具 · 开源免费</span><span lang="en">🪟 Windows desktop tool · Open source &amp; free</span></div>
+  <h1><span lang="zh">提示词翻来覆去地敲？<br><span class="grad">弹夹一次装好，一键弹出。</span></span><span lang="en">Tired of retyping prompts?<br><span class="grad">Load the magazine once, eject with one key.</span></span></h1>
+  <p class="sub">
+    <span lang="zh">天天用 AI 写代码的人都懂：复制粘贴烦死人，攒的好提示词还散落在各处，用时找不到。PromptMag 是一个挂在 Windows 桌面上的提示词弹夹悬浮窗——数据全存本地，不用登录，下载即用。</span>
+    <span lang="en">If you code with AI every day, you know the pain: endless copy-pasting, and good prompts scattered everywhere when you need them. PromptMag is a prompt magazine that lives as a floating widget on your Windows desktop — all data stays local, no login needed, download and use.</span>
+  </p>
+  <div class="cta">
+    <a class="btn-primary" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener"><span lang="zh">⬇ 免费下载</span><span lang="en">⬇ Download free</span></a>
+    <a class="btn-ghost" href="#features"><span lang="zh">看看功能</span><span lang="en">See features</span></a>
+  </div>
+  <div class="meta"><span lang="zh">✓ 本地存储 &nbsp; ✓ 无需登录 &nbsp; ✓ 中英双语</span><span lang="en">✓ Local storage &nbsp; ✓ No login &nbsp; ✓ EN / 中文</span></div>
+  <div class="ballstage"><div class="ring"></div><div class="ball">💬</div></div>
+</div></header>
+
+<section id="features"><div class="wrap">
+  <h2><span lang="zh">为重度 AI 用户打造</span><span lang="en">Built for heavy AI users</span></h2>
+  <p class="secsub"><span lang="zh">不是又一个在线提示词网站，而是一个常驻桌面的出弹工具。</span><span lang="en">Not another online prompt directory — a magazine docked on your desktop, ready to fire.</span></p>
+  <div class="grid">
+    <div class="card"><div class="ic">🎯</div><h3><span lang="zh">悬浮小球，随叫随到</span><span lang="en">Floating ball, always on standby</span></h3><p><span lang="zh">小球悬浮在桌面边缘，一个快捷键弹出提示词，不打断你的代码心流。</span><span lang="en">The ball floats at your screen edge; one hotkey pops up your prompts without breaking your flow.</span></p></div>
+    <div class="card"><div class="ic">🔫</div><h3><span lang="zh">三种出弹模式</span><span lang="en">Three eject modes</span></h3><p><span lang="zh">霰弹枪（按顺序）、左轮（随机）、手枪（最近保存先出），不同场景不同打法。</span><span lang="en">Shotgun (in order), revolver (random), pistol (most-recent-first) — a mode for every scenario.</span></p></div>
+    <div class="card"><div class="ic">📋</div><h3><span lang="zh">保存即复制，拿来即用</span><span lang="en">Auto-copy on save</span></h3><p><span lang="zh">保存提示词的同时自动复制到剪贴板，切到编辑器直接粘贴。</span><span lang="en">Saving a prompt copies it to your clipboard automatically — paste straight into your editor.</span></p></div>
+    <div class="card"><div class="ic">🖼️</div><h3><span lang="zh">提示词 × 图片，一键粘贴</span><span lang="en">Prompts × images, one-click paste</span></h3><p><span lang="zh">每条提示词精准对应一张图片，一键把图文一起粘贴出去。</span><span lang="en">Each prompt is precisely paired with its image — paste them together with one click.</span></p></div>
+    <div class="card"><div class="ic">🔒</div><h3><span lang="zh">数据全存本地</span><span lang="en">100% local data</span></h3><p><span lang="zh">不用注册，不用登录，没有云端。你的提示词只属于你自己。</span><span lang="en">No signup, no login, no cloud. Your prompts belong to you alone.</span></p></div>
+    <div class="card"><div class="ic">🌏</div><h3><span lang="zh">中英双语，开源免费</span><span lang="en">Bilingual, open source &amp; free</span></h3><p><span lang="zh">界面中英双语，代码完全开源，免费下载使用。</span><span lang="en">Bilingual UI, fully open-source code, free to download and use.</span></p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2><span lang="zh">三种出弹模式，怎么玩</span><span lang="en">Three eject modes, how they play</span></h2>
+  <p class="secsub"><span lang="zh">像弹夹一样管理提示词，按场景切换出弹方式。</span><span lang="en">Manage prompts like a magazine — switch eject modes by scenario.</span></p>
+  <div class="mode"><div class="n">1</div><div><h3><span lang="zh">霰弹枪 · 按顺序输出</span><span lang="en">Shotgun · Sequential</span></h3><p><span lang="zh">适合固定流程：code review 清单、发布前检查项，一条条按顺序过，谁都不会漏。</span><span lang="en">For fixed workflows: code-review checklists, pre-release checks — walk through them in order, miss nothing.</span></p></div></div>
+  <div class="mode"><div class="n">2</div><div><h3><span lang="zh">左轮 · 随机输出</span><span lang="en">Revolver · Random</span></h3><p><span lang="zh">适合头脑风暴：随机抽一条提示词换个角度看问题，灵感常常来自意外。</span><span lang="en">For brainstorming: draw a random prompt to see the problem from a new angle — inspiration loves accidents.</span></p></div></div>
+  <div class="mode"><div class="n">3</div><div><h3><span lang="zh">手枪 · 最近保存先出</span><span lang="en">Pistol · Most-recent-first</span></h3><p><span lang="zh">适合高频复用：刚调好的那条提示词正在手感上，连续用它，越打越顺。</span><span lang="en">For heavy reuse: the prompt you just tuned is hot — keep firing it while it's fresh.</span></p></div></div>
+</div></section>
+
+<section><div class="wrap">
+  <h2><span lang="zh">三步上手</span><span lang="en">Up and running in 3 steps</span></h2>
+  <p class="secsub"><span lang="zh">下载即用，不用注册，不用配置服务器。</span><span lang="en">Download and go — no signup, no server to configure.</span></p>
+  <div class="steps">
+    <div class="step"><h3><span lang="zh">下载安装</span><span lang="en">Download</span></h3><p><span lang="zh">从 GitHub Releases 下载安装包，一路下一步。</span><span lang="en">Grab the installer from GitHub Releases and click through.</span></p></div>
+    <div class="step"><h3><span lang="zh">攒你的弹夹</span><span lang="en">Load your magazine</span></h3><p><span lang="zh">把常用提示词存进去，可选配图，保存时自动复制。</span><span lang="en">Save your go-to prompts, attach images optionally — auto-copied on save.</span></p></div>
+    <div class="step"><h3><span lang="zh">快捷键出弹</span><span lang="en">Eject with a hotkey</span></h3><p><span lang="zh">按 <kbd>快捷键</kbd> 弹出提示词，选模式，开火。</span><span lang="en">Hit the <kbd>hotkey</kbd>, pick a mode, fire.</span></p></div>
+  </div>
+</div></section>
+
+<div class="wrap"><div class="final">
+  <h2><span lang="zh">别再翻来覆去敲提示词了</span><span lang="en">Stop retyping your prompts</span></h2>
+  <p class="secsub" style="margin-bottom:30px"><span lang="zh">PromptMag 开源免费，现在就把你的提示词装进弹夹。</span><span lang="en">PromptMag is open source and free — load your prompts into the magazine today.</span></p>
+  <a class="btn-primary" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener"><span lang="zh">⭐ 去 GitHub 获取 PromptMag</span><span lang="en">⭐ Get PromptMag on GitHub</span></a>
+</div></div>
+
+<footer><div class="wrap">
+  <span lang="zh">PromptMag · 开源免费 · 由 <a href="https://github.com/HaiLanDuJun" target="_blank" rel="noopener">HaiLanDuJun</a> 打造</span><span lang="en">PromptMag · Open source &amp; free · Built by <a href="https://github.com/HaiLanDuJun" target="_blank" rel="noopener">HaiLanDuJun</a></span>
+</div></footer>
+
+<script>
+function toggleLang(){
+  const h=document.documentElement;
+  h.dataset.lang = h.dataset.lang==='zh' ? 'en' : 'zh';
+  document.documentElement.lang = h.dataset.lang==='zh' ? 'zh-CN' : 'en';
+}
+</script>
+</body>
+</html>
