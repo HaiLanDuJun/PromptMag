@@ -1,8 +1,8 @@
 {
   "name": "prompt-mag",
-  "version": "1.5.1",
+  "version": "1.7.4",
   "private": true,
-  "description": "PromptMag - CLI 提示词弹夹：多图锚定 + Agent 任务队列自动接力",
+  "description": "PromptMag - 关键词与提示词弹夹：多图锚定 + 悬浮输入 + 历史关键词接力",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -15,8 +15,10 @@
     "preview": "npm run build && electron .",
     "icon": "node scripts/make-icon.cjs",
     "clean": "node -e \"require('node:fs').rmSync('release',{recursive:true,force:true})\"",
-    "dist": "npm run clean && npm run build && electron-builder --win",
-    "dist:portable": "npm run clean && npm run build && electron-builder --win portable"
+    "dist": "npm run clean && npm run build && electron-builder --win && node scripts/sync-installer.cjs",
+    "dist:portable": "npm run clean && npm run build && electron-builder --win portable && node scripts/sync-installer.cjs",
+    "update:exe": "npm run dist",
+    "pack:exe": "npm run dist"
   },
   "dependencies": {
     "vue": "^3.5.13"
@@ -42,6 +44,9 @@
       "dist/**",
       "electron/**",
       "package.json"
+    ],
+    "asarUnpack": [
+      "electron/bin/**"
     ],
     "win": {
       "icon": "build/icon.ico",

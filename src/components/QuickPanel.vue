@@ -1,165 +1,163 @@
 <script setup>
 /**
- * 快捷输入面板（类似输入法悬浮窗）
- *  - 胶囊悬停后直接展开到此面板，可立即输入、Ctrl+V 粘贴文字或贴图、Ctrl+Enter 存弹夹
- *  - 不切 Tab、不离开当前窗口，用完自动收起回胶囊
+ * 快捷输入面板（QuickPanel）
+ *  - 契合用户需求：弹窗输入框粘贴图片不需要显示底部的图片卡片排，直接在框内呈现关联高亮框效果（同图二）
+ *  - 紧凑精致，操作流畅
  */
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import {
-  state, addImages, pushComposerToQueue, toast, setMode, setAlwaysOnTop, readClipboardText
+  state, addImages, removeImage, pushComposerToQueue,
+  toast, setMode, setAlwaysOnTop, readClipboardText
 } from '../lib/store'
+import { parseCompiledPrompt } from '../lib/compilePrompt'
+import PromptEditor from './PromptEditor.vue'
 
-const ta = ref(null)
+const promptEditor = ref(null)
 
-/* ---------- 光标处插入（未聚焦时自动聚焦并插到末尾） ---------- */
-function insertAtCursor(str) {
-  const el = ta.value
-  const t = state.composer.text
-  if (!el) {
-    state.composer.text = t + str
-    return
+/* ---------- 点击「添加/上传图片」按钮 ---------- */
+async function onPickImages() {
+  if (promptEditor.value) {
+    promptEditor.value.saveSelection()
   }
-  el.focus()
-  const focused = document.activeElement === el
-  const s = focused ? (el.selectionStart ?? t.length) : t.length
-  const e = focused ? (el.selectionEnd ?? s) : t.length
-  state.composer.text = t.slice(0, s) + str + t.slice(e)
-  nextTick(() => {
-    el.focus()
-    el.selectionStart = el.selectionEnd = s + str.length
-  })
+  const res = await window.pm.chooseImageFiles()
+  if (res && res.ok && res.images && res.images.length) {
+    if (promptEditor.value) {
+      await promptEditor.value.bindImageToSelection(res.images)
+    } else {
+      addImages(res.images)
+    }
+    toast(`已添加并关联 ${res.images.length} 张图片`)
+  }
 }
 
-/* ---------- 粘贴：优先图片，其次纯文本 ---------- */
-async function pasteFromClipboard() {
-  const res = await window.pm.saveClipboardImages()
-  if (res.ok && res.images && res.images.length) {
-    const startNo = state.composer.images.length + 1
-    addImages(res.images)
-    const tokens = res.images.map((_, i) => `[图${startNo + i}]`).join(' ')
-    insertAtCursor(tokens + ' ')
-    toast(`已贴 ${res.images.length} 张图`)
-    return
-  }
+/* ---------- 粘贴纯文本（智能识别并还原已编译的提示词） ---------- */
+async function pasteText() {
   const txt = await readClipboardText()
   if (txt) {
-    insertAtCursor(txt)
+    const parsed = parseCompiledPrompt(txt)
+    if (parsed) {
+      if (parsed.images && parsed.images.length) {
+        state.composer.images = parsed.images
+      }
+      state.composer.text = parsed.text
+      toast(`已智能还原 ${parsed.images.length} 张图片关联`)
+      return
+    }
+    state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + txt
     toast('已粘贴文本')
     return
   }
-  toast('剪贴板里没有可粘贴的图片或文字')
+  toast('剪贴板中无文本')
 }
 
-/** 粘贴目标若是别的输入框则不拦截，让它走浏览器默认行为 */
-function isOwnPasteTarget(e) {
-  const el = e && e.target
-  if (!el || !el.tagName) return true
-  const tag = String(el.tagName).toLowerCase()
-  if (tag === 'textarea' || tag === 'input') return el === ta.value
-  return true
-}
-
-async function onPaste(e) {
-  if (!isOwnPasteTarget(e)) return
+/* ---------- 保存入库 ---------- */
+function onEnter(e) {
+  if (e.shiftKey) return // Shift+Enter 正常换行
   e.preventDefault()
-  await pasteFromClipboard()
-}
-
-/* ---------- 保存 ---------- */
-function onKeydown(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault()
-    save()
-  }
+  save()
 }
 
 function save() {
   const t = pushComposerToQueue()
   if (!t) {
-    toast('输入框是空的')
+    toast('请输入关键词或添加图片')
     return
   }
-  toast('已存弹夹')
-  ta.value && ta.value.focus()
+  toast('已保存关键词')
+  nextTick(() => promptEditor.value && promptEditor.value.focus())
 }
-
-const imgCount = () => state.composer.images.length
-const pendingCount = () => state.queue.filter((t) => !t.done).length
-
-onMounted(() => {
-  nextTick(() => ta.value && ta.value.focus())
-  // 挂在 document 上：即使光标不在输入框里（刚弹出、点了按钮）Ctrl+V 也能接到
-  document.addEventListener('paste', onPaste)
-})
-onBeforeUnmount(() => {
-  document.removeEventListener('paste', onPaste)
-})
 </script>
 
 <template>
-  <div class="quick">
-    <!-- 顶部高光条 -->
-    <div class="quick-glow" />
-
-    <!-- 头部：拖拽区 + 展开 / 收起 -->
-    <header class="drag-region quick-head">
-      <span class="quick-logo">P</span>
-      <span class="quick-title">PromptMag</span>
-      <span v-if="pendingCount()" class="quick-count">{{ pendingCount() }}</span>
-
-      <div class="flex-1" />
+  <div class="drag-region flex flex-col p-3 w-full h-full box-border">
+    <!-- 头部：标题与小操作 -->
+    <div class="flex items-center justify-between px-1 h-6 shrink-0 mb-2">
+      <div class="flex items-center gap-1.5">
+        <span class="text-sky-400 flex items-center">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        </span>
+        <span class="text-slate-100 font-semibold text-[11px] tracking-wide">PromptMag · 快捷输入</span>
+      </div>
 
       <div class="no-drag flex items-center gap-1">
+        <!-- 置顶开关 -->
         <button
-          class="qicon"
-          :class="{ 'qicon-on': state.settings.alwaysOnTop }"
-          :title="state.settings.alwaysOnTop ? '已置顶，不会被其他窗口覆盖（点击取消）' : '未置顶，会被其他窗口覆盖（点击置顶）'"
+          class="icon-btn !w-5 !h-5"
+          :class="{ active: state.settings.alwaysOnTop }"
+          :title="state.settings.alwaysOnTop ? '已置顶' : '点击置顶'"
           @click="setAlwaysOnTop(!state.settings.alwaysOnTop)"
         >
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
           </svg>
         </button>
-        <button class="qicon" title="展开完整窗口" @click="setMode('full')">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- 展开完整视图 -->
+        <button
+          class="icon-btn !w-5 !h-5"
+          title="展开为完整窗口"
+          @click="setMode('full')"
+        >
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" />
           </svg>
         </button>
-        <button class="qicon" title="收起为胶囊" @click="setMode('capsule')">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-            <path d="M5 12h14" />
+        <!-- 收起为悬浮图标 -->
+        <button
+          class="icon-btn !w-5 !h-5 hover:!text-rose-400"
+          title="收起为悬浮图标 (Esc)"
+          @click="setMode('capsule')"
+        >
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
       </div>
-    </header>
+    </div>
 
-    <!-- 输入区 -->
-    <div class="quick-body">
-      <textarea
-        ref="ta"
-        v-model="state.composer.text"
-        class="quick-input"
-        placeholder="输入提示词…  Ctrl+V 粘贴文字/图片 · Ctrl+Enter 存弹夹"
-        @keydown="onKeydown"
+    <!-- 弹窗输入框：纯净呈现图文关联框（严格限制在中间区域内滚动，严禁溢出压住底部按钮） -->
+    <div class="no-drag flex-1 min-h-0 overflow-hidden flex flex-col mb-2.5">
+      <PromptEditor
+        ref="promptEditor"
+        class="h-full flex-1 min-h-0"
+        min-height="40px"
+        placeholder="输入关键词… 选中词按 Ctrl+V 贴图，可将图片与该词强关联并在框内修改"
+        @keydown-enter="onEnter"
       />
     </div>
 
-    <!-- 操作行 -->
-    <div class="quick-foot">
-      <button class="qbtn" title="粘贴剪贴板内容（图片会落盘并插入 [图N]，文字直接粘贴）" @click="pasteFromClipboard">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
+    <!-- 底部操作行：固定在底部，永不被文本重叠 -->
+    <div class="no-drag flex items-center gap-1.5 shrink-0 px-0.5">
+      <button
+        class="btn text-sky-400 border-sky-400/30 hover:border-sky-400 !py-1"
+        title="上传图片文件（选中文字后点击，将与选中文本强关联）"
+        @click="onPickImages"
+      >
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
         </svg>
-        贴图<span v-if="imgCount()" class="qbtn-badge">{{ imgCount() }}</span>
+        贴图 / 上传
+      </button>
+
+      <button class="btn !py-1" title="粘贴剪贴板文字" @click="pasteText">
+        粘贴文本
       </button>
 
       <div class="flex-1" />
 
-      <button class="qbtn qbtn-primary" title="存入待发弹夹 (Ctrl+Enter)" @click="save">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" />
+      <!-- 保存入库 (Enter) -->
+      <button class="btn btn-primary !py-1 px-4" title="保存关键词 (Enter)" @click="save">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        存弹夹
+        保存
       </button>
     </div>
   </div>

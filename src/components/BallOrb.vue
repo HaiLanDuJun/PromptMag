@@ -1,8 +1,9 @@
 <script setup>
 /**
- * 收起形态：玻璃圆球
+ * 收起形态：悬浮图标（玻璃圆球 / 悬浮徽标）
+ *  - 契合设计图 1、2、3：未选中悬浮收起 / 边缘收缩 / 悬停展开
  *  - 悬停展开成快捷输入面板，点击也能打开
- *  - 按住拖动可移动（点击与拖拽互不干扰：位移 > 4px 才算拖动）
+ *  - 按住拖动可移动（位移 > 4px 算拖动，否则算点击）
  */
 import { computed, onBeforeUnmount } from 'vue'
 import { state } from '../lib/store'
@@ -11,10 +12,7 @@ const emit = defineEmits(['open'])
 
 const pendingCount = computed(() => state.queue.filter((t) => !t.done).length)
 
-/* ---------------- 自定义拖拽：区分点击 / 拖动 ----------------
- * 系统 app-region:drag 会吞掉 click 事件，改为手动拖拽：
- * 按下后位移 > 4px 视为拖动（rAF 节流同步窗口位置），否则视为点击打开面板。
- */
+/* ---------------- 自定义拖拽：区分点击 / 拖动 ---------------- */
 let drag = null
 let raf = null
 
@@ -59,15 +57,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- 玻璃圆球：点击打开快捷输入面板；按住拖动移动（不吞点击） -->
+  <!-- 悬浮图标：契合设计图的深蓝微光毛玻璃 + 关键词文档图标 -->
   <div
     class="ball"
-    :class="{ 'ball-relay': state.settings.relay }"
-    title="悬停或点击直接输入 · 按住可拖拽移动"
+    title="悬浮图标 · 悬停或点击直接输入 · 按住可拖拽移动"
     @mousedown="onDown"
     @mouseenter="$emit('open')"
   >
-    <span class="ball-logo" />
+    <!-- 文档/关键词折角图标 -->
+    <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="ball-icon">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+    </svg>
     <span v-if="pendingCount" class="ball-badge">{{ pendingCount > 9 ? '9+' : pendingCount }}</span>
   </div>
 </template>

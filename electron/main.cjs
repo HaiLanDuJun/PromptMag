@@ -24,7 +24,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const zlib = require('node:zlib')
-const { spawn } = require('node:child_process')
+const { spawn, execFileSync } = require('node:child_process')
 const { pathToFileURL } = require('node:url')
 
 // pmimg:// 本地图片协议需在 app ready 前注册特权（standard + fetch 支持）
@@ -58,18 +58,18 @@ P.windowState = path.join(P.home, 'window-state.json')
 
 const SHORTCUT = 'Alt+Q'
 
-/* 两个可自定义全局快捷键（设置面板可改，存于 data.json settings） */
-const HOTKEY_DEFAULTS = { pop: 'Alt+V', collect: 'Alt+S' }
+/* 三个可自定义全局快捷键（设置面板可改，存于 data.json settings） */
+const HOTKEY_DEFAULTS = { pop: 'Alt+V', collect: 'Alt+S', snippets: 'Alt+C' }
 let customHotkeys = { ...HOTKEY_DEFAULTS }
 
 /* 开发服务端口（与 vite.config.js 保持一致），不再使用 5173 */
 const DEV_PORT = Number(process.env.PM_DEV_PORT) || 5199
 
 /* 三种形态尺寸 */
-const BALL = { width: 56, height: 56 }      // 收起形态：玻璃圆球
-const QUICK = { width: 400, height: 210 }
-const FULL_DEFAULT = { width: 396, height: 640 }
-const FULL_MIN = { width: 340, height: 480 }
+const BALL = { width: 56, height: 56 }      // 收起形态：玻璃圆球/悬浮图标
+const QUICK = { width: 440, height: 195 }
+const FULL_DEFAULT = { width: 420, height: 560 }
+const FULL_MIN = { width: 360, height: 460 }
 /* 边缘吸附：离边小于该距离且窗口失焦时，半缩进屏幕边缘 */
 const EDGE_THRESHOLD = 90
 const TUCK_DELAY = 1200
@@ -380,11 +380,11 @@ function clampToWorkArea(b) {
   }
 }
 
-/** 平滑缩放窗口（easeOutCubic，~130ms） */
+/** 平滑缩放窗口（easeOutCubic，~90ms） */
 function animateTo(target, done) {
   if (!mainWindow || mainWindow.isDestroyed()) return
   const from = mainWindow.getBounds()
-  const STEPS = 8
+  const STEPS = 6
   let i = 0
   animating = true
   const timer = setInterval(() => {
@@ -404,7 +404,7 @@ function animateTo(target, done) {
       animating = false
       if (done) done()
     }
-  }, 16)
+  }, 15)
 }
 
 /* ---------------- 边缘吸附（0 侵入） ---------------- */
@@ -502,7 +502,9 @@ function applyShape() {
   } catch (e) {
     log('setShape failed:', e && e.message)
   }
-}function applyAlwaysOnTop() {
+}
+
+function applyAlwaysOnTop() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   try {
     mainWindow.setAlwaysOnTop(alwaysOnTop, 'screen-saver')
@@ -536,7 +538,9 @@ function setMode(next) {
   mode = next
   untuck()
   // 离开圆球先撤销裁剪，避免放大动画被圆形裁掉
-  if (prev === 'capsule') { try { mainWindow.setShape([]) } catch { /* ignore */ } }
+  if (prev === 'capsule') {
+    try { mainWindow.setShape([]) } catch { /* ignore */ }
+  }
   const cur = mainWindow.getBounds()
 
   if (next === 'full') {
@@ -552,7 +556,7 @@ function setMode(next) {
     if (prev === 'full') fullSize = { width: cur.width, height: cur.height }
     const size = next === 'quick' ? { ...QUICK } : { ...BALL }
     mainWindow.setResizable(false)
-    mainWindow.setMinimumSize(size.width, size.height)
+    mainWindow.setMinimumSize(size.width, next === 'quick' ? 120 : size.height)
     // 尽量保持左上角，越界则反向贴边
     const wa = screen.getDisplayNearestPoint({ x: cur.x, y: cur.y }).workArea
     const x = Math.min(Math.max(wa.x, cur.x), wa.x + wa.width - size.width)
@@ -709,14 +713,14 @@ function sendToRenderer(channel, payload) {
   }
 }
 
-/** 快捷键 1：弹出弹夹里最老的未使用提示词（复制并标记使用） */
+/** 快捷键 1：弹出弹夹里最老的未使用提示词（复制、标记使用并直接粘贴到光标处） */
 function onHotkeyPop() {
-  log('hotkey pop ->', customHotkeys.pop)
-  sendToRenderer('pm:hotkey-pop')
+  const fgHwnd = getForegroundHwndSync()
+  log('hotkey pop ->', customHotkeys.pop, 'fgHwnd:', fgHwnd)
+  sendToRenderer('pm:hotkey-pop', { fgHwnd })
 }
 
-/** 模拟按下 Ctrl+C（对前台窗口生效），让目标应用把选中文本复制到剪贴板
- *  用 wscript + vbs：无控制台窗口、不抢焦点（powershell 启动会闪 conhost 抢焦点导致 ^c 发错窗口） */
+/** 模拟按下 Ctrl+C（对前台窗口生效），让目标应用把选中文本复制到剪贴板 */
 function sendCopyKeys() {
   return new Promise((resolve) => {
     let done = false
@@ -728,7 +732,65 @@ function sendCopyKeys() {
       p.on('exit', finish)
       p.on('error', finish)
     } catch { finish() }
-    setTimeout(finish, 900) // 兜底：脚本卡死也不阻塞
+    setTimeout(finish, 900)
+  })
+}
+
+function fallbackVbsPaste() {
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => { if (!done) { done = true; resolve() } }
+    try {
+      const vbs = path.join(os.tmpdir(), 'pm-sendpaste.vbs')
+      fs.writeFileSync(vbs, 'CreateObject("WScript.Shell").SendKeys "^v"', 'utf8')
+      const p = spawn('wscript.exe', ['//nologo', '//B', vbs], { windowsHide: true, stdio: 'ignore' })
+      p.on('exit', finish)
+      p.on('error', finish)
+    } catch { finish() }
+    setTimeout(finish, 800)
+  })
+}
+
+function getForegroundHwndSync() {
+  try {
+    const helperPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'bin', 'paste-helper.exe')
+      : path.join(__dirname, 'bin', 'paste-helper.exe')
+    if (fs.existsSync(helperPath)) {
+      const out = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
+      return out || '0'
+    }
+  } catch (e) {
+    log('getForegroundHwndSync error:', e && e.message)
+  }
+  return '0'
+}
+
+/** 模拟按下 Ctrl+V（对前台窗口生效），让目标应用把文本粘贴到光标处 */
+function sendPasteKeys(targetHwnd = '0') {
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => { if (!done) { done = true; resolve() } }
+
+    const helperPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'bin', 'paste-helper.exe')
+      : path.join(__dirname, 'bin', 'paste-helper.exe')
+
+    if (fs.existsSync(helperPath)) {
+      try {
+        const hwndStr = String(targetHwnd || '0')
+        log('executing paste-helper with hwnd:', hwndStr)
+        const p = spawn(helperPath, ['paste', hwndStr], { windowsHide: true, stdio: 'ignore' })
+        p.on('exit', finish)
+        p.on('error', () => fallbackVbsPaste().then(finish))
+        setTimeout(finish, 800)
+        return
+      } catch (err) {
+        log('paste-helper spawn error:', err && err.message)
+      }
+    }
+
+    fallbackVbsPaste().then(finish)
   })
 }
 
@@ -766,9 +828,111 @@ async function onHotkeyCollect() {
   let text = ''
   try { text = clipboard.readText() || '' } catch { /* ignore */ }
   log('hotkey collect captured:', JSON.stringify(text.slice(0, 60)), 'len:', text.length)
-  // 还原用户原来的剪贴板内容（同文本则无需还原）
   if (text !== snap.text) restoreClipboard(snap)
   sendToRenderer('pm:hotkey-collected', { ok: !!(text && text.trim()), text })
+}
+
+/* ---------------- 专属收藏夹提示词独立弹窗 ---------------- */
+let snippetWindow = null
+let snippetTriggerSource = 'external'
+
+function createSnippetWindow() {
+  if (snippetWindow && !snippetWindow.isDestroyed()) return snippetWindow
+
+  snippetWindow = new BrowserWindow({
+    width: 440,
+    height: 410,
+    frame: false,
+    transparent: true,
+    roundedCorners: false,
+    backgroundColor: '#00000000',
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    alwaysOnTop: true,
+    show: false,
+    skipTaskbar: true,
+    icon: makeTrayIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      spellcheck: false
+    }
+  })
+
+  snippetWindow.on('hide', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('pm:snippet-picker-closed')
+    }
+  })
+
+  snippetWindow.on('blur', () => {
+    if (snippetWindow && !snippetWindow.isDestroyed()) {
+      snippetWindow.hide()
+      if (snippetTriggerSource === 'main' && mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+        mainWindow.focus()
+        mainWindow.webContents.send('pm:focus-composer')
+      }
+    }
+  })
+
+  const devUrl = resolveRendererURL()
+  const targetUrl = devUrl ? `${devUrl}#snippet-picker` : `file://${path.join(__dirname, '..', 'dist', 'index.html')}#snippet-picker`
+  if (devUrl) {
+    snippetWindow.loadURL(targetUrl).catch(() => {
+      snippetWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), { hash: 'snippet-picker' })
+    })
+  } else {
+    snippetWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), { hash: 'snippet-picker' })
+  }
+
+  return snippetWindow
+}
+
+let lastExternalHwnd = '0'
+
+function toggleSnippetPicker(source = null, capturedHwnd = '0') {
+  if (source) {
+    snippetTriggerSource = source
+  } else {
+    const isMainFocused = mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()
+    snippetTriggerSource = isMainFocused ? 'main' : 'external'
+  }
+  if (capturedHwnd && capturedHwnd !== '0') {
+    lastExternalHwnd = capturedHwnd
+  }
+  log('toggleSnippetPicker source:', snippetTriggerSource, 'lastExternalHwnd:', lastExternalHwnd)
+
+  const win = createSnippetWindow()
+  if (win.isVisible()) {
+    win.hide()
+    return
+  }
+
+  // 居中或在当前屏幕光标附近优雅呈现
+  const cursor = screen.getCursorScreenPoint()
+  const display = screen.getDisplayNearestPoint(cursor)
+  const w = 440
+  const h = 410
+  const x = Math.round(display.workArea.x + (display.workArea.width - w) / 2)
+  const y = Math.round(display.workArea.y + Math.max(50, (display.workArea.height - h) / 3))
+
+  win.setBounds({ x, y, width: w, height: h })
+  win.show()
+  win.focus()
+  win.webContents.send('pm:snippet-picker-opened')
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('pm:snippet-picker-opened')
+  }
+}
+
+/** 快捷键 3：呼出专属收藏夹提示词弹窗 */
+function onHotkeySnippets() {
+  const fgHwnd = getForegroundHwndSync()
+  log('hotkey snippets ->', customHotkeys.snippets, 'fgHwnd:', fgHwnd)
+  toggleSnippetPicker(null, fgHwnd)
 }
 
 /** 从 data.json 读取自定义快捷键配置 */
@@ -777,7 +941,8 @@ function readHotkeysFromData() {
   const s = d.settings || {}
   customHotkeys = {
     pop: typeof s.hotkeyPop === 'string' && s.hotkeyPop.trim() ? s.hotkeyPop.trim() : HOTKEY_DEFAULTS.pop,
-    collect: typeof s.hotkeyCollect === 'string' && s.hotkeyCollect.trim() ? s.hotkeyCollect.trim() : HOTKEY_DEFAULTS.collect
+    collect: typeof s.hotkeyCollect === 'string' && s.hotkeyCollect.trim() ? s.hotkeyCollect.trim() : HOTKEY_DEFAULTS.collect,
+    snippets: typeof s.hotkeySnippets === 'string' && s.hotkeySnippets.trim() ? s.hotkeySnippets.trim() : HOTKEY_DEFAULTS.snippets
   }
 }
 
@@ -791,6 +956,8 @@ function registerCustomHotkeys() {
   catch (e) { allOk = false; log('!! register pop hotkey failed:', customHotkeys.pop, e && e.message) }
   try { globalShortcut.register(customHotkeys.collect, onHotkeyCollect) }
   catch (e) { allOk = false; log('!! register collect hotkey failed:', customHotkeys.collect, e && e.message) }
+  try { globalShortcut.register(customHotkeys.snippets, onHotkeySnippets) }
+  catch (e) { allOk = false; log('!! register snippets hotkey failed:', customHotkeys.snippets, e && e.message) }
   log('custom hotkeys ->', JSON.stringify(customHotkeys), 'ok:', allOk)
   return allOk
 }
@@ -798,6 +965,7 @@ function registerCustomHotkeys() {
 function buildTrayMenu() {
   return Menu.buildFromTemplate([
     { label: '显示 / 隐藏 (Alt+Q)', click: () => toggleWindow() },
+    { label: `常用词库收藏夹 (${customHotkeys.snippets})`, click: () => toggleSnippetPicker() },
     { type: 'separator' },
     {
       label: '窗口置顶（不被其他窗口覆盖）',
@@ -887,6 +1055,13 @@ function registerIpc() {
   })
 
   ipcMain.on('pm:set-mode', (_e, m) => setMode(m === 'quick' ? 'quick' : m === 'capsule' ? 'capsule' : 'full'))
+  ipcMain.on('pm:set-quick-height', (_e, h) => {
+    if (mode !== 'quick' || !mainWindow || mainWindow.isDestroyed() || animating) return
+    const targetH = Math.max(56, Math.min(400, Math.round(Number(h) || 200)))
+    const b = mainWindow.getBounds()
+    if (Math.abs(b.height - targetH) <= 2) return
+    animateTo({ x: b.x, y: b.y, width: b.width, height: targetH })
+  })
   /* 鼠标进入窗口（含缩进后露出的半边）时滑回 */
   ipcMain.on('pm:pointer-in', () => untuck())
   ipcMain.on('pm:pointer-out', () => scheduleTuck())
@@ -912,6 +1087,32 @@ function registerIpc() {
   })
 
   ipcMain.handle('pm:save-clipboard-images', () => saveClipboardImages())
+
+  /* 本地图片文件选择器 */
+  ipcMain.handle('pm:choose-image-files', async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, canceled: true }
+    const r = await dialog.showOpenDialog(mainWindow, {
+      title: '选择图片文件',
+      filters: [
+        { name: '图片文件', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }
+      ],
+      properties: ['openFile', 'multiSelections']
+    })
+    if (r.canceled || !r.filePaths || !r.filePaths.length) return { ok: false, canceled: true }
+    const results = []
+    try {
+      ensureDirs()
+      for (const f of r.filePaths) {
+        if (!fs.existsSync(f)) continue
+        const dest = uniqueImagePath(path.extname(f).toLowerCase())
+        fs.copyFileSync(f, dest)
+        results.push({ path: dest, name: path.basename(dest) })
+      }
+      return { ok: true, images: results }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
 
   /* 剪贴板纯文本（渲染进程粘贴文本时兜底读取，不受浏览器权限限制） */
   ipcMain.handle('pm:read-clipboard-text', () => {
@@ -950,15 +1151,71 @@ function registerIpc() {
   ipcMain.on('pm:update-hotkeys', (_e, h) => {
     const pop = h && typeof h.pop === 'string' && h.pop.trim() ? h.pop.trim() : null
     const collect = h && typeof h.collect === 'string' && h.collect.trim() ? h.collect.trim() : null
+    const snippets = h && typeof h.snippets === 'string' && h.snippets.trim() ? h.snippets.trim() : null
     if (pop && pop !== SHORTCUT) customHotkeys.pop = pop
     if (collect && collect !== SHORTCUT) customHotkeys.collect = collect
+    if (snippets && snippets !== SHORTCUT) customHotkeys.snippets = snippets
     const ok = registerCustomHotkeys()
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('pm:hotkeys-registered', {
-        ok, pop: customHotkeys.pop, collect: customHotkeys.collect
+        ok, pop: customHotkeys.pop, collect: customHotkeys.collect, snippets: customHotkeys.snippets
       })
     }
   })
+
+  /* 专属收藏夹提示词弹窗控制与光标粘贴 */
+  ipcMain.on('pm:open-snippet-picker', () => toggleSnippetPicker('main'))
+  ipcMain.on('pm:close-snippet-picker', () => {
+    if (snippetWindow && !snippetWindow.isDestroyed()) snippetWindow.hide()
+    if (snippetTriggerSource === 'main' && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.webContents.send('pm:focus-composer')
+    }
+  })
+  ipcMain.handle('pm:paste-snippet-at-cursor', async (_e, text) => {
+    try {
+      if (!text) return { ok: false }
+      log('paste-snippet-at-cursor:', JSON.stringify(text.slice(0, 30)), 'source:', snippetTriggerSource)
+      clipboard.writeText(String(text))
+      if (snippetWindow && !snippetWindow.isDestroyed()) {
+        snippetWindow.hide()
+      }
+
+      if (snippetTriggerSource === 'main') {
+        // 用户是在 PromptMag 自身输入框中呼出并选择的：直接恢复主窗口焦点并调用精确光标插入
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.show()
+          mainWindow.focus()
+          mainWindow.webContents.send('pm:snippet-inserted', text)
+        }
+      } else {
+        // 用户是在外部应用（VS Code / 微信 / 记事本 / 浏览器等）中呼出的：激活前台并模拟粘贴
+        await sleep(60)
+        await sendPasteKeys(lastExternalHwnd)
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && mainWindow.isFocused()) {
+          mainWindow.webContents.send('pm:snippet-inserted', text)
+        }
+      }
+      return { ok: true }
+    } catch (e) {
+      log('paste-snippet-at-cursor error:', e && e.message)
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('pm:paste-to-foreground', async (_e, hwnd) => {
+    try {
+      log('paste-to-foreground to hwnd:', hwnd)
+      await sleep(60)
+      await sendPasteKeys(hwnd || '0')
+      return { ok: true }
+    } catch (e) {
+      log('paste-to-foreground error:', e && e.message)
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
   ipcMain.on('pm:hide-window', () => mainWindow && mainWindow.hide())
   ipcMain.on('pm:toggle-window', () => toggleWindow())
   ipcMain.on('pm:open-path', (_e, p) => {
@@ -1009,18 +1266,16 @@ if (!process.env.PM_ALLOW_MULTI && !app.requestSingleInstanceLock()) {
     readHotkeysFromData()
     registerCustomHotkeys()
 
-    // 置顶自愈：某些窗口（全屏、游戏、远控类）会把我们挤出 TOPMOST，
-    // 每 2s 检查一次，只在真的掉下来时才重新断言，平时零开销
+    // 置顶自愈：某些窗口（全屏、游戏、远控类）会把我们挤出 TOPMOST
     setInterval(() => {
       if (!mainWindow || mainWindow.isDestroyed() || !alwaysOnTop) return
       if (!mainWindow.isVisible() || mainWindow.isMinimized()) return
       try {
         if (!mainWindow.isAlwaysOnTop()) {
-          log('!! topmost lost -> re-assert')
-          applyAlwaysOnTop()
+          mainWindow.setAlwaysOnTop(true, 'screen-saver')
         }
       } catch { /* ignore */ }
-    }, 2000)
+    }, 4000)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -1031,6 +1286,9 @@ if (!process.env.PM_ALLOW_MULTI && !app.requestSingleInstanceLock()) {
 
   app.on('will-quit', () => {
     globalShortcut.unregisterAll()
+    if (snippetWindow && !snippetWindow.isDestroyed()) {
+      try { snippetWindow.destroy() } catch { /* ignore */ }
+    }
     if (tasksWatcher) { tasksWatcher.close(); tasksWatcher = null }
     if (watchTimer) clearTimeout(watchTimer)
   })

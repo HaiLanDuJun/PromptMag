@@ -14,6 +14,9 @@ const api = {
   /* 剪贴板图片落盘 */
   saveClipboardImages: () => ipcRenderer.invoke('pm:save-clipboard-images'),
 
+  /* 本地图片文件选择器 */
+  chooseImageFiles: () => ipcRenderer.invoke('pm:choose-image-files'),
+
   /* 剪贴板文本（粘贴纯文本兜底） */
   readClipboardText: () => ipcRenderer.invoke('pm:read-clipboard-text'),
 
@@ -31,6 +34,7 @@ const api = {
   toggleWindow: () => ipcRenderer.send('pm:toggle-window'),
   /* 形态：capsule(胶囊) / quick(快捷输入) / full(完整) */
   setMode: (m) => ipcRenderer.send('pm:set-mode', m),
+  setQuickHeight: (h) => ipcRenderer.send('pm:set-quick-height', h),
   pointerIn: () => ipcRenderer.send('pm:pointer-in'),
   pointerOut: () => ipcRenderer.send('pm:pointer-out'),
   getBounds: () => ipcRenderer.invoke('pm:get-bounds'),
@@ -39,8 +43,13 @@ const api = {
   /* 数据目录 */
   chooseDataDir: () => ipcRenderer.invoke('pm:choose-data-dir'),
 
-  /* 自定义全局快捷键（弹出最旧未用 / 收录选中文字） */
+  /* 自定义全局快捷键（弹出最旧未用 / 收录选中文字 / 收藏提示词弹窗） */
   updateHotkeys: (h) => ipcRenderer.send('pm:update-hotkeys', h),
+
+  /* 专属收藏夹提示词弹窗 */
+  openSnippetPicker: () => ipcRenderer.send('pm:open-snippet-picker'),
+  closeSnippetPicker: () => ipcRenderer.send('pm:close-snippet-picker'),
+  pasteSnippetAtCursor: (text) => ipcRenderer.invoke('pm:paste-snippet-at-cursor', text),
 
   /* 文件系统辅助 */
   openPath: (p) => ipcRenderer.send('pm:open-path', p),
@@ -70,10 +79,12 @@ const api = {
   },
   /* 全局快捷键：弹出最旧未用提示词 */
   onHotkeyPop: (cb) => {
-    const h = () => cb()
+    const h = (_e, payload) => cb(payload || {})
     ipcRenderer.on('pm:hotkey-pop', h)
     return () => ipcRenderer.removeListener('pm:hotkey-pop', h)
   },
+  /* 将剪贴板内容直接粘贴到前台窗口光标处 */
+  pasteToForeground: (hwnd) => ipcRenderer.invoke('pm:paste-to-foreground', hwnd),
   /* 全局快捷键：收录选中文字到词库 */
   onHotkeyCollected: (cb) => {
     const h = (_e, payload) => cb(payload || {})
@@ -85,6 +96,22 @@ const api = {
     const h = (_e, payload) => cb(payload || {})
     ipcRenderer.on('pm:hotkeys-registered', h)
     return () => ipcRenderer.removeListener('pm:hotkeys-registered', h)
+  },
+  /* 专属收藏夹弹窗事件 */
+  onSnippetPickerOpened: (cb) => {
+    const h = () => cb()
+    ipcRenderer.on('pm:snippet-picker-opened', h)
+    return () => ipcRenderer.removeListener('pm:snippet-picker-opened', h)
+  },
+  onSnippetPickerClosed: (cb) => {
+    const h = () => cb()
+    ipcRenderer.on('pm:snippet-picker-closed', h)
+    return () => ipcRenderer.removeListener('pm:snippet-picker-closed', h)
+  },
+  onSnippetInserted: (cb) => {
+    const h = (_e, text) => cb(text)
+    ipcRenderer.on('pm:snippet-inserted', h)
+    return () => ipcRenderer.removeListener('pm:snippet-inserted', h)
   }
 }
 

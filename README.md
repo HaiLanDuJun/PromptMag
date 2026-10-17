@@ -8,12 +8,12 @@ CLI 提示词弹夹。为 Claude Code / Codex 等 CLI 编码 Agent 设计的桌�
 
 ## 中文
 
-### 下载（v1.5.1，Windows x64，开箱即用）
+### 下载（v1.7.4，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.5.1.exe`](/installer/PromptMag-Portable-1.5.1.exe) |
-| 安装版 | NSIS 向导安装，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.5.1.exe`](/installer/PromptMag-Setup-1.5.1.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.7.4.exe`](/installer/PromptMag-Portable-1.7.4.exe) |
+| 安装版 | NSIS 向导安装，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.7.4.exe`](/installer/PromptMag-Setup-1.7.4.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -28,13 +28,15 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 - 光标处内联贴图：`[图N]` 锚点 + 本地绝对路径；删除、拖拽重排后自动改号
 - 图片分镜卡片：每张图一条批注；点击缩略图可在光标处补插锚点
 - Prompt 编译器：内联路径展开 + 底部精确映射表，兼容「第二张图」这类口语指代
-- 待发队列：复制并弹出 / 仅复制 / 编辑回填 / 删除
-- 常用词库：高频指令胶囊，一键插入光标处
+- **待发队列状态流转**：清晰显示「待使用 / 已使用」状态标签，点击自由切换，支持一键全部重置为待用；快捷键弹出时智能提示剩余待用数量
+- **清爽输入面板**：移除了输入框下方拥挤局促的横排词库条，专注高效输入与图文锚定
+- **专属收藏夹弹窗（直接贴入光标）**：全新设计独立悬浮弹窗，全局快捷键呼出，实时关键词过滤，↑↓ 键盘选择、Enter 一键复制并直接自动粘贴到当前前台应用（VS Code/微信/浏览器/终端等）光标处
 - Agent 自动接力：`next_tasks.md` 双向同步（`fs.watch`），复制时可选注入接力指令
 - 悬浮窗：无边框深色圆球（青色发光核心）造型、置顶、透明度 40%–100%、全局快捷键
 - 置顶开关三处可达：完整窗口标题栏图钉、快捷面板图钉、托盘菜单「窗口置顶」（状态写入 `data.json`）
 - `Ctrl+V` 智能粘贴：剪贴板是图片则落盘并插入 `[图N]` 锚点，是纯文本则直接粘贴到光标处
 - **自定义全局快捷键**（设置面板可录制）：
+  - 「呼出专属收藏夹」（默认 `Alt+C`）：呼出专属常用提示词弹窗，选中直接复制并自动粘贴到当前窗口光标处
   - 「弹出最旧未用」（默认 `Alt+V`）：一键复制弹夹里最老的未使用提示词并自动标记为已使用，按一次消耗一条
   - 「收录选中文字」（默认 `Alt+S`）：在其他应用里选中文字后按下，自动收藏进词库（后台借用剪贴板并自动还原，不打扰用户）
 
@@ -75,16 +77,18 @@ npm run preview      # 生产构建 + 运行
 
 Windows 截图工具常会抢焦点，输入区的「贴图」按钮是手动兜底。
 
-### 打包成 exe
+### 打包与更新 exe
+
+每次项目代码修改或更新后，运行一行命令即可一键完成构建与打包：
 
 ```bash
-npm run dist            # 产出 release/ 下两个 exe
+npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最新 exe 同步至 installer/
 ```
 
-- `PromptMag-Portable-x.x.x.exe`：单文件免安装，双击即用
-- `PromptMag-Setup-x.x.x.exe`：安装向导版，可自选安装目录
-
-打包只是源码的快照，之后继续改代码、重新 `npm run dist` 即可产出新版本；用户数据默认在 `~/.prompt-mag/`，替换 exe 不丢数据。
+- 该命令会自动清除旧构建、执行 `vite build`、通过 `electron-builder` 产出绿色版与安装版，并由 `scripts/sync-installer.cjs` 自动清理旧版本并将最新版复制到 `installer/`。
+- `installer/PromptMag-Portable-x.x.x.exe`：单文件免安装绿色版，双击即用
+- `installer/PromptMag-Setup-x.x.x.exe`：安装向导版，可自选安装目录与桌面快捷方式
+- 用户配置与队列数据默认保存在 `~/.prompt-mag/`，替换或更新 exe 均不影响既有数据。
 
 ### 架构
 
@@ -118,7 +122,7 @@ npm run dist            # 产出 release/ 下两个 exe
 | 快捷输入 `quick` | 400×210 | 类输入法悬浮窗：可直接打字、`Ctrl+V` 粘贴文字或图片、`Ctrl+Enter` 存弹夹 |
 | 完整 `full` | 396×640（可拉伸） | 队列 / 词库 / 图片分镜批注全功能 |
 
-- 鼠标移出快捷面板约 0.7 秒自动收回圆球；正在输入（窗口持有焦点）时不收起
+- 鼠标移出快捷面板约 0.18 秒极速自动收回圆球；正在输入（窗口持有焦点）时不收起
 - **边缘缩进（0 侵入）**：失焦且靠近屏幕边缘（<90px）时自动缩进到最近的边，只露约 20px（圆球）/ 26px（面板），
   鼠标移到露出的部分即滑回原位（判定基于真实光标位置，不依赖窗口事件）；收成圆球后会重新排队缩进
 - **置顶自愈**：每 2s 检测一次，若被全屏/游戏/远控类窗口挤出 TOPMOST 则自动重新置顶（掉线时才动作）
@@ -139,10 +143,10 @@ npm run dist            # 产出 release/ 下两个 exe
 
 A desktop floating tool for people working with CLI coding agents (Claude Code / Codex, etc.). Capture prompts and screenshots the moment ideas strike, compile them into unambiguous image-text prompts, and hand tasks to your agent automatically via a local queue file.
 
-### Download (v1.5.1, Windows x64)
+### Download (v1.7.4, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.5.1.exe`](/installer/PromptMag-Portable-1.5.1.exe) — no install needed
-- Installer: [`installer/PromptMag-Setup-1.5.1.exe`](/installer/PromptMag-Setup-1.5.1.exe)
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.7.4.exe`](/installer/PromptMag-Portable-1.7.4.exe) — no install needed
+- Installer: [`installer/PromptMag-Setup-1.7.4.exe`](/installer/PromptMag-Setup-1.7.4.exe)
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases).
 

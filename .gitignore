@@ -16,25 +16,12 @@ Thumbs.db
 .vscode/
 .idea/
 
-# WorkBuddy project data
+# temporary and intermediate data
 .workbuddy/
-
-# electron-builder output
 release/
-out/
-out2/
-out3/
-out4/
+out*/
+.release-broken*
+
+# installer metadata
 installer/*.blockmap
 installer/latest.yml
-.release-broken*
-out4/
-out5/
-out6/
-out7/
-out8/
-out9/
-out9/
-out10/
-out11/
-out12/

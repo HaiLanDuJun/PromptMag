@@ -10,8 +10,8 @@
 
 export const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
 
-const TOKEN_RE = /\[图\s*(\d+)\s*\]/g
-const EXPANDED_RE = /\[图\d+ \(本地路径: "[^"]*"\)\]/g
+export const TOKEN_RE = /\[图\s*(\d+)(?:\s*[:：]\s*([^\]]*))?\]/g
+const EXPANDED_RE = /\[图\d+ \(本地路径: "[^"]*"\)(?::\s*[^\]]*)?\]/g
 // 注意：非全局正则，避免 .test() 受 lastIndex 影响产生漏检
 const ORDINAL_RE = /第[一二三四五六七八九十1-9]+\s*张图|图\s*[1-9]\s*(?=[的地中里面上和与,，。]|$)/
 
@@ -35,12 +35,14 @@ function quote(p) {
   return '"' + String(p).replace(/"/g, '') + '"'
 }
 
-/** 正文内联展开：[图N] -> [图N (本地路径: "...")] */
+/** 正文内联展开：[图N] / [图N: 说明] -> [图N (本地路径: "..."): 说明] */
 export function expandInlineTokens(text, images) {
-  return String(text || '').replace(TOKEN_RE, (m, n) => {
+  return String(text || '').replace(TOKEN_RE, (m, n, note) => {
     const img = images[Number(n) - 1]
     if (!img) return m
-    return '[图' + n + ' (本地路径: ' + quote(img.path) + ')]'
+    const desc = (note || (img && img.note) || '').trim()
+    const descStr = desc ? ': ' + desc : ''
+    return '[图' + n + ' (本地路径: ' + quote(img.path) + ')' + descStr + ']'
   })
 }
 
@@ -49,7 +51,6 @@ export function bodyWithoutTokens(text) {
   return String(text || '')
     .replace(EXPANDED_RE, '')
     .replace(TOKEN_RE, '')
-    .replace(/\[图\d+ \(本地路径:[^)]*\)\]/g, '')
     .trim()
 }
 
@@ -133,9 +134,11 @@ export function compileTaskLine(task, num) {
   const done = !!(task && task.done)
   const images = validImages(task)
   let text = String((task && task.text) || '')
-    .replace(TOKEN_RE, (m, n) => {
+    .replace(TOKEN_RE, (m, n, note) => {
       const img = images[Number(n) - 1]
-      return img ? '[图' + n + ': ' + quote(img.path) + ']' : m
+      const desc = (note || (img && img.note) || '').trim()
+      const descStr = desc ? '(' + desc + ')' : ''
+      return img ? '[图' + n + descStr + ': ' + quote(img.path) + ']' : m
     })
     .replace(/\s+/g, ' ')
     .trim()
@@ -183,4 +186,62 @@ export function parseTasksLines(content) {
     })
   })
   return items
+}
+
+/**
+ * 反编译：将已编译的 Prompt 还原为 { text, images }
+ * 允许用户重新粘贴导出的提示词时，自动还原为纯净的图文关联框与关键词
+ */
+export function parseCompiledPrompt(rawText) {
+  if (!rawText || typeof rawText !== 'string') return null
+  const text = rawText.trim()
+  if (!text.includes('### 📎 附加上下文图片精确映射') && !text.includes('【图') && !text.includes('图片映射 ->')) {
+    return null
+  }
+
+  const images = []
+  // 匹配多行映射块：- 【图1 / 第一张图】路径: "..." (| 针对此图的说明: ...)?
+  const blockRegex = /-\s*【图\s*(\d+)[^】]*】\s*路径:\s*"([^"]+)"(?:\s*\|\s*针对此图的说明:\s*([^\r\n]+))?/g
+  let m
+  while ((m = blockRegex.exec(text)) !== null) {
+    const idx = Number(m[1]) - 1
+    const imgPath = m[2]
+    const note = (m[3] || '').trim()
+    images[idx] = { path: imgPath, name: imgPath.split(/[/\\]/).pop(), note }
+  }
+
+  // 匹配单行任务映射：图1: "..."((说明: ...))?
+  if (!images.length) {
+    const singleRegex = /图\s*(\d+)\s*:\s*"([^"]+)"(?:\s*\(说明:\s*([^)]*)\))?/g
+    while ((m = singleRegex.exec(text)) !== null) {
+      const idx = Number(m[1]) - 1
+      const imgPath = m[2]
+      const note = (m[3] || '').trim()
+      images[idx] = { path: imgPath, name: imgPath.split(/[/\\]/).pop(), note }
+    }
+  }
+
+  const validImgs = images.filter(Boolean)
+  if (!validImgs.length) return null
+
+  // 提取正文：截取 '---' 之前的内容
+  let body = text.split(/\r?\n\s*---\s*\r?\n/)[0].trim()
+
+  // 移除可能附带的自然语言提示
+  body = body.replace(/（注：正文中提到的「第N张图.*?）/gs, '').trim()
+
+  // 还原内联路径标记：[图1 (本地路径: "..."): 说明] -> [图1: 说明]
+  body = body.replace(/\[图\s*(\d+)\s*\(本地路径:\s*"[^"]*"\)(?:\s*[:：]\s*([^\]]*))?\]/g, (match, n, note) => {
+    const cleanNote = (note || '').trim()
+    return cleanNote ? `[图${n}: ${cleanNote}]` : `[图${n}]`
+  })
+
+  // 如果正文中原本没有 [图N] 标记，但有 1 张图片，并且正文是关键词（如 1111）
+  if (!body.includes('[图') && validImgs.length === 1) {
+    const word = body || validImgs[0].note || ''
+    body = word ? `[图1: ${word}]` : `[图1]`
+    validImgs[0].note = word
+  }
+
+  return { text: body, images: validImgs }
 }

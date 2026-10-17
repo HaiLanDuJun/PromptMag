@@ -16,6 +16,7 @@ if (typeof window !== 'undefined' && !window.pm) {
     }),
     saveData: async () => ({ ok: true }),
     saveClipboardImages: async () => ({ ok: false, error: 'no bridge' }),
+    chooseImageFiles: async () => ({ ok: false, canceled: true }),
     readClipboardText: async () => ({ ok: false, text: '' }),
     copyText: async (t) => {
       try { await navigator.clipboard.writeText(String(t)) } catch { /* ignore */ }
@@ -28,6 +29,7 @@ if (typeof window !== 'undefined' && !window.pm) {
     hideWindow () {},
     toggleWindow () {},
     setMode () {},
+    setQuickHeight () {},
     pointerIn () {},
     pointerOut () {},
     getBounds: async () => null,
@@ -65,8 +67,25 @@ export const state = reactive({
   settings: { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full', hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S' },
   snippets: [],
   composer: { text: '', images: [] },
-  queue: []
+  queue: [],
+  preview: null
 })
+
+/* ---------------- 图片全屏/放大预览 ---------------- */
+export function openImagePreview(img, index = 0, list = []) {
+  if (!img) return
+  const fullList = Array.isArray(list) && list.length ? list : [img]
+  const validIdx = typeof index === 'number' && index >= 0 && index < fullList.length ? index : 0
+  state.preview = {
+    img: fullList[validIdx] || img,
+    index: validIdx,
+    list: fullList
+  }
+}
+
+export function closeImagePreview() {
+  state.preview = null
+}
 
 /* ---------------- Toast ---------------- */
 let toastTimer = null
@@ -115,7 +134,10 @@ export async function initStore() {
   state.platform = res.platform || 'win32'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
-    { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full', hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S' },
+    {
+      alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
+      hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S', hotkeySnippets: 'Alt+C'
+    },
     d.settings || {}
   )
   if (!['capsule', 'quick', 'full'].includes(state.settings.mode)) state.settings.mode = 'full'
@@ -141,17 +163,32 @@ export async function initStore() {
   bindHotkeyEvents()
 }
 
-/* ---------------- 全局快捷键：弹出最旧未用 / 收录选中 ---------------- */
+/* ---------------- 全局快捷键：弹出最旧未用 / 收录选中 / 插入常用词 ---------------- */
 function bindHotkeyEvents() {
-  /* 快捷键 1：复制弹夹里最老的未使用提示词，并标记为已使用（done） */
-  window.pm.onHotkeyPop(async () => {
+  /* 快捷键 1：复制弹夹里最老的未使用提示词，标记为已使用（done），并自动粘贴到前台窗口光标处 */
+  window.pm.onHotkeyPop(async (payload) => {
+    const fgHwnd = payload && payload.fgHwnd ? payload.fgHwnd : '0'
     const task = state.queue.find((t) => !t.done)
-    if (!task) { toast('弹夹空了：没有未使用的提示词'); return }
+    if (!task) {
+      if (state.queue.length > 0) {
+        toast('弹夹中提示词已全部使用过（点击列表标签可一键恢复为待使用）')
+      } else {
+        toast('弹夹空了：暂无提示词')
+      }
+      return
+    }
     try {
       await copyCompiled(task)
       task.done = true
-      toast('已复制最旧未用提示词（标记为已使用）')
-    } catch { toast('复制失败') }
+      const remaining = state.queue.filter((t) => !t.done).length
+      toast(`已弹出最旧未用提示词并自动粘贴（已标记为已使用，剩余 ${remaining} 条待用）`)
+      // 关键：通知主进程将剪贴板内容直接粘贴到前台窗口光标处！
+      if (window.pm && window.pm.pasteToForeground) {
+        await window.pm.pasteToForeground(fgHwnd)
+      }
+    } catch (e) {
+      toast('弹出失败')
+    }
   })
 
   /* 快捷键 2：收录当前选中文字到词库 */
@@ -165,15 +202,34 @@ function bindHotkeyEvents() {
   })
 
   /* 快捷键注册失败回执（例如与其他软件冲突） */
-  window.pm.onHotkeysRegistered(({ ok, pop, collect }) => {
-    if (!ok) toast(`快捷键注册失败：${pop} / ${collect}（可能与其他软件冲突）`)
+  window.pm.onHotkeysRegistered(({ ok, pop, collect, snippets }) => {
+    if (!ok) toast(`部分快捷键注册失败（${pop || ''} / ${collect || ''} / ${snippets || ''}，可能与其他软件冲突）`)
   })
+
+  /* 常用词插入到主输入框事件 */
+  if (window.pm.onSnippetInserted) {
+    window.pm.onSnippetInserted((text) => {
+      if (!text) return
+      const hasEditor = document.querySelector('.prompt-editor-content')
+      if (hasEditor) {
+        window.dispatchEvent(new CustomEvent('pm:insert-snippet-at-cursor', { detail: text }))
+      } else {
+        state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + text
+      }
+      toast('已填入常用提示词')
+    })
+  }
 }
 
-export function setHotkeys({ pop, collect } = {}) {
+export function setHotkeys({ pop, collect, snippets } = {}) {
   if (pop) state.settings.hotkeyPop = pop
   if (collect) state.settings.hotkeyCollect = collect
-  window.pm.updateHotkeys({ pop: state.settings.hotkeyPop, collect: state.settings.hotkeyCollect })
+  if (snippets) state.settings.hotkeySnippets = snippets
+  window.pm.updateHotkeys({
+    pop: state.settings.hotkeyPop,
+    collect: state.settings.hotkeyCollect,
+    snippets: state.settings.hotkeySnippets
+  })
 }
 
 /* ---------------- 剪贴板文本读取（主进程优先，浏览器 API 兜底） ---------------- */
@@ -203,21 +259,41 @@ export function bindExternalEvents() {
   })
 }
 
-/* ---------------- 图片操作（自动重编 [图N] 标记） ---------------- */
+/* ---------------- 图片操作（自动重编 [图N: 关键词] 标记） ---------------- */
 function remapTokens(text, oldImages, newImages) {
   const newIndexOfPath = new Map(newImages.map((im, i) => [im.path, i + 1]))
-  return String(text || '').replace(/\[图\s*(\d+)\s*\]/g, (m, n) => {
+  return String(text || '').replace(/\[图\s*(\d+)(?:\s*[:：]\s*([^\]]*))?\]/g, (m, n, note) => {
     const old = oldImages[Number(n) - 1]
     if (!old) return m
     const next = newIndexOfPath.get(old.path)
-    return next ? '[图' + next + ']' : '' // 已删除图片的标记一并移除
+    if (!next) return '' // 已删除图片的标记一并移除
+    const suffix = note !== undefined && note !== null && note.trim() ? ': ' + note.trim() : ''
+    return '[图' + next + suffix + ']'
   })
 }
 
-export function addImages(imgs) {
+export function addImages(imgs, initialNote = '') {
   (imgs || []).forEach((im) => {
-    state.composer.images.push({ path: im.path, name: im.name || '', note: '' })
+    state.composer.images.push({
+      path: im.path,
+      name: im.name || '',
+      note: (im.note || initialNote || '').trim()
+    })
   })
+}
+
+export async function pickAndAddImages(initialNote = '') {
+  try {
+    const res = await window.pm.chooseImageFiles()
+    if (res && res.ok && res.images && res.images.length) {
+      addImages(res.images, initialNote)
+      toast(`已添加 ${res.images.length} 张图片`)
+      return res.images
+    }
+  } catch (e) {
+    toast('选择图片失败')
+  }
+  return []
 }
 
 export function removeImage(idx) {
@@ -237,6 +313,16 @@ export function reorderImage(from, to) {
 
 export function imgUrl(p) {
   return 'pmimg://local/' + encodeURIComponent(p)
+}
+
+export function formatDateTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${m}-${day} ${h}:${min}`
 }
 
 /* ---------------- 队列操作 ---------------- */
@@ -269,8 +355,24 @@ export function editBackfill(id) {
   removeTask(id)
 }
 
+export function toggleTaskDone(id) {
+  const t = state.queue.find((x) => x.id === id)
+  if (!t) return
+  t.done = !t.done
+  toast(t.done ? '已标记为已使用' : '已恢复为待使用')
+}
+
+export function resetAllTasksPending() {
+  state.queue.forEach((t) => { t.done = false })
+  toast('已全部重置为待使用')
+}
+
 export function clearDoneTasks() {
   state.queue = state.queue.filter((t) => !t.done)
+}
+
+export function clearAllQueue() {
+  state.queue = []
 }
 
 export async function copyCompiled(task, { pop = false } = {}) {
