@@ -68,12 +68,12 @@ kbd{background:#0b0e17;border:1px solid var(--line);border-bottom-width:2px;bord
 .final h2{margin-bottom:10px}
 footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--mut);font-size:13px;text-align:center}
 footer a{color:var(--mut)}
-[lang]{display:none}
-html[data-lang="zh"] [lang="zh"]{display:block}
-html[data-lang="en"] [lang="en"]{display:block}
-span[lang]{display:none}
-html[data-lang="zh"] span[lang="zh"]{display:inline}
-html[data-lang="en"] span[lang="en"]{display:inline}
+body [lang]{display:none}
+html[data-lang="zh"] body [lang="zh"]{display:block}
+html[data-lang="en"] body [lang="en"]{display:block}
+body span[lang]{display:none}
+html[data-lang="zh"] body span[lang="zh"]{display:inline}
+html[data-lang="en"] body span[lang="en"]{display:inline}
 </style>
 </head>
 <body data-lang="zh">
