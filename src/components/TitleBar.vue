@@ -25,9 +25,7 @@ async function onChooseDir() {
 }
 
 function onHotkeyChange(which, v) {
-  setHotkeys(
-    which === 'pop' ? { pop: v } : which === 'collect' ? { collect: v } : { snippets: v }
-  )
+  setHotkeys({ [which]: v })
 }
 
 function toggleLang() {
@@ -116,7 +114,11 @@ function toggleLang() {
       </button>
 
       <!-- 关闭 / 隐藏 -->
-      <button class="icon-btn hover:!text-rose-400" :title="t('titleBar.closeWindow')" @click="hide">
+      <button
+        class="icon-btn hover:!text-rose-400"
+        :title="state.settings.hotkeyToggle ? t('titleBar.closeWindowWithKey', { key: state.settings.hotkeyToggle }) : t('titleBar.closeWindow')"
+        @click="hide"
+      >
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
         </svg>
@@ -196,6 +198,13 @@ function toggleLang() {
 
       <div class="settings-label">{{ t('settings.hotkeysTitle') }}</div>
       <div class="hotkey-row">
+        <span class="hotkey-desc" :title="t('settings.hotkeyToggleDesc')">{{ t('settings.hotkeyToggleLabel') }}</span>
+        <HotkeyInput
+          :model-value="state.settings.hotkeyToggle"
+          @update:model-value="(v) => onHotkeyChange('toggle', v)"
+        />
+      </div>
+      <div class="hotkey-row">
         <span class="hotkey-desc" :title="t('settings.hotkeyPopDesc')">{{ t('settings.hotkeyPopLabel') }}</span>
         <HotkeyInput
           :model-value="state.settings.hotkeyPop"
@@ -203,17 +212,17 @@ function toggleLang() {
         />
       </div>
       <div class="hotkey-row">
-        <span class="hotkey-desc" :title="t('settings.hotkeyCollectDesc')">{{ t('settings.hotkeyCollectLabel') }}</span>
-        <HotkeyInput
-          :model-value="state.settings.hotkeyCollect"
-          @update:model-value="(v) => onHotkeyChange('collect', v)"
-        />
-      </div>
-      <div class="hotkey-row">
         <span class="hotkey-desc" :title="t('settings.hotkeySnippetsDesc')">{{ t('settings.hotkeySnippetsLabel') }}</span>
         <HotkeyInput
           :model-value="state.settings.hotkeySnippets"
           @update:model-value="(v) => onHotkeyChange('snippets', v)"
+        />
+      </div>
+      <div class="hotkey-row">
+        <span class="hotkey-desc" :title="t('settings.hotkeyCollectDesc')">{{ t('settings.hotkeyCollectLabel') }}</span>
+        <HotkeyInput
+          :model-value="state.settings.hotkeyCollect"
+          @update:model-value="(v) => onHotkeyChange('collect', v)"
         />
       </div>
       <div class="settings-tip">

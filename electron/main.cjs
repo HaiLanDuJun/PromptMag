@@ -56,11 +56,15 @@ P.tasksFile = path.join(P.home, 'next_tasks.md')
 P.logFile = path.join(P.home, 'main.log')
 P.windowState = path.join(P.home, 'window-state.json')
 
-const SHORTCUT = 'Alt+Q'
-
-/* 三个可自定义全局快捷键（设置面板可改，存于 data.json settings） */
-const HOTKEY_DEFAULTS = { pop: 'Alt+V', collect: 'Alt+S', snippets: 'Alt+C' }
+/* 可自定义全局快捷键（设置面板可改，每个功能至多1个，也可置空禁用，存于 data.json settings） */
+const HOTKEY_DEFAULTS = {
+  toggle: 'Alt+Q',
+  pop: 'Alt+V',
+  snippets: 'Alt+X',
+  collect: 'Alt+T'
+}
 let customHotkeys = { ...HOTKEY_DEFAULTS }
+let currentlyRegisteredHotkeys = new Set()
 
 /* 开发服务端口（与 vite.config.js 保持一致），不再使用 5173 */
 const DEV_PORT = Number(process.env.PM_DEV_PORT) || 5199
@@ -940,26 +944,49 @@ function readHotkeysFromData() {
   const d = readJsonSafe(P.dataFile) || {}
   const s = d.settings || {}
   customHotkeys = {
-    pop: typeof s.hotkeyPop === 'string' && s.hotkeyPop.trim() ? s.hotkeyPop.trim() : HOTKEY_DEFAULTS.pop,
-    collect: typeof s.hotkeyCollect === 'string' && s.hotkeyCollect.trim() ? s.hotkeyCollect.trim() : HOTKEY_DEFAULTS.collect,
-    snippets: typeof s.hotkeySnippets === 'string' && s.hotkeySnippets.trim() ? s.hotkeySnippets.trim() : HOTKEY_DEFAULTS.snippets
+    toggle: s.hotkeyToggle !== undefined ? String(s.hotkeyToggle).trim() : HOTKEY_DEFAULTS.toggle,
+    pop: s.hotkeyPop !== undefined ? String(s.hotkeyPop).trim() : HOTKEY_DEFAULTS.pop,
+    snippets: s.hotkeySnippets !== undefined ? String(s.hotkeySnippets).trim() : HOTKEY_DEFAULTS.snippets,
+    collect: s.hotkeyCollect !== undefined ? String(s.hotkeyCollect).trim() : HOTKEY_DEFAULTS.collect
   }
+  // 旧版本冲突键平滑迁移（微信冲突排查：Alt+C 会触发微信关闭窗口，Alt+S 会触发微信发消息）
+  if (customHotkeys.snippets === 'Alt+C') customHotkeys.snippets = 'Alt+X'
+  if (customHotkeys.collect === 'Alt+S') customHotkeys.collect = 'Alt+T'
 }
 
-/** 重新注册自定义快捷键（设置变更时调用），返回是否全部成功 */
+/** 重新注册自定义快捷键（设置变更时调用），返回是否全部成功与失败键列表 */
 function registerCustomHotkeys() {
-  for (const acc of Object.values(customHotkeys)) {
-    try { if (acc && acc !== SHORTCUT) globalShortcut.unregister(acc) } catch { /* ignore */ }
+  for (const acc of currentlyRegisteredHotkeys) {
+    try { globalShortcut.unregister(acc) } catch { /* ignore */ }
   }
-  let allOk = true
-  try { globalShortcut.register(customHotkeys.pop, onHotkeyPop) }
-  catch (e) { allOk = false; log('!! register pop hotkey failed:', customHotkeys.pop, e && e.message) }
-  try { globalShortcut.register(customHotkeys.collect, onHotkeyCollect) }
-  catch (e) { allOk = false; log('!! register collect hotkey failed:', customHotkeys.collect, e && e.message) }
-  try { globalShortcut.register(customHotkeys.snippets, onHotkeySnippets) }
-  catch (e) { allOk = false; log('!! register snippets hotkey failed:', customHotkeys.snippets, e && e.message) }
-  log('custom hotkeys ->', JSON.stringify(customHotkeys), 'ok:', allOk)
-  return allOk
+  currentlyRegisteredHotkeys.clear()
+
+  const failedKeys = []
+  const tryRegister = (name, accelerator, handler) => {
+    const acc = typeof accelerator === 'string' ? accelerator.trim() : ''
+    if (!acc) return // 空快捷键为用户主动禁用，不注册亦不报错
+    try {
+      const ok = globalShortcut.register(acc, handler)
+      if (ok) {
+        currentlyRegisteredHotkeys.add(acc)
+      } else {
+        failedKeys.push(acc)
+        log(`!! register ${name} failed (returned false):`, acc)
+      }
+    } catch (e) {
+      failedKeys.push(acc)
+      log(`!! register ${name} exception:`, acc, e && e.message)
+    }
+  }
+
+  tryRegister('toggle', customHotkeys.toggle, () => toggleWindow())
+  tryRegister('pop', customHotkeys.pop, onHotkeyPop)
+  tryRegister('snippets', customHotkeys.snippets, onHotkeySnippets)
+  tryRegister('collect', customHotkeys.collect, onHotkeyCollect)
+
+  const allOk = failedKeys.length === 0
+  log('custom hotkeys ->', JSON.stringify(customHotkeys), 'allOk:', allOk, 'failed:', failedKeys)
+  return { ok: allOk, failedKeys }
 }
 
 let appLocale = 'zh'
@@ -971,11 +998,24 @@ function readLocaleFromData() {
   appLocale = s.locale === 'en' ? 'en' : 'zh'
 }
 
+function updateTrayTooltip() {
+  if (!tray || tray.isDestroyed()) return
+  const isEn = appLocale === 'en'
+  const toggleKey = customHotkeys.toggle ? ` (${customHotkeys.toggle})` : ''
+  tray.setToolTip(
+    isEn
+      ? `PromptMag · CLI Prompt Magazine${toggleKey}`
+      : `PromptMag · CLI 提示词弹夹${toggleKey}`
+  )
+}
+
 function buildTrayMenu() {
   const isEn = appLocale === 'en'
+  const toggleKey = customHotkeys.toggle ? ` (${customHotkeys.toggle})` : ''
+  const snippetsKey = customHotkeys.snippets ? ` (${customHotkeys.snippets})` : ''
   return Menu.buildFromTemplate([
-    { label: isEn ? 'Show / Hide (Alt+Q)' : '显示 / 隐藏 (Alt+Q)', click: () => toggleWindow() },
-    { label: isEn ? `Snippets Picker (${customHotkeys.snippets})` : `常用词库收藏夹 (${customHotkeys.snippets})`, click: () => toggleSnippetPicker() },
+    { label: isEn ? `Show / Hide${toggleKey}` : `显示 / 隐藏${toggleKey}`, click: () => toggleWindow() },
+    { label: isEn ? `Snippets Picker${snippetsKey}` : `常用词库收藏夹${snippetsKey}`, click: () => toggleSnippetPicker() },
     { type: 'separator' },
     {
       label: isEn ? 'Always on Top' : '窗口置顶（不被其他窗口覆盖）',
@@ -1009,7 +1049,7 @@ function refreshTrayMenu() {
 
 function createTray() {
   tray = new Tray(makeTrayIcon())
-  tray.setToolTip(appLocale === 'en' ? 'PromptMag · CLI Prompt Magazine (Alt+Q)' : 'PromptMag · CLI 提示词弹夹 (Alt+Q)')
+  updateTrayTooltip()
   refreshTrayMenu()
   tray.on('click', () => toggleWindow())
 }
@@ -1159,16 +1199,23 @@ function registerIpc() {
 
   /* 自定义快捷键变更（渲染层设置面板录制后调用，主进程立即生效） */
   ipcMain.on('pm:update-hotkeys', (_e, h) => {
-    const pop = h && typeof h.pop === 'string' && h.pop.trim() ? h.pop.trim() : null
-    const collect = h && typeof h.collect === 'string' && h.collect.trim() ? h.collect.trim() : null
-    const snippets = h && typeof h.snippets === 'string' && h.snippets.trim() ? h.snippets.trim() : null
-    if (pop && pop !== SHORTCUT) customHotkeys.pop = pop
-    if (collect && collect !== SHORTCUT) customHotkeys.collect = collect
-    if (snippets && snippets !== SHORTCUT) customHotkeys.snippets = snippets
-    const ok = registerCustomHotkeys()
+    if (h && typeof h === 'object') {
+      if (h.toggle !== undefined) customHotkeys.toggle = String(h.toggle).trim()
+      if (h.pop !== undefined) customHotkeys.pop = String(h.pop).trim()
+      if (h.snippets !== undefined) customHotkeys.snippets = String(h.snippets).trim()
+      if (h.collect !== undefined) customHotkeys.collect = String(h.collect).trim()
+    }
+    const res = registerCustomHotkeys()
+    updateTrayTooltip()
+    refreshTrayMenu()
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('pm:hotkeys-registered', {
-        ok, pop: customHotkeys.pop, collect: customHotkeys.collect, snippets: customHotkeys.snippets
+        ok: res.ok,
+        failedKeys: res.failedKeys,
+        toggle: customHotkeys.toggle,
+        pop: customHotkeys.pop,
+        snippets: customHotkeys.snippets,
+        collect: customHotkeys.collect
       })
     }
   })
@@ -1280,12 +1327,11 @@ if (!process.env.PM_ALLOW_MULTI && !app.requestSingleInstanceLock()) {
       }
     })
 
-    globalShortcut.register(SHORTCUT, () => toggleWindow())
-
     // 读取应用语言配置与自定义快捷键配置
     readLocaleFromData()
     readHotkeysFromData()
     registerCustomHotkeys()
+    updateTrayTooltip()
 
     // 置顶自愈：某些窗口（全屏、游戏、远控类）会把我们挤出 TOPMOST
     setInterval(() => {

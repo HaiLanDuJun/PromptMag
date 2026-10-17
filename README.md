@@ -8,12 +8,12 @@ CLI 提示词弹夹。为 Claude Code / Codex 等 CLI 编码 Agent 设计的桌�
 
 ## 中文
 
-### 下载（v1.8.2，Windows x64，开箱即用）
+### 下载（v1.8.3，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.8.2.exe`](/installer/PromptMag-Portable-1.8.2.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.8.2.exe`](/installer/PromptMag-Setup-1.8.2.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.8.3.exe`](/installer/PromptMag-Portable-1.8.3.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.8.3.exe`](/installer/PromptMag-Setup-1.8.3.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -39,15 +39,19 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
   - 独家原生输入辅助组件，智能等待用户物理按键释放，杜绝组合键冲突
   - 安全激活外部前台应用（微信、VS Code、记事本、终端等），彻底解决粘贴后导致目标窗口关闭或退出的问题
   - 「弹出提示词」（默认 `Alt+V`）：根据所选出弹模式自动将待办提示词直接粘贴至光标处并标记为已用
-  - 「专属常用词库弹窗」（默认 `Alt+C`）：独立悬浮弹窗，↑↓ 键盘选择、Enter 一键复制并直接自动粘贴到当前前台应用光标处
+  - 「专属常用词库弹窗」（默认 `Alt+X`）：独立悬浮弹窗，↑↓ 键盘选择、Enter 一键复制并直接自动粘贴到当前前台应用光标处
 - **光标处内联贴图**：`[图N]` 锚点 + 本地绝对路径；删除、拖拽重排后自动改号
 - **待发队列状态流转**：清晰显示「待使用 / 已使用」状态标签，点击自由切换，支持一键全部重置为待用；快捷键弹出时智能提示剩余待用数量
 - **Agent 自动接力**：`next_tasks.md` 双向同步（`fs.watch`），复制时可选注入接力指令
 - **悬浮窗**：无边框深色圆球（青色发光核心）造型、置顶、透明度 40%–100%、全局快捷键
-- **自定义全局快捷键**（设置面板可录制）：
-  - 「呼出专属收藏夹」（默认 `Alt+C`）：呼出专属常用提示词弹窗，选中直接复制并自动粘贴到当前窗口光标处
-  - 「弹出提示词」（默认 `Alt+V`）：一键复制弹夹里的待用提示词并自动标记为已使用，按一次消耗一条
-  - 「收录选中文字」（默认 `Alt+S`）：在其他应用里选中文字后按下，自动收藏进词库（后台借用剪贴板并自动还原，不打扰用户）
+- **全方位自定义快捷键（无冲突人体工学布局）**：
+  - 每个功能严格绑定至多一个快捷键，若重复设置系统自动清空冲突项
+  - 每个功能均可随时点击 ✕ 或按 Backspace 清空留空，置空即彻底禁用
+  - 默认全左手顺手无冲突设计，彻底排除微信（Alt+A/S/C/W）、QQ（Ctrl+Alt+A/Z/X）及 Windows 核心热键：
+    - 「呼出/隐藏主窗口」（默认 `Alt+Q`）
+    - 「弹出提示词到光标」（默认 `Alt+V`）
+    - 「常用词库专属弹窗」（默认 `Alt+X`，避开微信 Alt+C 退出）
+    - 「收录选中文字到词库」（默认 `Alt+T`，避开微信 Alt+S 发送）
 
 ### 编译效果
 
@@ -152,10 +156,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 A desktop floating tool for people working with CLI coding agents (Claude Code / Codex, etc.). Capture prompts and screenshots the moment ideas strike, compile them into unambiguous image-text prompts, and hand tasks to your agent automatically via a local queue file.
 
-### Download (v1.8.2, Windows x64)
+### Download (v1.8.3, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.8.2.exe`](/installer/PromptMag-Portable-1.8.2.exe) — no install needed
-- Installer: [`installer/PromptMag-Setup-1.8.2.exe`](/installer/PromptMag-Setup-1.8.2.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.8.3.exe`](/installer/PromptMag-Portable-1.8.3.exe) — no install needed
+- Installer: [`installer/PromptMag-Setup-1.8.3.exe`](/installer/PromptMag-Setup-1.8.3.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases).
 
@@ -180,8 +184,16 @@ PromptMag is a small always-on-top window. `Alt+Q` summons it; `Ctrl+V` pastes a
 - **Safe Hardware-Level Cursor Paste**:
   - Native helper detects physical modifier release to prevent key collision (`Ctrl+Alt+V`)
   - Safely brings external foreground apps (WeChat, VS Code, Notepad, Windows Terminal) into focus without closing or crashing windows
-  - Snippet Picker popup (`Alt+C`): select and auto-insert into your active window's cursor position
+  - Snippet Picker popup (`Alt+X`): select and auto-insert into your active window's cursor position
   - Pop Prompt (`Alt+V`): automatically paste next pending prompt directly into active cursor (by active firing mode)
+- **Customizable Global Hotkeys (Conflict-Free Left-Hand Layout)**:
+  - Each action is strictly bound to at most 1 shortcut (duplicates are automatically cleared)
+  - Any shortcut can be cleared/disabled with one click (via ✕ or Backspace)
+  - Ergonomic left-hand defaults avoiding WeChat (Alt+A/S/C/W), QQ (Ctrl+Alt+A/Z/X), and Windows system keys:
+    - Summon/Hide Window: `Alt+Q`
+    - Pop Prompt & Paste: `Alt+V`
+    - Snippets Popup: `Alt+X` (prevents WeChat exit)
+    - Collect Selected Text: `Alt+T` (prevents WeChat send)
 - **Inline Image Pinning**: `[Img N]` anchors + local absolute paths; auto-renumbering on delete / drag-reorder
 - **Storyboard Cards & Lightbox**: double-click thumbnail or keyword badge to zoom into full-resolution preview
 - **Prompt Compiler**: inline path expansion + precise bottom mapping table

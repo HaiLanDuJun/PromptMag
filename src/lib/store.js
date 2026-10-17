@@ -65,7 +65,11 @@ export const state = reactive({
   platform: 'win32',
   toast: '',
   paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '' },
-  settings: { alwaysOnTop: true, opacity: 1, relay: false, mode: 'full', hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S', hotkeySnippets: 'Alt+C', popMode: 'shotgun' },
+  settings: {
+    alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
+    hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T',
+    locale: 'zh', popMode: 'shotgun'
+  },
   snippets: [],
   composer: { text: '', images: [] },
   queue: [],
@@ -138,12 +142,16 @@ export async function initStore() {
   state.settings = Object.assign(
     {
       alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
-      hotkeyPop: 'Alt+V', hotkeyCollect: 'Alt+S', hotkeySnippets: 'Alt+C',
+      hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T',
       locale: 'zh',
       popMode: 'shotgun'
     },
     d.settings || {}
   )
+  // 旧快捷键自动迁移与容错（Alt+C 会触发微信关闭窗口，Alt+S 会触发微信发消息）
+  if (state.settings.hotkeySnippets === 'Alt+C') state.settings.hotkeySnippets = 'Alt+X'
+  if (state.settings.hotkeyCollect === 'Alt+S') state.settings.hotkeyCollect = 'Alt+T'
+  if (state.settings.hotkeyToggle === undefined || state.settings.hotkeyToggle === null) state.settings.hotkeyToggle = 'Alt+Q'
   if (!['capsule', 'quick', 'full'].includes(state.settings.mode)) state.settings.mode = 'full'
   if (!['shotgun', 'revolver', 'pistol'].includes(state.settings.popMode)) state.settings.popMode = 'shotgun'
   setLocale(state.settings.locale || 'zh')
@@ -249,8 +257,15 @@ function bindHotkeyEvents() {
   })
 
   /* 快捷键注册失败回执（例如与其他软件冲突） */
-  window.pm.onHotkeysRegistered(({ ok, pop, collect, snippets }) => {
-    if (!ok) toast(`部分快捷键注册失败（${pop || ''} / ${collect || ''} / ${snippets || ''}，可能与其他软件冲突）`)
+  window.pm.onHotkeysRegistered(({ ok, failedKeys, toggle, pop, collect, snippets }) => {
+    if (!ok) {
+      const failed = Array.isArray(failedKeys) && failedKeys.length
+        ? failedKeys.join(' / ')
+        : [toggle, pop, collect, snippets].filter(Boolean).join(' / ')
+      toast(currentLocale.value === 'en'
+        ? `Failed to register hotkey (${failed}, may be occupied by another app)`
+        : `部分快捷键注册失败（${failed}，可能已被其他系统软件占用）`)
+    }
   })
 
   /* 常用词插入到主输入框事件 */
@@ -268,14 +283,40 @@ function bindHotkeyEvents() {
   }
 }
 
-export function setHotkeys({ pop, collect, snippets } = {}) {
-  if (pop) state.settings.hotkeyPop = pop
-  if (collect) state.settings.hotkeyCollect = collect
-  if (snippets) state.settings.hotkeySnippets = snippets
+export function setHotkeys(patch = {}) {
+  const keys = ['toggle', 'pop', 'snippets', 'collect']
+  const mapKey = {
+    toggle: 'hotkeyToggle',
+    pop: 'hotkeyPop',
+    snippets: 'hotkeySnippets',
+    collect: 'hotkeyCollect'
+  }
+
+  // 1. 单快捷键约束：每个功能快捷键只能设置一个，也可以为空（置空后彻底禁用该快捷键）
+  // 检查是否与其他已设快捷键冲突，若有重复则自动清空旧冲突项并弹出提示
+  for (const [k, newVal] of Object.entries(patch)) {
+    if (!keys.includes(k)) continue
+    const targetProp = mapKey[k]
+    const val = typeof newVal === 'string' ? newVal.trim() : ''
+
+    if (val) {
+      for (const otherKey of keys) {
+        if (otherKey === k) continue
+        const otherProp = mapKey[otherKey]
+        if (state.settings[otherProp] === val) {
+          state.settings[otherProp] = ''
+          toast(t('settings.hotkeyConflictAutoCleared', { key: val }))
+        }
+      }
+    }
+    state.settings[targetProp] = val
+  }
+
   window.pm.updateHotkeys({
-    pop: state.settings.hotkeyPop,
-    collect: state.settings.hotkeyCollect,
-    snippets: state.settings.hotkeySnippets
+    toggle: state.settings.hotkeyToggle || '',
+    pop: state.settings.hotkeyPop || '',
+    collect: state.settings.hotkeyCollect || '',
+    snippets: state.settings.hotkeySnippets || ''
   })
 }
 

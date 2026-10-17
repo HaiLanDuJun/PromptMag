@@ -138,10 +138,10 @@ function openSnippetPicker() {
         {{ t('composer.uploadBtn') }}
       </button>
 
-      <!-- 常用词库专属弹窗 (Alt+C) -->
+      <!-- 常用词库专属弹窗 -->
       <button
         class="btn text-amber-300 border-amber-400/30 hover:border-amber-400 hover:text-amber-200"
-        :title="t('composer.snippetsBtnTitle')"
+        :title="state.settings.hotkeySnippets ? t('composer.snippetsBtnTitleWithKey', { key: state.settings.hotkeySnippets }) : t('composer.snippetsBtnTitle')"
         @mousedown.prevent
         @click="openSnippetPicker"
       >

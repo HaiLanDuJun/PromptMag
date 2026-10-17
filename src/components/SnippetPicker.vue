@@ -99,8 +99,11 @@ onMounted(async () => {
           </svg>
         </span>
         <span class="text-slate-100 font-semibold text-[12px] tracking-wide">{{ t('snippetPicker.title') }}</span>
-        <span class="px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-400/30 text-[9px] text-amber-300 font-bold ml-1">
-          {{ state.settings.hotkeySnippets || 'Alt+C' }}
+        <span
+          v-if="state.settings.hotkeySnippets"
+          class="px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-400/30 text-[9px] text-amber-300 font-bold ml-1"
+        >
+          {{ state.settings.hotkeySnippets }}
         </span>
       </div>
 
