@@ -102,7 +102,11 @@ let mainWindow = null
 let tray = null
 let tasksWatcher = null
 let watchTimer = null
-let lastWrittenTasks = ''
+let lastWrittenFileMap = new Map() // filePath (normalized) -> string content
+
+function normFilePath(p) {
+  return p ? path.resolve(p).toLowerCase() : ''
+}
 let quitting = false
 let imgSeq = 0
 /* 形态状态：capsule(胶囊) / quick(快捷输入) / full(完整) */
@@ -255,6 +259,10 @@ function parseTasksContent(content) {
         if (doneAtMatch) doneAt = Number(doneAtMatch[1])
       }
 
+      // 关键防护：以实际复选框标记为最终权威判定
+      if (done) status = 'done'
+      else if (doing && status !== 'done') status = 'doing'
+
       const text = body.replace(/<!--\s*pm:[A-Za-z0-9_-]+.*?\s*-->/, '').trim()
       currentItem = {
         line: i,
@@ -314,19 +322,70 @@ function getActiveWriteLock(items) {
 
 function broadcastTasksState() {
   if (!mainWindow || mainWindow.isDestroyed()) return
-  const exists = fs.existsSync(P.tasksFile)
-  const content = exists ? fs.readFileSync(P.tasksFile, 'utf8') : ''
-  if (content === lastWrittenTasks) return // 自身写入触发的变更，忽略
-  const items = parseTasksContent(content)
-  const meta = parseTasksMetadata(content)
-  const writeLock = getActiveWriteLock(items)
-  currentRevision = meta.revision || currentRevision
-  mainWindow.webContents.send('pm:tasks-external', {
-    exists,
-    items,
-    revision: currentRevision,
-    writeLock
-  })
+  ensureDirs()
+
+  const filesToCheck = []
+  if (fs.existsSync(P.tasksFile)) {
+    filesToCheck.push({ file: P.tasksFile, magazineId: null })
+  }
+
+  if (fs.existsSync(P.magazinesDir)) {
+    try {
+      const entries = fs.readdirSync(P.magazinesDir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const magTasksFile = path.join(P.magazinesDir, entry.name, 'tasks.md')
+          if (fs.existsSync(magTasksFile)) {
+            filesToCheck.push({ file: magTasksFile, magazineId: entry.name })
+          }
+        }
+      }
+    } catch (err) {
+      log('scan magazines tasks error:', err && err.message)
+    }
+  }
+
+  let anyExternalChange = false
+  const allChangedItems = []
+  let activeWriteLock = null
+
+  for (const { file, magazineId } of filesToCheck) {
+    try {
+      const norm = normFilePath(file)
+      const content = fs.readFileSync(file, 'utf8')
+      const last = lastWrittenFileMap.get(norm)
+
+      // 自身写入触发的变更，忽略
+      if (last !== undefined && content === last) {
+        continue
+      }
+
+      // 外部发生改动！
+      lastWrittenFileMap.set(norm, content)
+      anyExternalChange = true
+
+      const items = parseTasksContent(content)
+      const meta = parseTasksMetadata(content)
+      const lock = getActiveWriteLock(items)
+      if (lock) activeWriteLock = lock
+      currentRevision = meta.revision || currentRevision
+
+      for (const it of items) {
+        allChangedItems.push({ ...it, magazineId })
+      }
+    } catch (err) {
+      log('broadcastTasksState read error for', file, err && err.message)
+    }
+  }
+
+  if (anyExternalChange && allChangedItems.length > 0) {
+    mainWindow.webContents.send('pm:tasks-external', {
+      exists: true,
+      items: allChangedItems,
+      revision: currentRevision,
+      writeLock: activeWriteLock
+    })
+  }
 }
 
 function scheduleTasksCheck() {
@@ -343,9 +402,25 @@ function startTasksWatch() {
   if (!fs.existsSync(P.tasksFile)) {
     try {
       fs.writeFileSync(P.tasksFile, '', 'utf8')
-      lastWrittenTasks = ''
     } catch { /* ignore */ }
   }
+  try {
+    if (fs.existsSync(P.tasksFile)) {
+      lastWrittenFileMap.set(normFilePath(P.tasksFile), fs.readFileSync(P.tasksFile, 'utf8'))
+    }
+    if (fs.existsSync(P.magazinesDir)) {
+      const entries = fs.readdirSync(P.magazinesDir, { withFileTypes: true })
+      for (const ent of entries) {
+        if (ent.isDirectory()) {
+          const mFile = path.join(P.magazinesDir, ent.name, 'tasks.md')
+          if (fs.existsSync(mFile)) {
+            lastWrittenFileMap.set(normFilePath(mFile), fs.readFileSync(mFile, 'utf8'))
+          }
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
   try {
     tasksWatcher = fs.watch(P.home, { persistent: true, recursive: true }, (eventType, filename) => {
       if (!filename || filename === 'next_tasks.md' || filename.endsWith('.md')) {
@@ -416,14 +491,16 @@ function writeTasksAtomic(content, options = {}) {
     finalContent = finalContent.replace(/<!--pm:rev:\d+(.*?)\s*-->/, `<!--pm:rev:${currentRevision} updated:${new Date().toISOString()}$1-->`)
   }
 
-  lastWrittenTasks = finalContent
-
   // 1. 同步写入全局镜像 P.tasksFile (~/.prompt-mag/next_tasks.md)
-  writeSingleTaskFile(P.tasksFile, finalContent)
+  if (!options || !options.skipGlobal) {
+    lastWrittenFileMap.set(normFilePath(P.tasksFile), finalContent)
+    writeSingleTaskFile(P.tasksFile, finalContent)
+  }
 
   // 2. 若传入特定弹夹 magazineId，同步写入专属弹夹任务文件 (~/.prompt-mag/magazines/<id>/tasks.md)
   if (options && options.magazineId) {
     const magTasksFile = path.join(P.magazinesDir, options.magazineId, 'tasks.md')
+    lastWrittenFileMap.set(normFilePath(magTasksFile), finalContent)
     writeSingleTaskFile(magTasksFile, finalContent)
   }
 
@@ -433,35 +510,54 @@ function writeTasksAtomic(content, options = {}) {
 /** 30 秒定时器：自动回收心跳超时卡死的 doing 任务 */
 function sweepDoingTimeouts() {
   try {
-    if (!fs.existsSync(P.tasksFile)) return
-    const content = fs.readFileSync(P.tasksFile, 'utf8')
-    const now = Date.now()
-    let changed = false
-
-    const updatedLines = content.split(/\r?\n/).map((line) => {
-      const m = line.match(/^(\s*-\s*\[)([~/\-])(\]\s*.+?<!--\s*pm:([A-Za-z0-9_-]+)(.*?)\s*-->.*)$/)
-      if (!m) return line
-      const id = m[4]
-      const metaStr = m[5]
-      const hbMatch = metaStr.match(/\bhb:(\d+)/)
-      const hb = hbMatch ? Number(hbMatch[1]) : 0
-
-      // 90 秒无心跳视为超时断线，重置回待认领 pending
-      if (hb && (now - hb > 90000)) {
-        log(`heartbeat timeout for doing task ${id} (${Math.round((now - hb) / 1000)}s), resetting to pending`)
-        changed = true
-        const cleanMeta = metaStr
-          .replace(/\bst:doing\b/, 'st:pending')
-          .replace(/\bagent:[^\s>]+\b/, '')
-          .replace(/\bhb:\d+\b/, '')
-        return `${m[1]} ${m[3].replace(metaStr, cleanMeta)}`
+    const filesToSweep = []
+    if (fs.existsSync(P.tasksFile)) filesToSweep.push(P.tasksFile)
+    if (fs.existsSync(P.magazinesDir)) {
+      const entries = fs.readdirSync(P.magazinesDir, { withFileTypes: true })
+      for (const ent of entries) {
+        if (ent.isDirectory()) {
+          const mf = path.join(P.magazinesDir, ent.name, 'tasks.md')
+          if (fs.existsSync(mf)) filesToSweep.push(mf)
+        }
       }
-      return line
-    })
+    }
 
-    if (changed) {
-      const newContent = updatedLines.join('\n')
-      writeTasksAtomic(newContent)
+    const now = Date.now()
+    let anySweepChanged = false
+
+    for (const fpath of filesToSweep) {
+      const content = fs.readFileSync(fpath, 'utf8')
+      let changed = false
+      const updatedLines = content.split(/\r?\n/).map((line) => {
+        const m = line.match(/^(\s*-\s*\[)([~/\-])(\]\s*.+?<!--\s*pm:([A-Za-z0-9_-]+)(.*?)\s*-->.*)$/)
+        if (!m) return line
+        const id = m[4]
+        const metaStr = m[5]
+        const hbMatch = metaStr.match(/\bhb:(\d+)/)
+        const hb = hbMatch ? Number(hbMatch[1]) : 0
+
+        // 90 秒无心跳视为超时断线，重置回待认领 pending
+        if (hb && (now - hb > 90000)) {
+          log(`heartbeat timeout for doing task ${id} (${Math.round((now - hb) / 1000)}s) in ${fpath}, resetting to pending`)
+          changed = true
+          const cleanMeta = metaStr
+            .replace(/\bst:doing\b/, 'st:pending')
+            .replace(/\bagent:[^\s>]+\b/, '')
+            .replace(/\bhb:\d+\b/, '')
+          return `${m[1]} ${m[3].replace(metaStr, cleanMeta)}`
+        }
+        return line
+      })
+
+      if (changed) {
+        const newContent = updatedLines.join('\n')
+        lastWrittenFileMap.set(normFilePath(fpath), newContent)
+        writeSingleTaskFile(fpath, newContent)
+        anySweepChanged = true
+      }
+    }
+
+    if (anySweepChanged) {
       broadcastTasksState()
     }
   } catch (err) {

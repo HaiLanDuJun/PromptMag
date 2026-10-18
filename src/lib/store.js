@@ -152,20 +152,48 @@ export function syncTasksFile() {
   clearTimeout(tasksTimer)
   tasksTimer = setTimeout(() => {
     const activeMag = getActiveMagazine()
-    const magId = activeMag ? activeMag.id : 'default'
-    const magName = activeMag ? activeMag.name : ''
-    const content = buildTasksFile(state.queue, state.settings.locale, {
-      magazineId: magId,
-      magazineName: magName
-    })
-    window.pm.writeTasks(content, {
-      magazineId: magId,
-      magazineName: magName
-    })
-  }, 150)
+    const activeId = activeMag ? activeMag.id : 'default'
+    const popMode = state.settings.popMode || 'shotgun'
+
+    // 1. 同步当前活跃弹夹并写入全局镜像 next_tasks.md 与专属弹夹 tasks.md
+    if (activeMag) {
+      const activeContent = buildTasksFile(activeMag.queue, state.settings.locale, {
+        magazineId: activeMag.id,
+        magazineName: activeMag.name,
+        popMode
+      })
+      window.pm.writeTasks(activeContent, {
+        magazineId: activeMag.id,
+        magazineName: activeMag.name
+      })
+    }
+
+    // 2. 同步其它所有弹夹专属的 tasks.md
+    for (const mag of state.magazines) {
+      if (mag.id === activeId) continue
+      const magContent = buildTasksFile(mag.queue, state.settings.locale, {
+        magazineId: mag.id,
+        magazineName: mag.name,
+        popMode
+      })
+      window.pm.writeTasks(magContent, {
+        magazineId: mag.id,
+        magazineName: mag.name,
+        skipGlobal: true
+      })
+    }
+  }, 120)
 }
 
-watch(() => state.queue, syncTasksFile, { deep: true })
+watch(
+  () => [state.queue, state.magazines, state.settings.popMode, state.settings.relay],
+  () => {
+    if (state.settings.relay) {
+      syncTasksFile()
+    }
+  },
+  { deep: true }
+)
 
 /* ---------------- 初始化 ---------------- */
 export async function initStore() {
@@ -389,6 +417,13 @@ export function closeRelayStartupModal() {
 export async function copyRelayStartupPrompt(magId = null, agentType = 'claude') {
   const mag = magId ? (state.magazines.find((m) => m.id === magId) || getActiveMagazine()) : getActiveMagazine()
   if (!mag) return ''
+
+  // 关键：自动开启接力功能并立即同步最新任务文件落盘！
+  if (!state.settings.relay) {
+    state.settings.relay = true
+  }
+  syncTasksFile()
+
   const specificTasksPath = state.paths.magazinesDir
     ? `${state.paths.magazinesDir.replace(/\\/g, '/')}/${mag.id}/tasks.md`
     : (state.paths.tasksFile || '')
@@ -396,7 +431,8 @@ export async function copyRelayStartupPrompt(magId = null, agentType = 'claude')
   const promptText = buildRelayStartupPrompt(mag, {
     tasksPath: specificTasksPath,
     locale: state.settings.locale,
-    agentType
+    agentType,
+    popMode: state.settings.popMode || 'shotgun'
   })
   await window.pm.copyText(promptText)
   toast(t('toast.copiedRelayStartupPrompt', { name: mag.name }))
@@ -571,7 +607,8 @@ export async function readClipboardText() {
 /* 双向监听：CLI Agent 接力状态（认领 doing、完成 done、解决者/方案回写、写锁状态） */
 export function bindExternalEvents() {
   window.pm.onTasksExternalChange(({ items, writeLock }) => {
-    (items || []).forEach((it) => {
+    let hasStateChanges = false
+    ;(items || []).forEach((it) => {
       if (!it.id) return
       // 更新当前活跃队列与对应弹夹
       const q = state.queue.find((t) => t.id === it.id)
@@ -590,6 +627,10 @@ export function bindExternalEvents() {
         const oldStatus = targetTask.status
         const newStatus = it.status || (newDone ? 'done' : 'pending')
 
+        if (oldDone !== newDone || oldStatus !== newStatus || targetTask.solver !== it.solver || targetTask.solution !== it.solution) {
+          hasStateChanges = true
+        }
+
         targetTask.done = newDone
         targetTask.status = newStatus
         if (it.agent) targetTask.agent = it.agent
@@ -607,6 +648,10 @@ export function bindExternalEvents() {
         }
       }
     })
+
+    if (hasStateChanges) {
+      scheduleSave()
+    }
 
     state.relayStatus = writeLock ? {
       isWriteLocked: true,

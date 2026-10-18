@@ -33,7 +33,8 @@ const generatedPrompt = computed(() => {
   return buildRelayStartupPrompt(currentMag.value, {
     tasksPath: specificTasksPath.value,
     locale: state.settings.locale,
-    agentType: selectedAgent.value
+    agentType: selectedAgent.value,
+    popMode: state.settings.popMode || 'shotgun'
   })
 })
 
@@ -135,8 +136,15 @@ onBeforeUnmount(() => {
       <!-- 启动提示词内容预览 -->
       <div class="flex flex-col gap-1 flex-1 min-h-0">
         <div class="flex items-center justify-between text-[10px] text-slate-400">
-          <span>{{ t('relayStartupModal.promptPreview') }}</span>
-          <span class="text-sky-400 text-[9.5px] truncate max-w-[200px]" :title="specificTasksPath">
+          <div class="flex items-center gap-2">
+            <span>{{ t('relayStartupModal.promptPreview') }}</span>
+            <span class="text-[9.5px] px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700/60 flex items-center gap-1 font-mono">
+              <span v-if="state.settings.popMode === 'shotgun'">💥 {{ t('settings.popModeShotgun') }}</span>
+              <span v-else-if="state.settings.popMode === 'pistol'">🎯 {{ t('settings.popModePistol') }}</span>
+              <span v-else>🎲 {{ t('settings.popModeRevolver') }}</span>
+            </span>
+          </div>
+          <span class="text-sky-400 text-[9.5px] truncate max-w-[180px]" :title="specificTasksPath">
             {{ specificTasksPath }}
           </span>
         </div>

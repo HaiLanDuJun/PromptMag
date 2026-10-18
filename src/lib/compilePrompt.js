@@ -214,60 +214,94 @@ export function buildRelayStartupPrompt(magazine, opts = {}) {
   const magName = (magazine && magazine.name) || (isEn ? 'Default Magazine' : '默认项目')
   const magDesc = (magazine && magazine.description) ? ` (${magazine.description})` : ''
   const tasksPath = opts.tasksPath || ''
-  const pendingCount = ((magazine && magazine.queue) || []).filter((t) => !t.done).length
+  const popMode = opts.popMode || 'shotgun'
+  const pendingTasks = prepareRelayQueue(magazine && magazine.queue, popMode)
+  const pendingCount = pendingTasks.length
+
+  const modeNameZh = popMode === 'shotgun'
+    ? '💥 霰弹枪模式（按入库顺序 FIFO 依次执行）'
+    : popMode === 'pistol'
+      ? '🎯 手枪模式（最近添加优先 LIFO 依次执行）'
+      : '🎲 左轮模式（随机抽弹顺序执行）'
+
+  const modeNameEn = popMode === 'shotgun'
+    ? '💥 Shotgun Mode (Sequential FIFO execution)'
+    : popMode === 'pistol'
+      ? '🎯 Pistol Mode (Most-recent-first LIFO execution)'
+      : '🎲 Revolver Mode (Randomized draw execution)'
 
   if (isEn) {
-    let agentSpecificRule = ''
+    let agentSpecificLoop = ''
     if (agentType === 'claude') {
-      agentSpecificRule = '- Claude Code Loop Mode: Type `/loop` in your terminal to autonomously process and advance tasks until the queue is empty.'
+      agentSpecificLoop = 'Claude Code Auto-Loop: Keep running /loop or continuous prompt loop in your terminal until all tasks are marked - [x].'
     } else if (agentType === 'agy') {
-      agentSpecificRule = '- Antigravity (agy) Relay: Proceed task by task, strictly respect write lock, record solver identity and resolution summary.'
+      agentSpecificLoop = 'Antigravity (agy) Relay: Execute task by task autonomously, obey mutex write lock, record solver and resolution.'
     } else {
-      agentSpecificRule = '- Autonomous looping: Continue fetching and advancing to the next task until no pending tasks remain.'
+      agentSpecificLoop = 'Autonomous Looping: Automatically advance to the next unclaimed task until no pending tasks remain.'
     }
 
     return [
-      `# Multi-Agent Auto-Relay Boot Prompt: Project [${magName}]${magDesc}`,
+      `【PromptMag · Multi-Agent Auto-Relay Boot Prompt: ${magName}】${magDesc}`,
       '',
-      `You are the relay agent for project [${magName}].`,
-      `There are currently ${pendingCount} pending task(s) in this project's magazine queue.`,
-      tasksPath ? `Please read the project task queue file immediately:\n"${tasksPath}"` : 'Please read the local relay tasks file.',
+      `You are the dedicated autonomous relay Agent for project [${magName}].`,
+      `Current Firing Mode: ${modeNameEn}`,
+      `There are currently ${pendingCount} pending task(s) in this magazine (completed tasks have been strictly excluded).`,
+      tasksPath ? `Please read the local task queue file immediately:\n"${tasksPath}"` : 'Please read the local relay tasks file next_tasks.md',
       '',
-      '📋 Relay & Mutex Rules:',
-      `1. [Project Isolation]: This queue belongs strictly to project [${magName}]. Only execute tasks in this file sequentially.`,
-      '2. [Write Lock Mutex]: File modification tasks (type:write) are EXCLUSIVELY executed by ONE agent at a time. If another agent is writing, you must wait. Read/analysis tasks (type:read) can be executed concurrently.',
-      '3. [Claim]: Find the first unclaimed "- [ ]", mark it as "- [~]", and update metadata with your agent identity and heartbeat.',
-      '4. [Resolution History]: When done, change "- [~]" to "- [x]", and record: > Solved by: <agent_name> | Resolution: <concise summary of files modified and solution>.',
-      `5. [Loop Command]: ${agentSpecificRule}`,
+      '📋 Core Autonomous Relay Rules:',
+      '1. [Autonomous Continuous Loop - DO NOT STOP]:',
+      '   Upon completing each task and recording resolution, DO NOT STOP or wait for user input! Immediately proceed to re-read the tasks file and claim/execute the next unclaimed "- [ ]" task, looping autonomously until all tasks in the queue are "- [x]".',
+      '2. [Write Lock Mutex & Wait-Monitoring Loop]:',
+      '   File modification tasks (type:write) are EXCLUSIVELY executed by ONE agent at a time. If you detect that the next task is currently locked/in-progress by another agent ("- [~]" with type:write), DO NOT EXIT! Enter a wait-monitoring loop (sleep 3~5 seconds, re-read file) until the lock is released ("- [x]"), then immediately claim and execute subsequent pending tasks. Read tasks (type:read) can be executed concurrently.',
+      '3. [Dynamic Discovery of New Prompts]:',
+      '   PromptMag allows the user to dynamically add new prompts to the magazine on the fly. Before claiming each task or during wait-loops, ALWAYS re-read the tasks file from disk (avoid stale in-memory cache) to automatically discover and execute newly appended tasks!',
+      `4. [Strict Firing Order]: Tasks in the file have been sorted strictly according to the magazine's firing mode (${modeNameEn}). Claim and process tasks strictly from top to bottom.`,
+      '5. [Claim & Resolution History]:',
+      '   - Claim: change "- [ ]" to "- [~]" and tag with your identity and heartbeat timestamp.',
+      '   - Resolution: change "- [~]" to "- [x]", and indent a resolution note below:',
+      '     > Solved by: <your_name> | Resolution: <concise summary of files modified and solution>.',
+      '   PromptMag client will listen to this change in real-time and mark the task as done in the UI.',
+      `6. [Agent Loop Command]: ${agentSpecificLoop}`,
       '',
-      'Please read the task queue file now and start the first unclaimed task.'
+      'Please read the task queue file now and start autonomous continuous relay execution!'
     ].join('\n')
   }
 
-  let agentSpecificRule = ''
+  let agentSpecificLoopZh = ''
   if (agentType === 'claude') {
-    agentSpecificRule = 'Claude Code 持续循环：建议在终端输入 `/loop` 或持续执行指令保持自动化接力循环，直至队列中任务全部处理完毕；'
+    agentSpecificLoopZh = 'Claude Code 持续循环：在终端保持持续执行或使用 `/loop` 保持自动化接力循环，直至队列中全部任务处理完毕；'
   } else if (agentType === 'agy') {
-    agentSpecificRule = 'Antigravity (agy) 接力模式：依次认领并推进任务，严格遵守文件写锁，执行完毕必须回写解决者和方案；'
+    agentSpecificLoopZh = 'Antigravity (agy) 接力模式：依次认领并推进任务，严格遵守文件写锁，执行完毕必须回写解决者和方案；'
   } else {
-    agentSpecificRule = '通用 Agent 持续推进：读取任务队列并自动接续下一个任务，直至无待办任务。'
+    agentSpecificLoopZh = '通用 Agent 持续推进：读取任务队列并自动接续下一个任务，自主循环直至无待办任务。'
   }
 
   return [
     `【PromptMag · 多Agent接力启动指令：${magName}】${magDesc}`,
     '',
     `你现在是「${magName}」项目的专属接力 Agent。`,
-    `当前项目弹夹中有 ${pendingCount} 条待办任务。请立即读取该项目的本地接力任务文件：`,
+    `当前弹夹出弹模式：${modeNameZh}`,
+    `当前弹夹中有 ${pendingCount} 条待办任务（已自动剔除已完成任务，按出弹模式严格排序）。`,
+    `请立即读取该项目的本地接力任务文件：`,
     tasksPath ? `"${tasksPath}"` : '本地接力任务文件 next_tasks.md',
     '',
-    '📋 核心接力与隔离规则：',
-    `1. 【项目任务隔离】该任务文件专属「${magName}」项目，请严格按照该文件中的任务序列执行；`,
-    '2. 【文件修改独占锁】文件修改任务（type:write）必须由 1 个 Agent 独占执行！执行前确保无其他修改任务正在进行；读取分析任务（type:read）允许多 Agent 并发；',
-    '3. 【任务认领】自上而下认领首个 "- [ ]" 任务，改为 "- [~]" 并更新你的 Agent 标识及心跳；',
-    '4. 【归档与方案回写】完成任务后将 "- [~]" 改为 "- [x]"，并在下方写明：> 解决者: <你的名称> | 解决方案: <简述修改的文件与解决方式>；',
-    `5. 【持续接力指令】${agentSpecificRule}`,
+    '📋 核心全自动接力与互斥调度规则：',
+    '1. 【全自动不间断接力执行 · 无需人工干预】',
+    '   每完成一个任务并标记 "- [x]" 回写解决方案后，【严禁停下来等待用户输入或询问】！必须立即自动读取任务文件，自动认领并执行下一条 "- [ ]" 待办任务，保持无人值守自主推进，直到队列中所有任务全部处理完毕（全部标为 "- [x]"）！',
+    '2. 【文件修改独占锁与等待监控循环】',
+    '   文件修改任务（type:write）必须由 1 个 Agent 独占执行！执行前确保无其他修改任务正在进行。若发现队列中有正在执行的任务（"- [~]" 且 type:write），【严禁直接退出或报错】，必须自动开启监控等待循环（每隔 3~5 秒重新读取任务文件），直至该任务完成（"- [x]" 释放独占锁），立即自动认领后续待办任务！读取分析任务（type:read）允许多 Agent 并发。',
+    '3. 【动态获取新添加的提示词】',
+    '   PromptMag 支持用户在接力运行期间随时在客户端添加新提示词进弹夹。每完成一个任务后，Agent 必须【重新读取最新的任务文件】（避免内存缓存），自动发现并按顺序接力执行用户新追加的待办任务，直至没有任何待办任务为止。',
+    `4. 【任务执行顺序严格遵守出弹模式】`,
+    `   该任务文件中的任务顺序已严格按照弹夹当前出弹模式（${modeNameZh}）排布，Agent 必须自上而下依次认领执行。`,
+    '5. 【任务认领、解决归档与 PromptMag 客户端实时同步】',
+    '   - 认领时：将 "- [ ]" 改为 "- [~]"，并在机器注释中填入你的 Agent 标识；',
+    '   - 完成时：将 "- [~]" 改为 "- [x]"，并在紧邻下方缩进记录：',
+    '     > 解决者: <你的名称> | 解决方案: <简明扼要说明修改了哪些文件、如何解决该问题>',
+    '   PromptMag 客户端后台将毫秒级监听该文件的状态变化，自动将该任务同步标记为“已使用”并持久化保存。',
+    `6. 【持续循环指令】${agentSpecificLoopZh}`,
     '',
-    '请立即开始读取该任务文件，认领并执行首个待办任务。'
+    '请立即开始读取任务文件，开启全自动不间断接力执行！'
   ].join('\n')
 }
 
@@ -374,46 +408,80 @@ export function compileTaskLine(task, num, lang = null) {
   return line
 }
 
-/** 生成完整的 next_tasks.md 内容（带修订号乐观锁与多Agent接力规则头） */
+/**
+ * 根据出弹模式与完成状态准备接力任务队列：
+ * 1. 严格过滤：已完成的任务绝不放入接力任务中！
+ * 2. 严格按照当前弹夹选择的出弹模式排列任务执行顺序
+ */
+export function prepareRelayQueue(queue, popMode = 'shotgun') {
+  const pending = (queue || []).filter((t) => !t.done && t.status !== 'done')
+  if (popMode === 'pistol') {
+    // 手枪模式：最近保存优先 (LIFO)
+    return pending.slice().reverse()
+  }
+  if (popMode === 'revolver') {
+    // 左轮模式：随机抽选顺序
+    const shuffled = pending.slice()
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }
+  // 霰弹枪模式：按保存顺序严格顺序执行 (FIFO)
+  return pending.slice()
+}
+
+/** 生成完整的 next_tasks.md 内容（带修订号乐观锁、出弹模式与多Agent接力规则头） */
 export function buildTasksFile(queue, lang = null, meta = {}) {
   const l = lang || currentLocale.value || 'zh'
   const isEn = l === 'en'
   const rev = meta.revision || 1
   const lock = meta.activeLock ? ' activeLock:' + meta.activeLock : ''
+  const popMode = meta.popMode || 'shotgun'
 
   const magTitle = meta.magazineName ? ` [${meta.magazineName}]` : ''
+  const modeLabel = popMode === 'shotgun'
+    ? (isEn ? 'Shotgun (FIFO Sequential)' : '💥 霰弹枪模式（按保存顺序 FIFO 依次出弹）')
+    : popMode === 'pistol'
+      ? (isEn ? 'Pistol (LIFO Most-Recent-First)' : '🎯 手枪模式（最近保存优先 LIFO 出弹）')
+      : (isEn ? 'Revolver (Randomized)' : '🎲 左轮模式（随机抽选顺序）')
 
   const header = isEn ? [
     '# PromptMag · Multi-Agent Auto-Relay Task Queue' + magTitle,
-    '<!--pm:rev:' + rev + ' updated:' + new Date().toISOString() + lock + '-->',
+    '<!--pm:rev:' + rev + ' updated:' + new Date().toISOString() + lock + ' mode:' + popMode + '-->',
     '<!-- Auto-generated by PromptMag Multi-Agent Engine.',
+    '  Firing Mode: ' + modeLabel,
     '  Rules:',
-    '  1. File modification tasks (type:write) MUST be executed exclusively by ONE agent at a time.',
-    '     If another agent is doing a write task (st:doing type:write), wait until it completes.',
-    '  2. Read tasks (type:read) can be executed concurrently by multiple agents.',
-    '  3. To claim: change "- [ ]" to "- [~]" and tag <!--pm:<id> st:doing agent:<your_agent_name> hb:<timestamp> type:<write|read>-->.',
-    '  4. When done: change "- [~]" to "- [x]", and add solution below: > Solved by: <agent_name> | Resolution: <how solved>.',
-    '  5. Loop mode: Claude Code use /loop; Antigravity (agy) continue to next task.',
+    '  1. Continuous autonomous execution: After completing each task and recording resolution, DO NOT STOP or wait for user input! Immediately proceed to re-read this file and claim/execute the next unclaimed "- [ ]" task.',
+    '  2. Mutex Write Lock: File modification tasks (type:write) MUST be executed exclusively by ONE agent at a time. If another agent is doing a write task (st:doing type:write), wait in a loop (sleep 3-5s, re-read file) until lock is released.',
+    '  3. Dynamic New Prompts: PromptMag users may add new tasks dynamically. Always re-read this file from disk before claiming each task.',
+    '  4. Sequential claim: Claim tasks strictly from top to bottom (pre-ordered by firing mode).',
+    '  5. Claim: change "- [ ]" to "- [~]" and tag metadata. Done: change "- [~]" to "- [x]" and record solution.',
     '-->',
     ''
   ].join('\n') : [
     '# PromptMag · 多Agent自动接力任务队列' + magTitle,
-    '<!--pm:rev:' + rev + ' updated:' + new Date().toISOString() + lock + '-->',
-    '<!-- 由 PromptMag 多Agent引擎自动生成。',
-    '  接力规则：',
-    '  1. 文件修改任务（type:write）由单个 Agent 独占执行！若有其他 Agent 正在执行修改任务（st:doing type:write），其他 Agent 必须等待；',
-    '  2. 只读分析任务（type:read）允许多个 Agent 同时并发执行；',
-    '  3. 认领任务：自上而下找到首个 "- [ ]"，改为 "- [~]" 并标注 <!--pm:<id> st:doing agent:<你的Agent名称> hb:<时间戳> type:<write|read>-->；',
-    '  4. 完成任务：将 "- [~]" 改为 "- [x]"，并在下方写明：> 解决者: <你的名称> | 解决方案: <简述如何解决>；',
-    '  5. 循环指令：Claude Code 建议使用 /loop 持续接力；Antigravity (agy) 持续推进下一个任务。',
+    '<!--pm:rev:' + rev + ' updated:' + new Date().toISOString() + lock + ' mode:' + popMode + '-->',
+    '<!-- 由 PromptMag 多Agent接力引擎自动生成。',
+    '  当前出弹模式：' + modeLabel,
+    '  核心规则：',
+    '  1. 全自动不间断接力：完成一个任务后，【严禁停下等待用户输入】！立即自动认领并执行下一个未完成的 "- [ ]" 任务，保持无人值守自主推进，直到全部任务完成；',
+    '  2. 互斥写锁与监控等待：文件修改任务（type:write）由单个 Agent 独占执行！若检测到有正在执行的任务（st:doing type:write），自动开启监控等待循环（每3~5秒重读本文件），直到锁释放后立即继续；',
+    '  3. 动态获取新任务：用户可能在客户端随时追加新任务。每完成一个任务后，必须重新从磁盘读取本文件以获取最新添加的提示词；',
+    '  4. 出弹顺序排布：任务已严格按照出弹模式（' + modeLabel + '）自上而下排序，请按顺序认领；',
+    '  5. 认领标记 "- [~]"，完成标记 "- [x]" 并在下方记录解决者与方案，客户端将实时感知并标记已使用。',
     '-->',
     ''
   ].join('\n')
 
-  if (!queue || !queue.length) {
-    return header + (isEn ? '(No pending tasks)\n' : '(当前无待办任务)\n')
+  // 关键：已完成的任务绝不放入接力任务中！按出弹模式严格排序！
+  const filtered = prepareRelayQueue(queue, popMode)
+
+  if (!filtered || !filtered.length) {
+    return header + (isEn ? '(No pending tasks in this magazine)\n' : '(当前弹夹暂无待办任务)\n')
   }
-  return header + queue.map((t, i) => compileTaskLine(t, i + 1, l)).join('\n') + '\n'
+  return header + filtered.map((t, i) => compileTaskLine(t, i + 1, l)).join('\n') + '\n'
 }
 
 /** 解析 next_tasks.md（支持容错 [x][X][✓][v][~][/][-]、HTML注释提取与解决历史） */
@@ -454,6 +522,10 @@ export function parseTasksLines(content) {
         const doneAtMatch = metaStr.match(/\bdoneAt:(\d+)/)
         if (doneAtMatch) doneAt = Number(doneAtMatch[1])
       }
+
+      // 关键防护：以实际复选框标记为最终权威判定
+      if (done) status = 'done'
+      else if (doing && status !== 'done') status = 'doing'
 
       const text = body.replace(/<!--\s*pm:[A-Za-z0-9_-]+.*?\s*-->/, '').trim()
       currentItem = {
