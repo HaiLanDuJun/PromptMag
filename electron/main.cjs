@@ -534,12 +534,12 @@ function isImageProtected(imagePath) {
   return false
 }
 
-/** 切换收藏状态：收藏时独立复制图片到 favorites/images/ 保证隔离不被删 */
+/** 切换收藏状态：收藏时独立复制图片到 favorites/images/ 并独立生成完全解耦的新提示词任务 */
 function toggleFavoriteTask(task) {
   if (!task || !task.id) return { ok: false, error: 'invalid task' }
   ensureDirs()
   const favs = getFavoritesData()
-  const idx = favs.findIndex((f) => f.id === task.id)
+  const idx = favs.findIndex((f) => f.id === task.id || f.originTaskId === task.id || (task.favoritedId && f.id === task.favoritedId))
   const isNowFav = idx === -1
 
   if (isNowFav) {
@@ -548,7 +548,7 @@ function toggleFavoriteTask(task) {
       try {
         const ext = path.extname(img.path) || '.png'
         const base = path.basename(img.path, ext)
-        const targetName = `fav_${base}_${Date.now().toString(36)}${ext}`
+        const targetName = `fav_${base}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}${ext}`
         const targetPath = path.join(P.favImages, targetName)
         fs.copyFileSync(img.path, targetPath)
         return {
@@ -563,15 +563,28 @@ function toggleFavoriteTask(task) {
       }
     })
 
-    favs.unshift({
+    const newFavId = `fav_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    let newText = task.text || ''
+    copiedImages.forEach(img => {
+      if (img.originalPath && img.path) {
+        newText = newText.split(img.originalPath).join(img.path)
+      }
+    })
+
+    const favTask = {
       ...task,
+      id: newFavId,
+      originTaskId: task.id,
+      text: newText,
       favorite: true,
       favoritedAt: Date.now(),
       images: copiedImages
-    })
+    }
+
+    favs.unshift(favTask)
     saveFavoritesData(favs)
-    log('favorited task:', task.id, 'copied images:', copiedImages.length)
-    return { ok: true, isFavorite: true, favorite: favs[0] }
+    log('favorited task cloned independently:', favTask.id, 'origin:', task.id, 'copied images:', copiedImages.length)
+    return { ok: true, isFavorite: true, favorite: favTask }
   } else {
     favs.splice(idx, 1)
     saveFavoritesData(favs)
@@ -584,10 +597,10 @@ function toggleFavoriteTask(task) {
  * 清理未收藏的提示词及其对应图片（保护被收藏的图片不被删除）
  * 规则：
  *  - 收藏弹夹（id: 'favorites'）绝对不进行自动或批量清理
- *  - 默认立即清理：清理未收藏且未使用的提示词（criteria: 'unused'）
+ *  - 默认清理：清理未收藏且已使用的提示词（criteria: 'used' / 'done_only'）
  *  - 支持按每个弹夹独立配置规则
  */
-function cleanupUnfavoritedPrompts(criteria = 'unused', targetMagId = null) {
+function cleanupUnfavoritedPrompts(criteria = 'used', targetMagId = null) {
   ensureDirs()
   const data = readJsonSafe(P.dataFile)
   if (!data) {
@@ -605,7 +618,7 @@ function cleanupUnfavoritedPrompts(criteria = 'unused', targetMagId = null) {
     if (crit === 'all') {
       return true
     }
-    if (crit === 'done_only' || crit === 'done') {
+    if (crit === 'done_only' || crit === 'done' || crit === 'used' || crit === 'unfavorite_and_used') {
       return !!t.done
     }
     if (crit === '1d') {

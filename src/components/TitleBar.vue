@@ -366,7 +366,7 @@ function toggleLang() {
         </div>
         <button
           class="btn btn-danger w-full !py-1 text-xs mb-3 flex items-center justify-center gap-1.5 cursor-pointer"
-          @click="cleanupUnfavorited('unused', selectedCleanupMagId)"
+          @click="cleanupUnfavorited('used', selectedCleanupMagId)"
         >
           <span>🧹</span>
           <span>{{ t('settings.cleanUnfavoritedNow') }}</span>

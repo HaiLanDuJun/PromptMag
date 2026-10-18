@@ -19,6 +19,13 @@ const filterTab = ref('all') // 'all' | 'pending' | 'favorite'
 
 const activeMagazine = computed(() => getActiveMagazine())
 
+const magTabsRef = ref(null)
+function onMagTabsWheel(e) {
+  if (magTabsRef.value) {
+    magTabsRef.value.scrollLeft += e.deltaY || e.deltaX
+  }
+}
+
 function onSwitchMag(id) {
   setActiveMagazine(id)
 }
@@ -198,8 +205,13 @@ function displayTitle(item) {
 <template>
   <div class="flex flex-col h-full">
     <!-- 顶栏：项目多弹夹导航栏与快速管理 -->
-    <div class="flex items-center gap-1.5 pb-2 border-b border-slate-800/80 mb-2 overflow-x-auto select-none">
-      <div class="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto">
+    <div class="flex items-center justify-between gap-1 pb-1.5 border-b border-slate-800/80 mb-1.5 select-none">
+      <!-- 左侧：多弹夹标签（支持平滑横向滚动与滚轮） -->
+      <div
+        ref="magTabsRef"
+        class="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto no-scrollbar py-0.5"
+        @wheel.prevent="onMagTabsWheel"
+      >
         <button
           v-for="mag in state.magazines"
           :key="mag.id"
@@ -215,58 +227,52 @@ function displayTitle(item) {
             class="w-1.5 h-1.5 rounded-full shrink-0"
             :style="{ backgroundColor: mag.color || '#38bdf8' }"
           />
-          <span class="max-w-[85px] truncate">{{ mag.name }}</span>
+          <span class="max-w-[75px] truncate">{{ mag.name }}</span>
           <span class="text-[9.5px] opacity-75">
             ({{ (mag.queue || []).filter(t => !t.done).length }})
           </span>
         </button>
+      </div>
 
-        <!-- 新建弹夹按键 -->
+      <!-- 右侧固定控制区（外置固定，绝对不被遮挡、不随列表滚动） -->
+      <div class="flex items-center gap-1 shrink-0 pl-1 border-l border-slate-800/80">
+        <!-- 新建弹夹按键（常驻固定显示，不再被挤出或遮挡） -->
         <button
-          class="px-1.5 py-1 rounded-lg border border-dashed border-slate-700 hover:border-sky-400 text-slate-400 hover:text-sky-300 text-[10.5px] transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+          class="px-2 py-1 rounded-lg border border-dashed border-sky-400/40 hover:border-sky-400 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-sky-200 text-[10.5px] font-medium flex items-center gap-1 shrink-0 cursor-pointer transition-all shadow-sm"
           :title="t('magazines.newMagazine')"
           @click="onNewMagazine"
         >
-          <span>+</span>
-          <span>{{ t('magazines.newMagazine') }}</span>
-        </button>
-      </div>
-
-      <!-- 当前弹夹专属快捷操作：重命名 / 删除 / 接力启动指令 -->
-      <div v-if="activeMagazine" class="flex items-center gap-1 shrink-0">
-        <!-- 生成接力启动指令 -->
-        <button
-          class="px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer"
-          :title="t('magazines.relayStartupTitle')"
-          @click="onOpenRelayStartup(activeMagazine.id)"
-        >
-          <span>⚡</span>
-          <span>{{ t('magazines.relayStartup') }}</span>
-        </button>
-
-        <!-- 重命名弹夹（收藏弹夹受系统保护不可重命名） -->
-        <button
-          v-if="activeMagazine.id !== 'favorites'"
-          class="icon-btn !w-5 !h-5 text-slate-400 hover:text-slate-200"
-          :title="t('magazines.renameTitle')"
-          @click="onRenameMagazine(activeMagazine)"
-        >
-          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
+          <span>{{ t('magazines.newBtnShort') }}</span>
         </button>
 
-        <!-- 删除弹夹（至少保留 1 个，默认弹夹与收藏弹夹为系统级保护弹夹） -->
-        <button
-          v-if="activeMagazine.id !== 'default' && activeMagazine.id !== 'favorites' && state.magazines.length > 1"
-          class="icon-btn !w-5 !h-5 danger"
-          :title="t('magazines.deleteTitle')"
-          @click="onDeleteMagazine(activeMagazine)"
-        >
-          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
-        </button>
+        <!-- 当前弹夹专属快捷操作：重命名 / 删除（仅非系统弹夹） -->
+        <div v-if="activeMagazine && activeMagazine.id !== 'favorites'" class="flex items-center gap-0.5 shrink-0">
+          <!-- 重命名弹夹 -->
+          <button
+            class="icon-btn !w-5 !h-5 text-slate-400 hover:text-slate-200"
+            :title="t('magazines.renameTitle')"
+            @click="onRenameMagazine(activeMagazine)"
+          >
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </button>
+
+          <!-- 删除弹夹 -->
+          <button
+            v-if="activeMagazine.id !== 'default' && state.magazines.length > 1"
+            class="icon-btn !w-5 !h-5 danger"
+            :title="t('magazines.deleteTitle')"
+            @click="onDeleteMagazine(activeMagazine)"
+          >
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -317,27 +323,31 @@ function displayTitle(item) {
         </button>
       </div>
 
-      <div class="flex items-center gap-2">
+      <!-- 右侧控制组：生成接力启动指令（普通弹夹）/ 全部重置为待用 / 清空 -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <!-- 生成接力启动指令（移到队列控制栏右侧，空间充裕且逻辑归位） -->
+        <button
+          v-if="activeMagazine && activeMagazine.id !== 'favorites'"
+          class="px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+          :title="t('magazines.relayStartupTitle')"
+          @click="onOpenRelayStartup(activeMagazine.id)"
+        >
+          <span>⚡</span>
+          <span>{{ t('magazines.relayStartup') }}</span>
+        </button>
+
         <button
           v-if="hasDoneItems && (!activeMagazine || activeMagazine.id !== 'favorites')"
-          class="text-[10.5px] text-emerald-400/80 hover:text-emerald-300 transition-colors cursor-pointer"
+          class="text-[10px] text-emerald-400/80 hover:text-emerald-300 transition-colors cursor-pointer px-1 py-0.5 rounded hover:bg-emerald-500/10"
           :title="t('queue.resetAllPendingTitle')"
           @click="onResetAll"
         >
           {{ t('queue.resetAllPending') }}
         </button>
-        <button
-          v-if="activeMagazine && activeMagazine.id !== 'favorites' && unfavoritedCount > 0"
-          class="text-[10px] text-rose-400/80 hover:text-rose-300 transition-colors cursor-pointer px-1.5 py-0.5 rounded hover:bg-rose-500/10 flex items-center gap-1"
-          :title="t('queue.cleanUnfavoritedTitle')"
-          @click="onCleanUnfavorited"
-        >
-          <span>🧹</span>
-          <span>{{ t('queue.cleanUnfavorited') }}</span>
-        </button>
+
         <button
           v-if="state.queue.length"
-          class="text-[10.5px] text-sky-400/80 hover:text-sky-300 transition-colors cursor-pointer"
+          class="text-[10px] text-sky-400/80 hover:text-sky-300 transition-colors cursor-pointer px-1 py-0.5 rounded hover:bg-sky-500/10"
           :title="t('queue.clearTitle')"
           @click="onClearAll"
         >

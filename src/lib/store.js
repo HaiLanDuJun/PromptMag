@@ -717,18 +717,6 @@ export function pushComposerToQueue(targetMagId = null) {
       target.type = inferTaskType(textStr)
       target.updatedAt = Date.now()
 
-      // 同步其它弹夹中相同 id 的任务（例如在收藏弹夹中编辑，同步到所属原弹夹，或反之）
-      state.magazines.forEach((m) => {
-        (m.queue || []).forEach((t) => {
-          if (t.id === editId && t !== target) {
-            t.text = textStr
-            t.images = JSON.parse(JSON.stringify(c.images))
-            t.type = inferTaskType(textStr)
-            t.updatedAt = Date.now()
-          }
-        })
-      })
-
       // 保存完后自动把编译后的最新结构化 Prompt 写入系统剪贴板
       copyCompiled(target, { magazineId: targetMag ? targetMag.id : state.activeMagazineId }).catch(() => {})
       c.text = ''
@@ -846,48 +834,76 @@ export function removeTask(id) {
   }
 }
 
-/** 收藏 / 取消收藏提示词（收藏的提示词及其图片受绝对保护不被清理） */
+/** 收藏 / 取消收藏提示词（收藏时在收藏弹夹独立创建副本与图片，两者完全独立互不影响） */
 export async function toggleFavorite(id) {
   let target = null
+  let sourceMag = null
   for (const m of state.magazines) {
     const found = (m.queue || []).find((t) => t.id === id)
     if (found) {
       target = found
+      sourceMag = m
       break
     }
   }
   if (!target) return
+
+  // 收藏弹夹中不允许取消收藏（通过删除按钮直接删除）
+  if (sourceMag && sourceMag.id === 'favorites') return
+
   target.favorite = !target.favorite
   const isFav = target.favorite
 
-  // 同步所有弹夹中包含相同 id 的任务的 favorite 状态
-  state.magazines.forEach((m) => {
-    (m.queue || []).forEach((t) => {
-      if (t.id === id) t.favorite = isFav
-    })
-  })
-
   const favMag = state.magazines.find((m) => m.id === 'favorites')
-  if (favMag) {
-    if (isFav) {
-      if (!favMag.queue.some((t) => t.id === id)) {
-        favMag.queue.unshift({ ...toRaw(target), favorite: true })
+  if (isFav) {
+    // 独立在收藏弹夹创建一个一模一样的提示词+图片副本（解耦互不影响）
+    let clonedTask = null
+    if (window.pm && window.pm.toggleFavorite) {
+      try {
+        const res = await window.pm.toggleFavorite(toRaw(target))
+        if (res && res.ok && res.favorite) {
+          clonedTask = res.favorite
+        }
+      } catch (err) {
+        console.error('toggleFavorite IPC error:', err)
       }
-    } else {
-      const fIdx = favMag.queue.findIndex((t) => t.id === id)
+    }
+    if (!clonedTask) {
+      clonedTask = {
+        ...toRaw(target),
+        id: uid(),
+        originTaskId: target.id,
+        favorite: true,
+        favoritedAt: Date.now(),
+        images: JSON.parse(JSON.stringify(target.images || []))
+      }
+    }
+    target.favoritedId = clonedTask.id
+    if (favMag) {
+      if (!favMag.queue.some((t) => t.id === clonedTask.id)) {
+        favMag.queue.unshift(clonedTask)
+      }
+      state.snippets = favMag.queue
+    }
+    toast(t('toast.favorited'))
+  } else {
+    // 在源弹夹取消收藏，若收藏弹夹存在对应副本则同步移除
+    if (window.pm && window.pm.toggleFavorite) {
+      try {
+        await window.pm.toggleFavorite(toRaw(target))
+      } catch { /* ignore */ }
+    }
+    if (favMag) {
+      const fIdx = favMag.queue.findIndex((t) => t.id === target.favoritedId || t.originTaskId === target.id)
       if (fIdx > -1) {
         favMag.queue.splice(fIdx, 1)
       }
+      state.snippets = favMag.queue
     }
-    state.snippets = favMag.queue
+    target.favoritedId = null
+    toast(t('toast.unfavorited'))
   }
-
-  if (window.pm && window.pm.toggleFavorite) {
-    try {
-      await window.pm.toggleFavorite(toRaw(target))
-    } catch { /* ignore */ }
-  }
-  toast(isFav ? t('toast.favorited') : t('toast.unfavorited'))
+  saveStateDebounced()
 }
 
 /** 获取特定弹夹的自动清理规则（收藏弹夹恒为 'off' 保护） */
@@ -920,14 +936,14 @@ export function setMagazineAutoCleanup(magId, val) {
   toast(t('toast.autoCleanupChanged', { mode: t(modeKey) }))
 }
 
-/** 定时/手动清理未收藏且未使用的提示词及其图片（收藏弹夹永久免清理） */
-export async function cleanupUnfavorited(criteria = 'unused', targetMagId = null) {
+/** 定时/手动清理未收藏且已使用（或未使用）的提示词及其图片（收藏弹夹永久免清理） */
+export async function cleanupUnfavorited(criteria = 'used', targetMagId = null) {
   const targetId = targetMagId || state.activeMagazineId
   if (targetId === 'favorites') {
     toast(t('toast.favoritesProtectedNotice'))
     return { ok: true, isFavoritesProtected: true, deletedPrompts: 0, deletedImages: 0 }
   }
-  const crit = criteria || getMagazineAutoCleanup(targetId) || 'unused'
+  const crit = criteria || getMagazineAutoCleanup(targetId) || 'used'
   if (crit === 'off') {
     return { ok: true, deletedPrompts: 0, deletedImages: 0 }
   }
@@ -941,7 +957,7 @@ export async function cleanupUnfavorited(criteria = 'unused', targetMagId = null
         if (t.favorite) return true
         if (crit === 'unused' || crit === 'unfavorite_and_unused') return !!t.done
         if (crit === 'all') return false
-        if (crit === 'done_only' || crit === 'done') return !t.done
+        if (crit === 'done_only' || crit === 'done' || crit === 'used' || crit === 'unfavorite_and_used') return !t.done
         if (crit === '1d') return (now - (t.createdAt || 0)) <= 24 * 3600 * 1000
         if (crit === '3d') return (now - (t.createdAt || 0)) <= 3 * 24 * 3600 * 1000
         if (crit === '7d') return (now - (t.createdAt || 0)) <= 7 * 24 * 3600 * 1000

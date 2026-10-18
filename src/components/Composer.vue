@@ -111,23 +111,6 @@ function clearAllImages() {
       @keydown-enter="onEditorEnter"
     />
 
-    <!-- 正在编辑提示词横幅提示（含取消编辑按钮） -->
-    <div
-      v-if="state.editingTaskId"
-      class="flex items-center justify-between px-2.5 py-1 bg-amber-500/15 border border-amber-400/40 rounded-lg text-[10.5px] text-amber-200 select-none"
-    >
-      <div class="flex items-center gap-1.5 truncate">
-        <span>✏️</span>
-        <span class="font-medium">{{ t('composer.editingBanner') }}</span>
-      </div>
-      <button
-        class="text-[10px] text-amber-300 hover:text-amber-100 underline cursor-pointer ml-2 shrink-0"
-        @click="cancelEditingTask"
-      >
-        {{ t('composer.cancelEdit') }}
-      </button>
-    </div>
-
     <!-- 编辑框底部操作栏（规整左右分栏布局，不局促） -->
     <!-- 操作按钮工具栏 -->
     <div class="flex items-center justify-between gap-1.5 pt-0.5 select-none">
