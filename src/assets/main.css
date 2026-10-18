@@ -355,30 +355,33 @@ input:focus, textarea:focus, button:focus { outline: none; }
 
 /* ============ 图片分镜/预览卡片（舒适排版 + 双击放大） ============ */
 .image-shelf-card {
-  border-radius: 12px;
-  background: rgba(10, 20, 36, 0.7);
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  padding: 8px 10px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(13, 24, 43, 0.88) 0%, rgba(8, 16, 30, 0.95) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  padding: 10px 12px 12px;
+  margin-top: 6px;
 }
 
 .thumbnail-card {
   position: relative;
-  width: 90px;
-  height: 84px;
-  border-radius: 10px;
+  width: 106px;
+  height: 98px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  background: rgba(7, 14, 25, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.26);
+  background: rgba(4, 10, 20, 0.92);
   display: flex;
   flex-direction: column;
-  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 .thumbnail-card:hover {
   border-color: #38bdf8;
   transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.25);
+  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.32);
 }
 
 .thumbnail-preview-area {
@@ -391,43 +394,49 @@ input:focus, textarea:focus, button:focus { outline: none; }
 
 .thumbnail-badge {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: #38bdf8;
-  color: #0b1728;
-  font-size: 9px;
+  top: 4px;
+  left: 4px;
+  padding: 1.5px 6px;
+  border-radius: 6px;
+  background: rgba(14, 165, 233, 0.9);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 9.5px;
   font-weight: 700;
   line-height: 1.2;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   pointer-events: none;
+  z-index: 5;
 }
 
 .thumbnail-zoom-hint {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(1.5px);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
   color: #38bdf8;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.18s ease;
   pointer-events: none;
+  z-index: 6;
 }
 .thumbnail-card:hover .thumbnail-zoom-hint {
   opacity: 1;
 }
 
 .thumbnail-caption {
-  height: 24px;
-  line-height: 24px;
-  padding: 0 6px;
-  background: rgba(11, 23, 40, 0.95);
-  border-top: 1px solid rgba(56, 189, 248, 0.15);
-  font-size: 10px;
-  color: #7dd3fc;
+  height: 25px;
+  line-height: 25px;
+  padding: 0 8px;
+  background: rgba(11, 23, 40, 0.96);
+  border-top: 1px solid rgba(56, 189, 248, 0.18);
+  font-size: 10.5px;
+  color: #bae6fd;
   font-weight: 500;
   text-align: center;
   overflow: hidden;
@@ -437,49 +446,51 @@ input:focus, textarea:focus, button:focus { outline: none; }
 
 .thumbnail-del-btn {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 16px;
-  height: 16px;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(15, 23, 42, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #cbd5e1;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: all 0.14s ease;
   z-index: 10;
 }
 .thumbnail-del-btn:hover {
   background: #f43f5e;
   color: #ffffff;
   border-color: transparent;
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
 }
 
 .add-image-dashed-box {
-  width: 76px;
-  height: 84px;
-  border-radius: 10px;
-  border: 1.5px dashed rgba(56, 189, 248, 0.35);
-  background: rgba(56, 189, 248, 0.04);
+  width: 86px;
+  height: 98px;
+  border-radius: 12px;
+  border: 1.5px dashed rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.05);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   color: #7dd3fc;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   flex-shrink: 0;
 }
 .add-image-dashed-box:hover {
   border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
+  background: rgba(56, 189, 248, 0.14);
   color: #e0f2fe;
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.28);
+  transform: translateY(-2px);
 }
 
 /* ============ 历史关键词列表 ============ */

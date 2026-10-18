@@ -15,13 +15,18 @@ const searchInput = ref(null)
 
 const filteredSnippets = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return state.snippets
-  return state.snippets.filter((s) => s.text.toLowerCase().includes(q))
+  const favMag = state.magazines.find((m) => m.id === 'favorites')
+  const list = (favMag && Array.isArray(favMag.queue) ? favMag.queue : state.snippets) || []
+  if (!q) return list
+  return list.filter((s) => (s.text || '').toLowerCase().includes(q))
 })
 
 async function onSelect(snippet) {
-  if (!snippet || !snippet.text) return
-  await window.pm.pasteSnippetAtCursor(snippet.text)
+  if (!snippet) return
+  const text = snippet.text || ''
+  if (text) {
+    await window.pm.pasteSnippetAtCursor(text)
+  }
 }
 
 function onClose() {
@@ -180,7 +185,7 @@ onMounted(async () => {
 
         <!-- 提示词文字 -->
         <span class="picker-item-text truncate">
-          {{ s.text }}
+          {{ s.text || (s.images && s.images.length ? (currentLocale === 'en' ? `[${s.images.length} Images]` : `[${s.images.length} 张图片]`) : (currentLocale === 'en' ? 'Untitled Prompt' : '未命名提示词')) }}
         </span>
 
         <!-- 右侧回车提示 -->
@@ -202,7 +207,7 @@ onMounted(async () => {
         <span><kbd class="picker-kbd">1-9</kbd> {{ currentLocale === 'en' ? 'Quick' : '快捷键' }}</span>
         <span><kbd class="picker-kbd">Esc</kbd> {{ currentLocale === 'en' ? 'Close' : '关闭' }}</span>
       </div>
-      <span class="text-amber-400/80 font-medium">{{ currentLocale === 'en' ? state.snippets.length + ' Total' : '共 ' + state.snippets.length + ' 条' }}</span>
+      <span class="text-amber-400/80 font-medium">{{ currentLocale === 'en' ? filteredSnippets.length + ' Total' : '共 ' + filteredSnippets.length + ' 条' }}</span>
     </div>
   </div>
 </template>

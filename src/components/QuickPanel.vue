@@ -6,7 +6,7 @@
  */
 import { nextTick, ref } from 'vue'
 import {
-  state, addImages, removeImage, pushComposerToQueue,
+  state, addImages, removeImage, pushComposerToQueue, requestSaveComposer,
   toast, setMode, setAlwaysOnTop, readClipboardText,
   t, currentLocale
 } from '../lib/store'
@@ -70,12 +70,10 @@ function onEnter(e) {
 }
 
 function save() {
-  const resTask = pushComposerToQueue()
-  if (!resTask) {
-    toast(t('toast.pleaseInputOrImg'))
-    return
-  }
-  toast(t('toast.savedAndCopied'))
+  const res = requestSaveComposer(() => {
+    nextTick(() => promptEditor.value && promptEditor.value.focus())
+  })
+  if (!res) return
   nextTick(() => promptEditor.value && promptEditor.value.focus())
 }
 </script>

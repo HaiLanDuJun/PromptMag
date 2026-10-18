@@ -4,15 +4,15 @@
  *      next_tasks.md 实时同步、外部勾选状态回写。
  */
 import { reactive, watch, toRaw } from 'vue'
-import { compilePrompt, buildTasksFile } from './compilePrompt'
-import { t, currentLocale, setLocale } from './i18n'
+import { compilePrompt, buildTasksFile, inferTaskType, buildRelayStartupPrompt } from './compilePrompt.js'
+import { t, currentLocale, setLocale } from './i18n.js'
 
 /* 浏览器直跑 vite（无 Electron 桥）时的兜底 mock，便于纯前端调试 */
 if (typeof window !== 'undefined' && !window.pm) {
   window.pm = {
     getInitData: async () => ({
       data: {},
-      paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '' },
+      paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '' },
       platform: 'browser'
     }),
     saveData: async () => ({ ok: true }),
@@ -39,6 +39,9 @@ if (typeof window !== 'undefined' && !window.pm) {
     updateHotkeys () {},
     openPath () {},
     showItemInFolder () {},
+    openExternal (url) {
+      if (typeof window !== 'undefined') window.open(url, '_blank')
+    },
     onFocusComposer: () => () => {},
     onTasksExternalChange: () => () => {},
     onModeChanged: () => () => {},
@@ -64,17 +67,27 @@ export const state = reactive({
   ready: false,
   platform: 'win32',
   toast: '',
-  paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '' },
+  paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '' },
   settings: {
     alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
     hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T',
-    locale: 'zh', popMode: 'shotgun'
+    locale: 'zh', popMode: 'shotgun', autoCleanup: 'off',
+    saveTargetMode: 'active', // 'active' (当前活动弹夹) | 'ask' (每次弹窗选择) | 'specific' (指定固定弹夹)
+    defaultMagazineId: 'default'
   },
+  magazines: [],
+  activeMagazineId: 'default',
+  isMagazinePickerOpen: false,
+  magazinePickerCallback: null,
+  isRelayStartupModalOpen: false,
+  relayStartupTargetMagId: null,
   snippets: [],
   composer: { text: '', images: [] },
   queue: [],
   preview: null,
-  isDialogOpening: false
+  isDialogOpening: false,
+  relayStatus: { isWriteLocked: false, lockedBy: null, taskId: null },
+  filterTab: 'all'
 })
 
 /* ---------------- 图片全屏/放大预览 ---------------- */
@@ -106,28 +119,48 @@ let saveTimer = null
 function scheduleSave() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
+    const curMag = state.magazines.find((m) => m.id === state.activeMagazineId)
+    if (curMag) {
+      curMag.queue = state.queue
+    }
     window.pm.saveData({
       settings: { ...toRaw(state.settings) },
       snippets: JSON.parse(JSON.stringify(state.snippets)),
       composer: JSON.parse(JSON.stringify(state.composer)),
+      magazines: JSON.parse(JSON.stringify(state.magazines)),
+      activeMagazineId: state.activeMagazineId,
       queue: JSON.parse(JSON.stringify(state.queue))
     })
   }, 300)
 }
 
 watch(
-  () => [state.settings, state.snippets, state.composer, state.queue],
+  () => [state.settings, state.snippets, state.composer, state.queue, state.magazines, state.activeMagazineId],
   scheduleSave,
   { deep: true }
 )
 
 /* ---------------- next_tasks.md 实时同步 ---------------- */
+export function getActiveMagazine() {
+  return state.magazines.find((m) => m.id === state.activeMagazineId) || state.magazines[0]
+}
+
 let tasksTimer = null
 export function syncTasksFile() {
   if (!state.ready || !state.settings.relay) return
   clearTimeout(tasksTimer)
   tasksTimer = setTimeout(() => {
-    window.pm.writeTasks(buildTasksFile(state.queue, state.settings.locale))
+    const activeMag = getActiveMagazine()
+    const magId = activeMag ? activeMag.id : 'default'
+    const magName = activeMag ? activeMag.name : ''
+    const content = buildTasksFile(state.queue, state.settings.locale, {
+      magazineId: magId,
+      magazineName: magName
+    })
+    window.pm.writeTasks(content, {
+      magazineId: magId,
+      magazineName: magName
+    })
   }, 150)
 }
 
@@ -144,7 +177,11 @@ export async function initStore() {
       alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
       hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T',
       locale: 'zh',
-      popMode: 'shotgun'
+      popMode: 'shotgun',
+      saveTargetMode: 'active',
+      defaultMagazineId: 'default',
+      autoCleanup: 'off',
+      magazineAutoCleanup: {}
     },
     d.settings || {}
   )
@@ -154,18 +191,95 @@ export async function initStore() {
   if (state.settings.hotkeyToggle === undefined || state.settings.hotkeyToggle === null) state.settings.hotkeyToggle = 'Alt+Q'
   if (!['capsule', 'quick', 'full'].includes(state.settings.mode)) state.settings.mode = 'full'
   if (!['shotgun', 'revolver', 'pistol'].includes(state.settings.popMode)) state.settings.popMode = 'shotgun'
+  if (!['active', 'ask', 'specific'].includes(state.settings.saveTargetMode)) state.settings.saveTargetMode = 'active'
   setLocale(state.settings.locale || 'zh')
 
-  state.snippets =
-    Array.isArray(d.snippets) && d.snippets.length
-      ? d.snippets
-      : DEFAULT_SNIPPETS.slice()
+  // 保证默认弹夹与收藏弹夹始终存在并位于前两位（默认弹夹在首位，收藏弹夹紧挨着默认弹夹）
+  const loadedMags = Array.isArray(d.magazines) && d.magazines.length ? d.magazines : []
+
+  // 1. 默认弹夹 (index 0)
+  let defaultMag = loadedMags.find((m) => m.id === 'default')
+  if (!defaultMag) {
+    defaultMag = {
+      id: 'default',
+      name: currentLocale.value === 'en' ? 'Default Magazine' : '默认弹夹',
+      description: currentLocale.value === 'en' ? 'General project prompts & tasks' : '默认通用项目提示词与任务',
+      color: '#38bdf8',
+      createdAt: Date.now(),
+      autoCleanup: 'off',
+      queue: Array.isArray(d.queue) ? d.queue : []
+    }
+  }
+
+  // 2. 收藏弹夹 (index 1 - 紧随默认弹夹旁边)
+  let favMag = loadedMags.find((m) => m.id === 'favorites')
+  if (!favMag) {
+    // 迁移旧版常用词库 snippets 到收藏弹夹
+    const oldSnippets = Array.isArray(d.snippets) && d.snippets.length ? d.snippets : DEFAULT_SNIPPETS
+    const migratedFavQueue = oldSnippets.map((s) => ({
+      id: s.id || uid(),
+      text: s.text,
+      images: [],
+      createdAt: Date.now(),
+      done: false,
+      status: 'pending',
+      type: inferTaskType(s.text),
+      agent: '',
+      solver: '',
+      solution: '',
+      favorite: true
+    }))
+
+    favMag = {
+      id: 'favorites',
+      name: currentLocale.value === 'en' ? 'Favorites Magazine' : '收藏弹夹',
+      description: currentLocale.value === 'en' ? 'Bookmarked favorite prompts & snippets' : '常用提示词与收藏模板',
+      color: '#f59e0b',
+      createdAt: Date.now(),
+      isSpecial: true,
+      autoCleanup: 'off',
+      queue: migratedFavQueue
+    }
+  }
+
+  // 3. 收集用户自建的其它项目弹夹（排除 default 和 favorites）
+  const otherMags = loadedMags.filter((m) => m.id !== 'default' && m.id !== 'favorites')
+
+  // 4. 组装 magazines 列表：保证默认弹夹在第 0 位，收藏弹夹在第 1 位（旁边），其它在后
+  state.magazines = [defaultMag, favMag, ...otherMags]
+
+  // 确保每个弹夹都有独立的 autoCleanup 配置（收藏弹夹恒为 'off' 受系统保护）
+  state.magazines.forEach((m) => {
+    if (m.id === 'favorites') {
+      m.autoCleanup = 'off'
+    } else {
+      m.autoCleanup = m.autoCleanup || (state.settings.magazineAutoCleanup && state.settings.magazineAutoCleanup[m.id]) || state.settings.autoCleanup || 'off'
+    }
+  })
+
+  // 同步收藏状态：若其它弹夹中有标记 favorite 的任务，确保其亦在收藏弹夹中
+  state.magazines.forEach((m) => {
+    if (m.id === 'favorites') return
+    (m.queue || []).forEach((t) => {
+      if (t.favorite && !favMag.queue.some((f) => f.id === t.id)) {
+        favMag.queue.push(t)
+      }
+    })
+  })
+
+  const activeId = d.activeMagazineId && state.magazines.some((m) => m.id === d.activeMagazineId)
+    ? d.activeMagazineId
+    : state.magazines[0].id
+  state.activeMagazineId = activeId
+  const curMag = state.magazines.find((m) => m.id === activeId) || state.magazines[0]
+  state.queue = curMag.queue
+  state.snippets = favMag.queue
+
   const c = d.composer || {}
   state.composer = {
     text: String(c.text || ''),
     images: Array.isArray(c.images) ? c.images : []
   }
-  state.queue = Array.isArray(d.queue) ? d.queue : []
   state.ready = true
 
   window.pm.setOpacity(state.settings.opacity)
@@ -176,6 +290,116 @@ export async function initStore() {
 
   /* 全局快捷键事件绑定 */
   bindHotkeyEvents()
+}
+
+/* ---------------- 多弹夹管理与切换 ---------------- */
+export function setActiveMagazine(id) {
+  const mag = state.magazines.find((m) => m.id === id)
+  if (!mag) return
+  const oldMag = state.magazines.find((m) => m.id === state.activeMagazineId)
+  if (oldMag) {
+    oldMag.queue = state.queue
+  }
+  state.activeMagazineId = mag.id
+  state.queue = mag.queue
+  if (state.settings.relay) {
+    syncTasksFile()
+  }
+  toast(t('toast.magazineSwitched', { name: mag.name }))
+}
+
+export function createMagazine(name, description = '', color = '#38bdf8') {
+  const trimmed = String(name || '').trim() || (currentLocale.value === 'en' ? 'New Magazine' : '新弹夹')
+  const newMag = {
+    id: uid(),
+    name: trimmed,
+    description: String(description || '').trim(),
+    color: color || '#38bdf8',
+    createdAt: Date.now(),
+    autoCleanup: 'off',
+    queue: []
+  }
+  state.magazines.push(newMag)
+  setActiveMagazine(newMag.id)
+  toast(t('toast.magazineCreated', { name: trimmed }))
+  return newMag
+}
+
+export function renameMagazine(id, newName) {
+  const mag = state.magazines.find((m) => m.id === id)
+  if (!mag) return
+  const trimmed = String(newName || '').trim()
+  if (!trimmed) return
+  mag.name = trimmed
+  if (state.settings.relay && state.activeMagazineId === id) {
+    syncTasksFile()
+  }
+  toast(t('toast.magazineRenamed', { name: trimmed }))
+}
+
+export function deleteMagazine(id) {
+  if (id === 'default' || id === 'favorites') {
+    toast(t('toast.cannotDeleteSystemMagazine'))
+    return false
+  }
+  if (state.magazines.length <= 1) {
+    toast(t('toast.cannotDeleteLastMagazine'))
+    return false
+  }
+  const idx = state.magazines.findIndex((m) => m.id === id)
+  if (idx === -1) return false
+  const [deleted] = state.magazines.splice(idx, 1)
+  if (state.activeMagazineId === id) {
+    const next = state.magazines[0]
+    state.activeMagazineId = next.id
+    state.queue = next.queue
+    if (state.settings.relay) syncTasksFile()
+  }
+  toast(t('toast.magazineDeleted', { name: deleted.name }))
+  return true
+}
+
+export function setSaveTargetMode(m, defaultMagId = null) {
+  state.settings.saveTargetMode = ['active', 'ask', 'specific'].includes(m) ? m : 'active'
+  if (defaultMagId) state.settings.defaultMagazineId = defaultMagId
+}
+
+/* ---------------- 弹窗控制器 ---------------- */
+export function openMagazinePicker(callback = null) {
+  state.magazinePickerCallback = callback
+  state.isMagazinePickerOpen = true
+}
+
+export function closeMagazinePicker() {
+  state.isMagazinePickerOpen = false
+  state.magazinePickerCallback = null
+}
+
+export function openRelayStartupModal(magId = null) {
+  state.relayStartupTargetMagId = magId || state.activeMagazineId
+  state.isRelayStartupModalOpen = true
+}
+
+export function closeRelayStartupModal() {
+  state.isRelayStartupModalOpen = false
+  state.relayStartupTargetMagId = null
+}
+
+export async function copyRelayStartupPrompt(magId = null, agentType = 'claude') {
+  const mag = magId ? (state.magazines.find((m) => m.id === magId) || getActiveMagazine()) : getActiveMagazine()
+  if (!mag) return ''
+  const specificTasksPath = state.paths.magazinesDir
+    ? `${state.paths.magazinesDir.replace(/\\/g, '/')}/${mag.id}/tasks.md`
+    : (state.paths.tasksFile || '')
+
+  const promptText = buildRelayStartupPrompt(mag, {
+    tasksPath: specificTasksPath,
+    locale: state.settings.locale,
+    agentType
+  })
+  await window.pm.copyText(promptText)
+  toast(t('toast.copiedRelayStartupPrompt', { name: mag.name }))
+  return promptText
 }
 
 /* ---------------- 出弹模式（霰弹枪: 先保存先出 / 左轮: 随机弹出 / 手枪: 先入后出） ---------------- */
@@ -333,18 +557,64 @@ export async function readClipboardText() {
   return ''
 }
 
-/* 双向监听：CLI Agent 把 "- [ ]" 勾成 "- [x]" 时同步回 UI */
+/* 双向监听：CLI Agent 接力状态（认领 doing、完成 done、解决者/方案回写、写锁状态） */
 export function bindExternalEvents() {
-  window.pm.onTasksExternalChange(({ items }) => {
+  window.pm.onTasksExternalChange(({ items, writeLock }) => {
     (items || []).forEach((it) => {
       if (!it.id) return
+      // 更新当前活跃队列与对应弹夹
       const q = state.queue.find((t) => t.id === it.id)
-      if (q && !!q.done !== !!it.done) {
-        q.done = !!it.done
-        if (q.done) toast('Agent 已完成任务：' + (q.text || '').slice(0, 18) + '…')
+      let foundInAnyMag = null
+      for (const m of state.magazines) {
+        const found = (m.queue || []).find((t) => t.id === it.id)
+        if (found) {
+          foundInAnyMag = found
+          break
+        }
+      }
+      const targetTask = q || foundInAnyMag
+      if (targetTask) {
+        const oldDone = !!targetTask.done
+        const newDone = !!it.done || it.status === 'done'
+        const oldStatus = targetTask.status
+        const newStatus = it.status || (newDone ? 'done' : 'pending')
+
+        targetTask.done = newDone
+        targetTask.status = newStatus
+        if (it.agent) targetTask.agent = it.agent
+        if (it.solver) targetTask.solver = it.solver
+        if (it.solution) targetTask.solution = it.solution
+        if (it.type) targetTask.type = it.type
+
+        if (!oldDone && newDone) {
+          const solverName = targetTask.solver || targetTask.agent || 'Agent'
+          const sol = targetTask.solution ? ` (${targetTask.solution})` : ''
+          toast(`Agent [${solverName}] 已完成任务：${(targetTask.text || '').slice(0, 18)}…${sol}`)
+        } else if (oldStatus !== 'doing' && newStatus === 'doing') {
+          const agentName = targetTask.agent || 'Agent'
+          toast(`Agent [${agentName}] 已认领接力任务：${(targetTask.text || '').slice(0, 18)}…`)
+        }
       }
     })
+
+    state.relayStatus = writeLock ? {
+      isWriteLocked: true,
+      lockedBy: writeLock.agent,
+      taskId: writeLock.taskId
+    } : {
+      isWriteLocked: false,
+      lockedBy: null,
+      taskId: null
+    }
   })
+
+  if (window.pm.onQueueUpdated) {
+    window.pm.onQueueUpdated(({ queue }) => {
+      if (Array.isArray(queue)) {
+        state.queue = queue
+      }
+    })
+  }
 }
 
 /* ---------------- 图片操作（自动重编 [图N: 关键词] 标记） ---------------- */
@@ -417,27 +687,225 @@ export function formatDateTime(ts) {
 }
 
 /* ---------------- 队列操作 ---------------- */
-export function pushComposerToQueue() {
+export function pushComposerToQueue(targetMagId = null) {
   const c = state.composer
   if (!String(c.text).trim() && !c.images.length) return null
+  const textStr = String(c.text)
   const task = {
     id: uid(),
-    text: String(c.text),
+    text: textStr,
     images: JSON.parse(JSON.stringify(c.images)),
     createdAt: Date.now(),
-    done: false
+    done: false,
+    status: 'pending',
+    type: inferTaskType(textStr),
+    agent: '',
+    solver: '',
+    solution: '',
+    favorite: false
   }
-  state.queue.push(task)
-  // 保存完后自动把编译后的结构化 Prompt 写入当前用户的系统剪贴板
-  copyCompiled(task).catch(() => {})
+
+  const targetId = targetMagId || (
+    state.settings.saveTargetMode === 'specific' && state.settings.defaultMagazineId
+      ? state.settings.defaultMagazineId
+      : state.activeMagazineId
+  )
+
+  const targetMag = state.magazines.find((m) => m.id === targetId) || getActiveMagazine()
+  if (targetMag) {
+    targetMag.queue.push(task)
+    if (targetMag.id === state.activeMagazineId && state.queue !== targetMag.queue) {
+      state.queue = targetMag.queue
+    }
+  } else {
+    state.queue.push(task)
+  }
+
+  // 保存完后自动把编译后的结构化 Prompt 写入系统剪贴板（附带项目弹夹任务文件）
+  copyCompiled(task, { magazineId: targetMag ? targetMag.id : state.activeMagazineId }).catch(() => {})
   c.text = ''
   c.images = []
-  return task
+  return { task, targetMagazine: targetMag }
+}
+
+export function requestSaveComposer(onSelectDone = null) {
+  const c = state.composer
+  if (!String(c.text).trim() && !c.images.length) {
+    toast(t('toast.pleaseInputOrImg'))
+    return false
+  }
+
+  if (state.settings.saveTargetMode === 'ask') {
+    openMagazinePicker((selectedMagId, setAsDefault) => {
+      if (setAsDefault) {
+        state.settings.saveTargetMode = 'specific'
+        state.settings.defaultMagazineId = selectedMagId
+      }
+      const res = pushComposerToQueue(selectedMagId)
+      if (res && res.targetMagazine) {
+        toast(t('toast.savedToMagazine', { name: res.targetMagazine.name }))
+      }
+      if (onSelectDone) onSelectDone(res)
+    })
+    return true
+  }
+
+  const res = pushComposerToQueue()
+  if (res && res.targetMagazine) {
+    toast(t('toast.savedAndCopied'))
+  }
+  if (onSelectDone) onSelectDone(res)
+  return true
 }
 
 export function removeTask(id) {
   const i = state.queue.findIndex((t) => t.id === id)
-  if (i > -1) state.queue.splice(i, 1)
+  if (i > -1) {
+    const [removed] = state.queue.splice(i, 1)
+    // 若在收藏弹夹中删除，同步将其它弹夹对应任务取消收藏
+    if (state.activeMagazineId === 'favorites') {
+      state.magazines.forEach((m) => {
+        if (m.id !== 'favorites') {
+          const found = (m.queue || []).find((t) => t.id === id)
+          if (found) found.favorite = false
+        }
+      })
+      const favMag = state.magazines.find((m) => m.id === 'favorites')
+      if (favMag) state.snippets = favMag.queue
+    } else {
+      // 若在普通弹夹删除，同时从收藏弹夹移出
+      const favMag = state.magazines.find((m) => m.id === 'favorites')
+      if (favMag) {
+        const fIdx = favMag.queue.findIndex((t) => t.id === id)
+        if (fIdx > -1) favMag.queue.splice(fIdx, 1)
+        state.snippets = favMag.queue
+      }
+    }
+    // 若被删除项未收藏，后台调度检查清理无引用图片
+    if (removed && !removed.favorite && window.pm && window.pm.cleanupUnfavorited) {
+      window.pm.cleanupUnfavorited('1d').catch(() => {})
+    }
+  }
+}
+
+/** 收藏 / 取消收藏提示词（收藏的提示词及其图片受绝对保护不被清理） */
+export async function toggleFavorite(id) {
+  let target = null
+  for (const m of state.magazines) {
+    const found = (m.queue || []).find((t) => t.id === id)
+    if (found) {
+      target = found
+      break
+    }
+  }
+  if (!target) return
+  target.favorite = !target.favorite
+  const isFav = target.favorite
+
+  // 同步所有弹夹中包含相同 id 的任务的 favorite 状态
+  state.magazines.forEach((m) => {
+    (m.queue || []).forEach((t) => {
+      if (t.id === id) t.favorite = isFav
+    })
+  })
+
+  const favMag = state.magazines.find((m) => m.id === 'favorites')
+  if (favMag) {
+    if (isFav) {
+      if (!favMag.queue.some((t) => t.id === id)) {
+        favMag.queue.unshift({ ...toRaw(target), favorite: true })
+      }
+    } else {
+      const fIdx = favMag.queue.findIndex((t) => t.id === id)
+      if (fIdx > -1) {
+        favMag.queue.splice(fIdx, 1)
+      }
+    }
+    state.snippets = favMag.queue
+  }
+
+  if (window.pm && window.pm.toggleFavorite) {
+    try {
+      await window.pm.toggleFavorite(toRaw(target))
+    } catch { /* ignore */ }
+  }
+  toast(isFav ? t('toast.favorited') : t('toast.unfavorited'))
+}
+
+/** 获取特定弹夹的自动清理规则（收藏弹夹恒为 'off' 保护） */
+export function getMagazineAutoCleanup(magId) {
+  if (!magId || magId === 'favorites') return 'off'
+  const mag = state.magazines.find((m) => m.id === magId)
+  if (mag && mag.autoCleanup) return mag.autoCleanup
+  if (state.settings.magazineAutoCleanup && state.settings.magazineAutoCleanup[magId]) {
+    return state.settings.magazineAutoCleanup[magId]
+  }
+  return state.settings.autoCleanup || 'off'
+}
+
+/** 设置特定弹夹的自动清理规则（收藏弹夹受系统保护不可设置） */
+export function setMagazineAutoCleanup(magId, val) {
+  if (!magId || magId === 'favorites') return
+  const rule = ['off', 'done_only', '1d', '3d', '7d', '30d'].includes(val) ? val : 'off'
+  const mag = state.magazines.find((m) => m.id === magId)
+  if (mag) {
+    mag.autoCleanup = rule
+  }
+  if (!state.settings.magazineAutoCleanup) {
+    state.settings.magazineAutoCleanup = {}
+  }
+  state.settings.magazineAutoCleanup[magId] = rule
+  if (magId === state.activeMagazineId) {
+    state.settings.autoCleanup = rule
+  }
+  const modeKey = rule === 'off' ? 'settings.autoCleanupOff' : `settings.autoCleanup_${rule}`
+  toast(t('toast.autoCleanupChanged', { mode: t(modeKey) }))
+}
+
+/** 定时/手动清理未收藏且未使用的提示词及其图片（收藏弹夹永久免清理） */
+export async function cleanupUnfavorited(criteria = 'unused', targetMagId = null) {
+  const targetId = targetMagId || state.activeMagazineId
+  if (targetId === 'favorites') {
+    toast(t('toast.favoritesProtectedNotice'))
+    return { ok: true, isFavoritesProtected: true, deletedPrompts: 0, deletedImages: 0 }
+  }
+  const crit = criteria || getMagazineAutoCleanup(targetId) || 'unused'
+  if (crit === 'off') {
+    return { ok: true, deletedPrompts: 0, deletedImages: 0 }
+  }
+
+  if (window.pm && window.pm.cleanupUnfavorited) {
+    const res = await window.pm.cleanupUnfavorited(crit, targetId)
+    if (res && res.ok) {
+      const now = Date.now()
+      const targetMag = state.magazines.find((m) => m.id === targetId)
+      const filterQueue = (q) => (q || []).filter((t) => {
+        if (t.favorite) return true
+        if (crit === 'unused' || crit === 'unfavorite_and_unused') return !!t.done
+        if (crit === 'all') return false
+        if (crit === 'done_only' || crit === 'done') return !t.done
+        if (crit === '1d') return (now - (t.createdAt || 0)) <= 24 * 3600 * 1000
+        if (crit === '3d') return (now - (t.createdAt || 0)) <= 3 * 24 * 3600 * 1000
+        if (crit === '7d') return (now - (t.createdAt || 0)) <= 7 * 24 * 3600 * 1000
+        if (crit === '30d') return (now - (t.createdAt || 0)) <= 30 * 24 * 3600 * 1000
+        return true
+      })
+      if (targetMag) {
+        targetMag.queue = filterQueue(targetMag.queue)
+        if (state.activeMagazineId === targetId) {
+          state.queue = targetMag.queue
+        }
+      } else {
+        state.queue = filterQueue(state.queue)
+      }
+      toast(t('toast.cleanedUnfavorited', { count: res.deletedPrompts, imgCount: res.deletedImages }))
+      return res
+    }
+  }
+}
+
+export function setAutoCleanupSetting(val) {
+  setMagazineAutoCleanup(state.activeMagazineId, val)
 }
 
 export function editBackfill(id) {
@@ -462,17 +930,47 @@ export function resetAllTasksPending() {
 
 export function clearDoneTasks() {
   state.queue = state.queue.filter((tTask) => !tTask.done)
+  const curMag = getActiveMagazine()
+  if (curMag) curMag.queue = state.queue
 }
 
-export function clearAllQueue() {
+export async function clearAllQueue() {
+  const curMag = getActiveMagazine()
+  const targetMagId = curMag ? curMag.id : state.activeMagazineId
+  // 先通知底层彻底清理本弹夹未收藏提示词及非保护图片
+  if (window.pm && window.pm.cleanupUnfavorited && targetMagId !== 'favorites') {
+    try {
+      await window.pm.cleanupUnfavorited('all', targetMagId)
+    } catch { /* ignore */ }
+  }
   state.queue = []
+  if (curMag) {
+    curMag.queue = []
+    if (curMag.id === 'favorites') {
+      state.magazines.forEach((m) => {
+        if (m.id !== 'favorites') {
+          (m.queue || []).forEach((t) => { t.favorite = false })
+        }
+      })
+      state.snippets = []
+    }
+  }
 }
 
-export async function copyCompiled(task, { pop = false } = {}) {
+export async function copyCompiled(task, { pop = false, magazineId = null } = {}) {
+  const mag = magazineId ? state.magazines.find((m) => m.id === magazineId) : getActiveMagazine()
+  const magId = mag ? mag.id : state.activeMagazineId
+  const magName = mag ? mag.name : ''
+  const specificTasksPath = state.paths.magazinesDir
+    ? `${state.paths.magazinesDir.replace(/\\/g, '/')}/${magId}/tasks.md`
+    : (state.paths.tasksFile || '')
+
   const text = compilePrompt(task, {
-    tasksPath: state.paths.tasksFile,
+    tasksPath: specificTasksPath,
     relay: state.settings.relay,
-    locale: state.settings.locale
+    locale: state.settings.locale,
+    magazineId: magId,
+    magazineName: magName
   })
   await window.pm.copyText(text)
   if (pop) removeTask(task.id)
@@ -539,16 +1037,47 @@ export async function chooseDataDir() {
   }
 }
 
-/* ---------------- 词库 ---------------- */
+/* ---------------- 收藏弹夹提示词 (替代旧版独立词库) ---------------- */
 export function addSnippet(text) {
   const t = String(text || '').trim()
   if (!t) return
-  state.snippets.push({ id: uid(), text: t })
+  const favMag = state.magazines.find((m) => m.id === 'favorites')
+  const item = {
+    id: uid(),
+    text: t,
+    images: [],
+    createdAt: Date.now(),
+    done: false,
+    status: 'pending',
+    type: inferTaskType(t),
+    agent: '',
+    solver: '',
+    solution: '',
+    favorite: true
+  }
+  if (favMag) {
+    favMag.queue.unshift(item)
+    state.snippets = favMag.queue
+  } else {
+    state.snippets.unshift(item)
+  }
 }
 
 export function removeSnippet(id) {
-  const i = state.snippets.findIndex((s) => s.id === id)
-  if (i > -1) state.snippets.splice(i, 1)
+  const favMag = state.magazines.find((m) => m.id === 'favorites')
+  if (favMag) {
+    const i = favMag.queue.findIndex((s) => s.id === id)
+    if (i > -1) favMag.queue.splice(i, 1)
+    state.snippets = favMag.queue
+  } else {
+    const i = state.snippets.findIndex((s) => s.id === id)
+    if (i > -1) state.snippets.splice(i, 1)
+  }
 }
 
-export { t, currentLocale } from './i18n'
+export function getFavoritesList() {
+  const favMag = state.magazines.find((m) => m.id === 'favorites')
+  return favMag ? favMag.queue : state.snippets
+}
+
+export { t, currentLocale } from './i18n.js'

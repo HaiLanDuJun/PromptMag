@@ -53,6 +53,10 @@ const P = { home: resolveDataDir() }
 P.images = path.join(P.home, 'images')
 P.dataFile = path.join(P.home, 'data.json')
 P.tasksFile = path.join(P.home, 'next_tasks.md')
+P.favorites = path.join(P.home, 'favorites')
+P.favImages = path.join(P.favorites, 'images')
+P.favDataFile = path.join(P.favorites, 'favorites.json')
+P.magazinesDir = path.join(P.home, 'magazines')
 P.logFile = path.join(P.home, 'main.log')
 P.windowState = path.join(P.home, 'window-state.json')
 
@@ -119,6 +123,9 @@ let alwaysOnTop = true
 /* ------------------------------------------------------------------ */
 function ensureDirs() {
   fs.mkdirSync(P.images, { recursive: true })
+  fs.mkdirSync(P.favorites, { recursive: true })
+  fs.mkdirSync(P.favImages, { recursive: true })
+  fs.mkdirSync(P.magazinesDir, { recursive: true })
 }
 
 function readJsonSafe(file) {
@@ -206,23 +213,103 @@ function saveClipboardImages() {
   return { ok: true, images: results }
 }
 
-/* --------------------------- next_tasks.md -------------------------- */
+/* --------------------------- next_tasks.md & 多Agent接力 -------------------------- */
+let currentRevision = 1
+let sweepTimer = null
+let autoCleanupTimer = null
+
+/** 解析任务内容（三态机 + 机器注释 + 解决历史容错） */
 function parseTasksContent(content) {
   const items = []
-  content.split(/\r?\n/).forEach((line, i) => {
-    const m = line.match(/^\s*-\s*\[([ xX])\]\s*(.+)$/)
-    if (!m) return
-    const done = m[1].toLowerCase() === 'x'
-    const body = m[2]
-    const idm = body.match(/<!--\s*pm:([A-Za-z0-9_-]+)\s*-->/)
-    items.push({
-      line: i,
-      done,
-      id: idm ? idm[1] : null,
-      text: body.replace(/<!--\s*pm:[A-Za-z0-9_-]+\s*-->/, '').trim()
-    })
-  })
+  const lines = String(content || '').split(/\r?\n/)
+  let currentItem = null
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i]
+    const m = rawLine.match(/^\s*-\s*\[([ xX✓vV~/\-])\]\s*(.+)$/)
+    if (m) {
+      const symbol = m[1]
+      const body = m[2]
+      const done = ['x', 'X', '✓', 'v', 'V'].includes(symbol)
+      const doing = ['~', '/', '-'].includes(symbol)
+      let status = done ? 'done' : (doing ? 'doing' : 'pending')
+
+      const idm = body.match(/<!--\s*pm:([A-Za-z0-9_-]+)(.*?)\s*-->/)
+      let id = idm ? idm[1] : null
+      let agent = ''
+      let taskType = 'write'
+      let heartbeat = null
+      let doneAt = null
+
+      if (idm && idm[2]) {
+        const metaStr = idm[2]
+        const stMatch = metaStr.match(/\bst:(pending|doing|done)\b/)
+        if (stMatch) status = stMatch[1]
+        const agentMatch = metaStr.match(/\bagent:([^\s>]+)/)
+        if (agentMatch) agent = agentMatch[1]
+        const typeMatch = metaStr.match(/\btype:(write|read)\b/)
+        if (typeMatch) taskType = typeMatch[1]
+        const hbMatch = metaStr.match(/\bhb:(\d+)/)
+        if (hbMatch) heartbeat = Number(hbMatch[1])
+        const doneAtMatch = metaStr.match(/\bdoneAt:(\d+)/)
+        if (doneAtMatch) doneAt = Number(doneAtMatch[1])
+      }
+
+      const text = body.replace(/<!--\s*pm:[A-Za-z0-9_-]+.*?\s*-->/, '').trim()
+      currentItem = {
+        line: i,
+        id,
+        done: status === 'done' || done,
+        status,
+        type: taskType,
+        agent,
+        solver: status === 'done' ? agent : '',
+        solution: '',
+        heartbeat,
+        doneAt,
+        text
+      }
+      items.push(currentItem)
+      continue
+    }
+
+    if (currentItem) {
+      const solMatch = rawLine.match(/^\s*>\s*(?:解决者|Solved by)\s*:\s*([^|]+)\|\s*(?:解决方案|Resolution)\s*:\s*(.+)$/i)
+      if (solMatch) {
+        currentItem.solver = solMatch[1].trim()
+        currentItem.solution = solMatch[2].trim()
+        currentItem.status = 'done'
+        currentItem.done = true
+        continue
+      }
+      const claimMatch = rawLine.match(/^\s*>\s*(?:认领者|Claimed by)\s*:\s*([^|]+)/i)
+      if (claimMatch && currentItem.status !== 'done') {
+        currentItem.agent = claimMatch[1].trim()
+        currentItem.status = 'doing'
+        continue
+      }
+    }
+  }
+
   return items
+}
+
+function parseTasksMetadata(content) {
+  const m = String(content || '').match(/<!--pm:rev:(\d+)(.*?)\s*-->/)
+  if (!m) return { revision: 1, activeLock: null }
+  const rev = Number(m[1]) || 1
+  const lockMatch = m[2].match(/\bactiveLock:([^\s>]+)/)
+  return { revision: rev, activeLock: lockMatch ? lockMatch[1] : null }
+}
+
+function getActiveWriteLock(items) {
+  const active = (items || []).find((it) => it.status === 'doing' && it.type === 'write')
+  if (!active) return null
+  return {
+    taskId: active.id,
+    agent: active.agent || 'Agent',
+    heartbeat: active.heartbeat || null
+  }
 }
 
 function broadcastTasksState() {
@@ -230,7 +317,16 @@ function broadcastTasksState() {
   const exists = fs.existsSync(P.tasksFile)
   const content = exists ? fs.readFileSync(P.tasksFile, 'utf8') : ''
   if (content === lastWrittenTasks) return // 自身写入触发的变更，忽略
-  mainWindow.webContents.send('pm:tasks-external', { exists, items: parseTasksContent(content) })
+  const items = parseTasksContent(content)
+  const meta = parseTasksMetadata(content)
+  const writeLock = getActiveWriteLock(items)
+  currentRevision = meta.revision || currentRevision
+  mainWindow.webContents.send('pm:tasks-external', {
+    exists,
+    items,
+    revision: currentRevision,
+    writeLock
+  })
 }
 
 function scheduleTasksCheck() {
@@ -238,20 +334,410 @@ function scheduleTasksCheck() {
   watchTimer = setTimeout(broadcastTasksState, 120)
 }
 
+/**
+ * 监听整个主数据目录，彻底根治单个文件被原子删除替换后 fs.watch 永久失明的问题
+ */
 function startTasksWatch() {
   if (tasksWatcher) return
   ensureDirs()
   if (!fs.existsSync(P.tasksFile)) {
-    fs.writeFileSync(P.tasksFile, '', 'utf8')
-    lastWrittenTasks = ''
+    try {
+      fs.writeFileSync(P.tasksFile, '', 'utf8')
+      lastWrittenTasks = ''
+    } catch { /* ignore */ }
   }
   try {
-    tasksWatcher = fs.watch(P.tasksFile, { persistent: true }, () => scheduleTasksCheck())
-    tasksWatcher.on('error', () => { tasksWatcher = null })
-  } catch {
+    tasksWatcher = fs.watch(P.home, { persistent: true, recursive: true }, (eventType, filename) => {
+      if (!filename || filename === 'next_tasks.md' || filename.endsWith('.md')) {
+        scheduleTasksCheck()
+      }
+    })
+    tasksWatcher.on('error', (err) => {
+      log('tasks directory watcher error:', err && err.message)
+      try { tasksWatcher.close() } catch { /* ignore */ }
+      tasksWatcher = null
+      setTimeout(startTasksWatch, 1500)
+    })
+    tasksWatcher.on('close', () => {
+      tasksWatcher = null
+      setTimeout(startTasksWatch, 1500)
+    })
+  } catch (err) {
+    log('failed to watch directory:', err && err.message)
     tasksWatcher = null
     setTimeout(startTasksWatch, 1500)
   }
+}
+
+/** 写入单个任务文件（带 Windows 占用重试） */
+function writeSingleTaskFile(targetPath, content) {
+  const targetDir = path.dirname(targetPath)
+  try { fs.mkdirSync(targetDir, { recursive: true }) } catch { /* ignore */ }
+  const tmpFile = path.join(targetDir, `.tasks_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.tmp`)
+  fs.writeFileSync(tmpFile, content, 'utf8')
+
+  let success = false
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      if (fs.existsSync(targetPath)) {
+        try { fs.unlinkSync(targetPath) } catch { /* ignore */ }
+      }
+      fs.renameSync(tmpFile, targetPath)
+      success = true
+      break
+    } catch {
+      const end = Date.now() + 25 * (attempt + 1)
+      while (Date.now() < end) {}
+    }
+  }
+
+  if (!success) {
+    try {
+      fs.copyFileSync(tmpFile, targetPath)
+      fs.unlinkSync(tmpFile)
+      success = true
+    } catch (e) {
+      log('atomic write single file failed:', targetPath, e && e.message)
+      return false
+    }
+  }
+  return true
+}
+
+/** 原子写入任务队列文件（带乐观锁修订号与多弹夹独立同步） */
+function writeTasksAtomic(content, options = {}) {
+  ensureDirs()
+  currentRevision += 1
+  let finalContent = String(content || '')
+
+  if (!finalContent.includes('<!--pm:rev:')) {
+    finalContent = `<!--pm:rev:${currentRevision} updated:${new Date().toISOString()}-->\n` + finalContent
+  } else {
+    finalContent = finalContent.replace(/<!--pm:rev:\d+(.*?)\s*-->/, `<!--pm:rev:${currentRevision} updated:${new Date().toISOString()}$1-->`)
+  }
+
+  lastWrittenTasks = finalContent
+
+  // 1. 同步写入全局镜像 P.tasksFile (~/.prompt-mag/next_tasks.md)
+  writeSingleTaskFile(P.tasksFile, finalContent)
+
+  // 2. 若传入特定弹夹 magazineId，同步写入专属弹夹任务文件 (~/.prompt-mag/magazines/<id>/tasks.md)
+  if (options && options.magazineId) {
+    const magTasksFile = path.join(P.magazinesDir, options.magazineId, 'tasks.md')
+    writeSingleTaskFile(magTasksFile, finalContent)
+  }
+
+  return { ok: true, revision: currentRevision }
+}
+
+/** 30 秒定时器：自动回收心跳超时卡死的 doing 任务 */
+function sweepDoingTimeouts() {
+  try {
+    if (!fs.existsSync(P.tasksFile)) return
+    const content = fs.readFileSync(P.tasksFile, 'utf8')
+    const now = Date.now()
+    let changed = false
+
+    const updatedLines = content.split(/\r?\n/).map((line) => {
+      const m = line.match(/^(\s*-\s*\[)([~/\-])(\]\s*.+?<!--\s*pm:([A-Za-z0-9_-]+)(.*?)\s*-->.*)$/)
+      if (!m) return line
+      const id = m[4]
+      const metaStr = m[5]
+      const hbMatch = metaStr.match(/\bhb:(\d+)/)
+      const hb = hbMatch ? Number(hbMatch[1]) : 0
+
+      // 90 秒无心跳视为超时断线，重置回待认领 pending
+      if (hb && (now - hb > 90000)) {
+        log(`heartbeat timeout for doing task ${id} (${Math.round((now - hb) / 1000)}s), resetting to pending`)
+        changed = true
+        const cleanMeta = metaStr
+          .replace(/\bst:doing\b/, 'st:pending')
+          .replace(/\bagent:[^\s>]+\b/, '')
+          .replace(/\bhb:\d+\b/, '')
+        return `${m[1]} ${m[3].replace(metaStr, cleanMeta)}`
+      }
+      return line
+    })
+
+    if (changed) {
+      const newContent = updatedLines.join('\n')
+      writeTasksAtomic(newContent)
+      broadcastTasksState()
+    }
+  } catch (err) {
+    log('sweepDoingTimeouts error:', err && err.message)
+  }
+}
+
+/* --------------------------- 收藏夹与图片保护 -------------------------- */
+function getFavoritesData() {
+  ensureDirs()
+  return readJsonSafe(P.favDataFile) || []
+}
+
+function saveFavoritesData(favs) {
+  ensureDirs()
+  writeJsonAtomic(P.favDataFile, favs)
+}
+
+/**
+ * 判断一张图片是否受到收藏夹保护（被保护的图片绝不能被删除）
+ */
+function isImageProtected(imagePath) {
+  if (!imagePath || typeof imagePath !== 'string') return false
+  try {
+    const abs = path.resolve(imagePath)
+    // 1. 位于 favorites 独立目录中的图片绝对保护
+    if (abs.startsWith(path.resolve(P.favImages))) return true
+
+    // 2. 在 favorites.json 中引用的图片受保护
+    const favs = getFavoritesData()
+    const base = path.basename(abs).toLowerCase()
+    for (const f of favs) {
+      for (const im of (f.images || [])) {
+        if (!im || !im.path) continue
+        if (path.resolve(im.path) === abs || path.basename(im.path).toLowerCase() === base) {
+          return true
+        }
+      }
+    }
+
+    // 3. 在 data.json 中带有 favorite: true 标记的任务或收藏弹夹中的图片受保护
+    const data = readJsonSafe(P.dataFile)
+    if (data && Array.isArray(data.queue)) {
+      for (const t of data.queue) {
+        if (t && t.favorite) {
+          for (const im of (t.images || [])) {
+            if (!im || !im.path) continue
+            if (path.resolve(im.path) === abs || path.basename(im.path).toLowerCase() === base) {
+              return true
+            }
+          }
+        }
+      }
+    }
+    if (data && Array.isArray(data.magazines)) {
+      for (const m of data.magazines) {
+        for (const t of (m.queue || [])) {
+          if (m.id === 'favorites' || (t && t.favorite)) {
+            for (const im of (t.images || [])) {
+              if (!im || !im.path) continue
+              if (path.resolve(im.path) === abs || path.basename(im.path).toLowerCase() === base) {
+                return true
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch { /* ignore */ }
+  return false
+}
+
+/** 切换收藏状态：收藏时独立复制图片到 favorites/images/ 保证隔离不被删 */
+function toggleFavoriteTask(task) {
+  if (!task || !task.id) return { ok: false, error: 'invalid task' }
+  ensureDirs()
+  const favs = getFavoritesData()
+  const idx = favs.findIndex((f) => f.id === task.id)
+  const isNowFav = idx === -1
+
+  if (isNowFav) {
+    const copiedImages = (task.images || []).map((img) => {
+      if (!img || !img.path || !fs.existsSync(img.path)) return img
+      try {
+        const ext = path.extname(img.path) || '.png'
+        const base = path.basename(img.path, ext)
+        const targetName = `fav_${base}_${Date.now().toString(36)}${ext}`
+        const targetPath = path.join(P.favImages, targetName)
+        fs.copyFileSync(img.path, targetPath)
+        return {
+          ...img,
+          path: targetPath,
+          originalPath: img.path,
+          name: targetName
+        }
+      } catch (err) {
+        log('failed to copy favorite image:', err && err.message)
+        return img
+      }
+    })
+
+    favs.unshift({
+      ...task,
+      favorite: true,
+      favoritedAt: Date.now(),
+      images: copiedImages
+    })
+    saveFavoritesData(favs)
+    log('favorited task:', task.id, 'copied images:', copiedImages.length)
+    return { ok: true, isFavorite: true, favorite: favs[0] }
+  } else {
+    favs.splice(idx, 1)
+    saveFavoritesData(favs)
+    log('unfavorited task:', task.id)
+    return { ok: true, isFavorite: false }
+  }
+}
+
+/**
+ * 清理未收藏的提示词及其对应图片（保护被收藏的图片不被删除）
+ * 规则：
+ *  - 收藏弹夹（id: 'favorites'）绝对不进行自动或批量清理
+ *  - 默认立即清理：清理未收藏且未使用的提示词（criteria: 'unused'）
+ *  - 支持按每个弹夹独立配置规则
+ */
+function cleanupUnfavoritedPrompts(criteria = 'unused', targetMagId = null) {
+  ensureDirs()
+  const data = readJsonSafe(P.dataFile)
+  if (!data) {
+    return { ok: true, deletedPrompts: 0, deletedImages: 0, protectedImages: 0 }
+  }
+
+  const now = Date.now()
+  const removedTasks = []
+
+  const shouldDeleteTask = (t, crit) => {
+    if (!t || t.favorite) return false
+    if (crit === 'unused' || crit === 'unfavorite_and_unused') {
+      return !t.done
+    }
+    if (crit === 'all') {
+      return true
+    }
+    if (crit === 'done_only' || crit === 'done') {
+      return !!t.done
+    }
+    if (crit === '1d') {
+      return (now - (t.createdAt || 0)) > 24 * 3600 * 1000
+    }
+    if (crit === '3d') {
+      return (now - (t.createdAt || 0)) > 3 * 24 * 3600 * 1000
+    }
+    if (crit === '7d') {
+      return (now - (t.createdAt || 0)) > 7 * 24 * 3600 * 1000
+    }
+    if (crit === '30d') {
+      return (now - (t.createdAt || 0)) > 30 * 24 * 3600 * 1000
+    }
+    return false
+  }
+
+  // 1. 如果指定了具体弹夹清理
+  if (targetMagId) {
+    // 收藏弹夹受保护，绝不清理
+    if (targetMagId === 'favorites') {
+      return { ok: true, deletedPrompts: 0, deletedImages: 0, protectedImages: 0, isFavoritesProtected: true }
+    }
+    const mag = Array.isArray(data.magazines) ? data.magazines.find(m => m.id === targetMagId) : null
+    if (mag && Array.isArray(mag.queue)) {
+      const kept = []
+      for (const t of mag.queue) {
+        if (shouldDeleteTask(t, criteria)) {
+          removedTasks.push(t)
+        } else {
+          kept.push(t)
+        }
+      }
+      mag.queue = kept
+      if (data.activeMagazineId === targetMagId) {
+        data.queue = kept
+      }
+    } else if (Array.isArray(data.queue)) {
+      const kept = []
+      for (const t of data.queue) {
+        if (shouldDeleteTask(t, criteria)) {
+          removedTasks.push(t)
+        } else {
+          kept.push(t)
+        }
+      }
+      data.queue = kept
+    }
+  } else {
+    // 2. 未指定具体弹夹（计划定时自动清理或全量触发）
+    if (Array.isArray(data.magazines)) {
+      for (const mag of data.magazines) {
+        // 收藏弹夹永不自动清理
+        if (mag.id === 'favorites') continue
+
+        // 若外部传了 criteria（如手动点击），则使用该 criteria；否则读取该弹夹自己的规则
+        const crit = criteria || mag.autoCleanup || (data.settings && data.settings.magazineAutoCleanup && data.settings.magazineAutoCleanup[mag.id]) || 'off'
+        if (!crit || crit === 'off') continue
+
+        const kept = []
+        for (const t of (mag.queue || [])) {
+          if (shouldDeleteTask(t, crit)) {
+            removedTasks.push(t)
+          } else {
+            kept.push(t)
+          }
+        }
+        mag.queue = kept
+        if (data.activeMagazineId === mag.id) {
+          data.queue = kept
+        }
+      }
+    } else if (Array.isArray(data.queue)) {
+      const kept = []
+      for (const t of data.queue) {
+        if (shouldDeleteTask(t, criteria || 'unused')) {
+          removedTasks.push(t)
+        } else {
+          kept.push(t)
+        }
+      }
+      data.queue = kept
+    }
+  }
+
+  if (!removedTasks.length) {
+    return { ok: true, deletedPrompts: 0, deletedImages: 0, protectedImages: 0 }
+  }
+
+  let deletedImages = 0
+  let protectedImages = 0
+
+  for (const t of removedTasks) {
+    for (const im of (t.images || [])) {
+      if (!im || !im.path) continue
+      if (isImageProtected(im.path)) {
+        protectedImages += 1
+      } else {
+        try {
+          if (fs.existsSync(im.path)) {
+            fs.unlinkSync(im.path)
+            deletedImages += 1
+          }
+        } catch (e) {
+          log('failed to delete unreferenced image:', im.path, e && e.message)
+        }
+      }
+    }
+  }
+
+  writeJsonAtomic(P.dataFile, data)
+  log(`cleaned up ${removedTasks.length} prompts, deleted ${deletedImages} images, protected ${protectedImages} images`)
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('pm:queue-updated', { queue: data.queue, magazines: data.magazines })
+  }
+
+  return {
+    ok: true,
+    deletedPrompts: removedTasks.length,
+    deletedImages,
+    protectedImages
+  }
+}
+
+function startAutoCleanupSchedule() {
+  if (autoCleanupTimer) clearInterval(autoCleanupTimer)
+  autoCleanupTimer = setInterval(() => {
+    try {
+      cleanupUnfavoritedPrompts(null) // null 表示遍历各弹夹按各自配置的 autoCleanup 规则执行
+    } catch { /* ignore */ }
+  }, 3600000)
 }
 
 /* ------------------------------------------------------------------ */
@@ -762,6 +1248,27 @@ function getForegroundHwndSync() {
       : path.join(__dirname, 'bin', 'paste-helper.exe')
     if (fs.existsSync(helperPath)) {
       const out = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
+      let mainHwnd = null
+      let snippetHwnd = null
+      try {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainHwnd = mainWindow.getNativeWindowHandle().readInt32LE(0).toString()
+        }
+        if (snippetWindow && !snippetWindow.isDestroyed()) {
+          snippetHwnd = snippetWindow.getNativeWindowHandle().readInt32LE(0).toString()
+        }
+      } catch { /* ignore */ }
+
+      // 如果当前前台窗口是 PromptMag 自身，优先获取鼠标悬停所在的外部目标窗口
+      if (out && (out === mainHwnd || out === snippetHwnd)) {
+        try {
+          const mouseOut = execFileSync(helperPath, ['get-mouse'], { windowsHide: true, timeout: 500 }).toString().trim()
+          if (mouseOut && mouseOut !== '0' && mouseOut !== mainHwnd && mouseOut !== snippetHwnd) {
+            log('detected external window under mouse:', mouseOut)
+            return mouseOut
+          }
+        } catch { /* ignore */ }
+      }
       return out || '0'
     }
   } catch (e) {
@@ -787,7 +1294,7 @@ function sendPasteKeys(targetHwnd = '0') {
         const p = spawn(helperPath, ['paste', hwndStr], { windowsHide: true, stdio: 'ignore' })
         p.on('exit', finish)
         p.on('error', () => fallbackVbsPaste().then(finish))
-        setTimeout(finish, 800)
+        setTimeout(finish, 1400)
         return
       } catch (err) {
         log('paste-helper spawn error:', err && err.message)
@@ -1015,7 +1522,7 @@ function buildTrayMenu() {
   const snippetsKey = customHotkeys.snippets ? ` (${customHotkeys.snippets})` : ''
   return Menu.buildFromTemplate([
     { label: isEn ? `Show / Hide${toggleKey}` : `显示 / 隐藏${toggleKey}`, click: () => toggleWindow() },
-    { label: isEn ? `Snippets Picker${snippetsKey}` : `常用词库收藏夹${snippetsKey}`, click: () => toggleSnippetPicker() },
+    { label: isEn ? `Favorites Magazine${snippetsKey}` : `⭐ 收藏弹夹${snippetsKey}`, click: () => toggleSnippetPicker() },
     { type: 'separator' },
     {
       label: isEn ? 'Always on Top' : '窗口置顶（不被其他窗口覆盖）',
@@ -1064,7 +1571,8 @@ function registerIpc() {
       homeDir: P.home,
       imagesDir: P.images,
       tasksFile: P.tasksFile,
-      dataFile: P.dataFile
+      dataFile: P.dataFile,
+      magazinesDir: P.magazinesDir
     },
     platform: process.platform,
     version: app.getVersion()
@@ -1179,17 +1687,44 @@ function registerIpc() {
     return { ok: true }
   })
 
-  ipcMain.handle('pm:write-tasks', (_e, content) => {
-    ensureDirs()
-    lastWrittenTasks = String(content || '')
-    fs.writeFileSync(P.tasksFile, lastWrittenTasks, 'utf8')
-    return { ok: true }
+  ipcMain.handle('pm:write-tasks', (_e, content, options) => {
+    return writeTasksAtomic(content, options)
   })
 
   ipcMain.handle('pm:read-tasks', () => {
-    if (!fs.existsSync(P.tasksFile)) return { exists: false, content: '', items: [] }
+    if (!fs.existsSync(P.tasksFile)) return { exists: false, content: '', items: [], revision: 1, writeLock: null }
     const content = fs.readFileSync(P.tasksFile, 'utf8')
-    return { exists: true, content, items: parseTasksContent(content) }
+    const items = parseTasksContent(content)
+    const meta = parseTasksMetadata(content)
+    const writeLock = getActiveWriteLock(items)
+    return { exists: true, content, items, revision: meta.revision, writeLock }
+  })
+
+  /* 多Agent接力状态与写锁检测 */
+  ipcMain.handle('pm:get-relay-status', () => {
+    if (!fs.existsSync(P.tasksFile)) return { isWriteLocked: false, lockedBy: null, taskId: null }
+    const content = fs.readFileSync(P.tasksFile, 'utf8')
+    const items = parseTasksContent(content)
+    const writeLock = getActiveWriteLock(items)
+    return {
+      isWriteLocked: !!writeLock,
+      lockedBy: writeLock ? writeLock.agent : null,
+      taskId: writeLock ? writeLock.taskId : null
+    }
+  })
+
+  /* 收藏夹管理与图片保护 */
+  ipcMain.handle('pm:toggle-favorite', (_e, task) => {
+    return toggleFavoriteTask(task)
+  })
+
+  ipcMain.handle('pm:get-favorites', () => {
+    return { ok: true, favorites: getFavoritesData() }
+  })
+
+  /* 清理未收藏提示词及其图片（被收藏的图片受到绝对保护） */
+  ipcMain.handle('pm:cleanup-unfavorited', (_e, criteria, targetMagId) => {
+    return cleanupUnfavoritedPrompts(criteria, targetMagId)
   })
 
   ipcMain.on('pm:set-opacity', (_e, v) => {
@@ -1291,6 +1826,13 @@ function registerIpc() {
   ipcMain.on('pm:show-item-in-folder', (_e, p) => {
     if (p) shell.showItemInFolder(p)
   })
+  ipcMain.on('pm:open-external', (_e, url) => {
+    if (url && typeof url === 'string') {
+      shell.openExternal(url).catch((err) => {
+        log('openExternal error:', err && err.message)
+      })
+    }
+  })
 }
 
 /* ------------------------------------------------------------------ */
@@ -1313,6 +1855,17 @@ if (!process.env.PM_ALLOW_MULTI && !app.requestSingleInstanceLock()) {
     createTray()
     registerIpc()
     startTasksWatch()
+
+    // 30 秒定时轮询回收超时的 doing 任务
+    sweepTimer = setInterval(sweepDoingTimeouts, 30000)
+
+    // 定时清理未收藏提示词调度器
+    startAutoCleanupSchedule()
+    try {
+      const initData = readJsonSafe(P.dataFile)
+      const setting = initData && initData.settings && initData.settings.autoCleanup
+      if (setting && setting !== 'off') cleanupUnfavoritedPrompts(setting)
+    } catch { /* ignore */ }
 
     // 本地图片协议：pmimg://local/<encodeURIComponent(绝对路径)>
     // （避免 file:// 跨域问题，仅允许读取本地文件系统路径）
@@ -1358,6 +1911,8 @@ if (!process.env.PM_ALLOW_MULTI && !app.requestSingleInstanceLock()) {
     }
     if (tasksWatcher) { tasksWatcher.close(); tasksWatcher = null }
     if (watchTimer) clearTimeout(watchTimer)
+    if (sweepTimer) clearInterval(sweepTimer)
+    if (autoCleanupTimer) clearInterval(autoCleanupTimer)
   })
 
   app.on('window-all-closed', () => {

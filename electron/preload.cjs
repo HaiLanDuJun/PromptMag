@@ -23,9 +23,17 @@ const api = {
   /* 剪贴板文本 */
   copyText: (text) => ipcRenderer.invoke('pm:copy-text', text),
 
-  /* next_tasks.md 读写 */
-  writeTasks: (content) => ipcRenderer.invoke('pm:write-tasks', content),
+  /* next_tasks.md 读写（原子写入与乐观锁修订号） */
+  writeTasks: (content, options) => ipcRenderer.invoke('pm:write-tasks', content, options),
   readTasks: () => ipcRenderer.invoke('pm:read-tasks'),
+
+  /* 提示词收藏夹与独立目录保护 */
+  toggleFavorite: (task) => ipcRenderer.invoke('pm:toggle-favorite', task),
+  getFavorites: () => ipcRenderer.invoke('pm:get-favorites'),
+  cleanupUnfavorited: (criteria, targetMagId) => ipcRenderer.invoke('pm:cleanup-unfavorited', criteria, targetMagId),
+
+  /* 多Agent接力状态与互斥写锁检测 */
+  getRelayStatus: () => ipcRenderer.invoke('pm:get-relay-status'),
 
   /* 窗口控制 */
   setOpacity: (v) => ipcRenderer.send('pm:set-opacity', v),
@@ -57,6 +65,7 @@ const api = {
   /* 文件系统辅助 */
   openPath: (p) => ipcRenderer.send('pm:open-path', p),
   showItemInFolder: (p) => ipcRenderer.send('pm:show-item-in-folder', p),
+  openExternal: (url) => ipcRenderer.send('pm:open-external', url),
 
   /* 主进程 -> 渲染进程 事件 */
   onFocusComposer: (cb) => {
@@ -68,6 +77,11 @@ const api = {
     const h = (_e, payload) => cb(payload)
     ipcRenderer.on('pm:tasks-external', h)
     return () => ipcRenderer.removeListener('pm:tasks-external', h)
+  },
+  onQueueUpdated: (cb) => {
+    const h = (_e, payload) => cb(payload)
+    ipcRenderer.on('pm:queue-updated', h)
+    return () => ipcRenderer.removeListener('pm:queue-updated', h)
   },
   onModeChanged: (cb) => {
     const h = (_e, m) => cb(m)

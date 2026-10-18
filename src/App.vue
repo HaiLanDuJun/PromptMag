@@ -5,13 +5,13 @@ import BallOrb from './components/BallOrb.vue'
 import QuickPanel from './components/QuickPanel.vue'
 import Composer from './components/Composer.vue'
 import QueueTab from './components/QueueTab.vue'
-import SnippetsTab from './components/SnippetsTab.vue'
 import SnippetPicker from './components/SnippetPicker.vue'
 import ImagePreviewModal from './components/ImagePreviewModal.vue'
+import MagazinePickerModal from './components/MagazinePickerModal.vue'
+import RelayStartupModal from './components/RelayStartupModal.vue'
 import { state, initStore, bindExternalEvents, setMode, bindModeSync, t } from './lib/store'
 
 const isSnippetPicker = ref(window.location.hash === '#snippet-picker')
-const tab = ref('queue')
 const pendingCount = computed(() => state.queue.filter((t) => !t.done).length)
 const mode = computed(() => state.settings.mode)
 
@@ -40,11 +40,11 @@ function hoverOpenQuick() {
 let isPickerOpen = false
 
 function scheduleCollapse() {
-  if (isPickerOpen || state.preview || state.isDialogOpening) return
+  if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen) return
   if (!hasEntered || pointerDown) return
   clearTimeout(collapseTimer)
   collapseTimer = setTimeout(() => {
-    if (isPickerOpen || state.preview || state.isDialogOpening) return
+    if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen) return
     if (pointerDown) return
     if (Date.now() - lastExpandAt < 220) return   // 极短缓冲期防抖，告别漫长等待
     if (document.hasFocus()) return               // 正在输入，不收起
@@ -67,7 +67,7 @@ function onShellLeave() {
   if (mode.value !== 'capsule') scheduleCollapse()
 }
 function onWinBlur() {
-  if (state.isDialogOpening) return
+  if (state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen) return
   if (mode.value !== 'capsule') scheduleCollapse()
 }
 function onWinFocus() {
@@ -95,7 +95,6 @@ onMounted(async () => {
   await initStore()
   bindExternalEvents()
   bindModeSync((m) => { state.settings.mode = m })
-  window.addEventListener('pm:switch-tab', (e) => { tab.value = e.detail || 'queue' })
   window.addEventListener('blur', onWinBlur)
   window.addEventListener('focus', onWinFocus)
   window.addEventListener('mousedown', onPointerDown, true)
@@ -138,26 +137,9 @@ onBeforeUnmount(() => {
       <QuickPanel v-else-if="mode === 'quick'" key="quick" />
       <div v-else key="full" class="flex flex-col h-full min-h-0">
         <TitleBar @collapse="setMode('capsule')" @mini="setMode('quick')" />
-        <Composer @switch-tab="tab = 'snippets'" />
-        <nav class="flex items-center gap-1.5 px-3.5 pt-2 pb-1 shrink-0">
-          <button
-            class="px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all"
-            :class="tab === 'queue' ? 'bg-sky-500/15 border border-sky-400/40 text-sky-300' : 'text-slate-400 hover:text-slate-200'"
-            @click="tab = 'queue'"
-          >
-            {{ t('tabs.history') }}
-          </button>
-          <button
-            class="px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all"
-            :class="tab === 'snippets' ? 'bg-sky-500/15 border border-sky-400/40 text-sky-300' : 'text-slate-400 hover:text-slate-200'"
-            @click="tab = 'snippets'"
-          >
-            {{ t('tabs.snippets') }}
-          </button>
-        </nav>
-        <main class="flex-1 overflow-y-auto min-h-0 px-3.5 pb-3">
-          <QueueTab v-show="tab === 'queue'" />
-          <SnippetsTab v-show="tab === 'snippets'" />
+        <Composer />
+        <main class="flex-1 overflow-y-auto min-h-0 px-3.5 pb-3 pt-1">
+          <QueueTab />
         </main>
       </div>
     </Transition>
@@ -165,5 +147,9 @@ onBeforeUnmount(() => {
     <div v-if="state.toast" class="toast">{{ state.toast }}</div>
     <!-- 双击放大图片全屏查看弹窗 -->
     <ImagePreviewModal v-if="state.preview" />
+    <!-- 目标弹夹选择弹窗 -->
+    <MagazinePickerModal v-if="state.isMagazinePickerOpen" />
+    <!-- Agent接力启动提示词生成弹窗 -->
+    <RelayStartupModal v-if="state.isRelayStartupModalOpen" />
   </div>
 </template>

@@ -24,7 +24,32 @@ public class PasteHelper {
     [DllImport("user32.dll")]
     public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
+    [DllImport("user32.dll")]
+    public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr WindowFromPoint(POINT Point);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT {
+        public int X;
+        public int Y;
+    }
+
     const int SW_RESTORE = 9;
+    const uint GA_ROOT = 2;
 
     const int VK_SHIFT = 0x10;
     const int VK_CONTROL = 0x11;
@@ -61,6 +86,18 @@ public class PasteHelper {
             return 0;
         }
 
+        if (args[0] == "get-mouse") {
+            POINT pt;
+            if (GetCursorPos(out pt)) {
+                IntPtr wnd = WindowFromPoint(pt);
+                IntPtr root = GetAncestor(wnd, GA_ROOT);
+                Console.WriteLine((root != IntPtr.Zero ? root : wnd).ToInt64());
+                return 0;
+            }
+            Console.WriteLine("0");
+            return 0;
+        }
+
         if (args[0] == "paste") {
             IntPtr target = IntPtr.Zero;
             if (args.Length >= 2) {
@@ -70,30 +107,66 @@ public class PasteHelper {
                 }
             }
 
-            // 1. 如果指定了非零目标窗口，安全激活前台（绝对不使用危险的 AttachThreadInput，避免目标应用如微信崩溃或退出）
-            if (target != IntPtr.Zero) {
+            // 如果没有指定有效目标，智能采用鼠标所在窗口
+            POINT pt;
+            bool hasCursor = GetCursorPos(out pt);
+            if (target == IntPtr.Zero && hasCursor) {
+                IntPtr wnd = WindowFromPoint(pt);
+                IntPtr root = GetAncestor(wnd, GA_ROOT);
+                target = root != IntPtr.Zero ? root : wnd;
+            }
+
+            // 1. 如果指定了目标窗口且当前并非前台，安全可靠地激活目标窗口到前台
+            IntPtr currentFg = GetForegroundWindow();
+            if (target != IntPtr.Zero && target != currentFg) {
                 try {
                     if (IsIconic(target)) {
                         ShowWindow(target, SW_RESTORE);
                     }
-                    BringWindowToTop(target);
-                    SetForegroundWindow(target);
+
+                    uint dummyPid1;
+                    uint dummyPid2;
+                    uint fgThread = GetWindowThreadProcessId(currentFg, out dummyPid1);
+                    uint curThread = GetCurrentThreadId();
+                    uint targetThread = GetWindowThreadProcessId(target, out dummyPid2);
+
+                    if (fgThread != 0 && fgThread != targetThread) {
+                        AttachThreadInput(curThread, targetThread, true);
+                        AttachThreadInput(fgThread, targetThread, true);
+                        BringWindowToTop(target);
+                        SetForegroundWindow(target);
+                        AttachThreadInput(fgThread, targetThread, false);
+                        AttachThreadInput(curThread, targetThread, false);
+                    } else {
+                        BringWindowToTop(target);
+                        SetForegroundWindow(target);
+                    }
                 } catch {
                     // ignore
                 }
+                Thread.Sleep(50);
             }
 
-            // 2. 关键：等待用户可能按着的物理 Alt / Ctrl / Shift 键完全抬起（最多等待 350ms）
-            WaitModifiersReleased(350);
+            // 2. 等待物理修饰键自然释放（最多等待 1000ms）
+            WaitModifiersReleased(1000);
 
-            // 额外安全缓冲，确保操作系统键盘状态队列与焦点同步
+            // 额外安全缓冲
             Thread.Sleep(30);
 
-            // 3. 发送纯净的标准 Ctrl+V 组合键（严禁单独单发 VK_MENU KEYUP，避免激活系统菜单触发关闭(C)等异常指令）
+            // 3. 发送纯净的标准 Ctrl+V 组合键
+            // 先压下 Ctrl，并在 Ctrl 按住的状态下强制虚拟释放 Alt/Shift/Win（彻底消除物理 Alt 残留干扰，且绝不激活系统菜单）
             keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+            Thread.Sleep(10);
+            keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_RWIN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            Thread.Sleep(15);
+
             keybd_event(VK_V, 0, 0, UIntPtr.Zero);
-            Thread.Sleep(25);
+            Thread.Sleep(30);
             keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            Thread.Sleep(15);
             keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
 
             return 0;

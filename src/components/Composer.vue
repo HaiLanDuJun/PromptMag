@@ -6,16 +6,15 @@
  *  - 图片排：缩略图列表与虚线「+ 添加图片」
  *  - 全面支持中英双语（i18n）
  */
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import {
-  state, addImages, pickAndAddImages, removeImage, pushComposerToQueue,
-  copyCompiled, toast, readClipboardText, imgUrl, openImagePreview,
-  t, currentLocale
-} from '../lib/store'
-import { parseCompiledPrompt } from '../lib/compilePrompt'
+  state, addImages, requestSaveComposer,
+  copyCompiled, toast, readClipboardText,
+  t
+} from '../lib/store.js'
+import { parseCompiledPrompt } from '../lib/compilePrompt.js'
 import PromptEditor from './PromptEditor.vue'
 
-const emit = defineEmits(['switch-tab'])
 const promptEditor = ref(null)
 
 /* ---------- 点击「添加/上传图片」按钮 ---------- */
@@ -77,9 +76,7 @@ async function copyCurrent() {
 
 /* ---------- 存入队列 / 保存 (Ctrl+Enter) ---------- */
 function enqueue() {
-  const resTask = pushComposerToQueue()
-  if (!resTask) toast(t('toast.pleaseInputOrImg'))
-  else toast(t('toast.savedAndCopied'))
+  requestSaveComposer()
 }
 
 function onEditorEnter(e) {
@@ -98,17 +95,6 @@ function clearAllImages() {
   state.composer.images = []
   toast(t('toast.clearedImages'))
 }
-
-function insertSnippet(text) {
-  state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + text + ' '
-}
-
-function openSnippetPicker() {
-  if (promptEditor.value) {
-    promptEditor.value.saveSelection()
-  }
-  window.pm.openSnippetPicker()
-}
 </script>
 
 <template>
@@ -122,65 +108,55 @@ function openSnippetPicker() {
     />
 
     <!-- 编辑框底部操作栏（规整左右分栏布局，不局促） -->
-    <div class="flex items-center gap-1.5 py-0.5">
-      <!-- 选取/上传图片 -->
-      <button
-        class="btn text-sky-400 border-sky-400/30 hover:border-sky-400"
-        :title="t('composer.uploadBtnTitle')"
-        @mousedown.prevent
-        @click="onPickImages"
-      >
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-          <circle cx="8.5" cy="8.5" r="1.5" />
-          <polyline points="21 15 16 10 5 21" />
-        </svg>
-        {{ t('composer.uploadBtn') }}
-      </button>
+    <!-- 操作按钮工具栏 -->
+    <div class="flex items-center justify-between gap-1.5 pt-0.5 select-none">
+      <div class="flex items-center gap-1.5">
+        <!-- 选取/上传图片 -->
+        <button
+          class="btn text-sky-400 border-sky-400/30 hover:border-sky-400"
+          :title="t('composer.uploadBtnTitle')"
+          @mousedown.prevent
+          @click="onPickImages"
+        >
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          {{ t('composer.uploadBtn') }}
+        </button>
 
-      <!-- 常用词库专属弹窗 -->
-      <button
-        class="btn text-amber-300 border-amber-400/30 hover:border-amber-400 hover:text-amber-200"
-        :title="state.settings.hotkeySnippets ? t('composer.snippetsBtnTitleWithKey', { key: state.settings.hotkeySnippets }) : t('composer.snippetsBtnTitle')"
-        @mousedown.prevent
-        @click="openSnippetPicker"
-      >
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-        </svg>
-        {{ t('composer.snippetsBtn') }}
-      </button>
+        <!-- 粘贴纯文本 -->
+        <button class="btn" :title="t('composer.pasteBtnTitle')" @click="pasteText">
+          {{ t('composer.pasteBtn') }}
+        </button>
+      </div>
 
-      <!-- 粘贴纯文本 -->
-      <button class="btn" :title="t('composer.pasteBtnTitle')" @click="pasteText">
-        {{ t('composer.pasteBtn') }}
-      </button>
+      <div class="flex items-center gap-1.5 ml-auto">
+        <!-- 清空 -->
+        <button
+          v-if="state.composer.text || state.composer.images.length"
+          class="btn btn-danger"
+          :title="t('composer.clearBtnTitle')"
+          @click="clearComposer"
+        >
+          {{ t('composer.clearBtn') }}
+        </button>
 
-      <div class="flex-1" />
+        <!-- 编译并复制 -->
+        <button class="btn" :title="t('composer.copyBtnTitle')" @click="copyCurrent">
+          {{ t('composer.copyBtn') }}
+        </button>
 
-      <!-- 清空 -->
-      <button
-        v-if="state.composer.text || state.composer.images.length"
-        class="btn btn-danger"
-        :title="t('composer.clearBtnTitle')"
-        @click="clearComposer"
-      >
-        {{ t('composer.clearBtn') }}
-      </button>
-
-      <!-- 编译并复制 -->
-      <button class="btn" :title="t('composer.copyBtnTitle')" @click="copyCurrent">
-        {{ t('composer.copyBtn') }}
-      </button>
-
-      <!-- 保存入库 (Ctrl+Enter) -->
-      <button class="btn btn-primary" :title="t('composer.saveBtnTitle')" @click="enqueue">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        {{ t('composer.saveBtn') }}
-      </button>
+        <!-- 保存入库 (Ctrl+Enter) -->
+        <button class="btn btn-primary" :title="t('composer.saveBtnTitle')" @click="enqueue">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          {{ t('composer.saveBtn') }}
+        </button>
+      </div>
     </div>
 
     <!-- 图片展示排（舒适宽敞卡片 + 双击放大 + 词条独立下栏，彻底告别挤在一起） -->
@@ -194,7 +170,7 @@ function openSnippetPicker() {
             <polyline points="21 15 16 10 5 21" />
           </svg>
           <span>{{ t('composer.relatedImages') }} ({{ state.composer.images.length }})</span>
-          <span class="text-[10px] text-slate-400 font-normal ml-1">{{ t('composer.doubleClickPreview') }}</span>
+          <span class="text-[10px] text-sky-300/80 font-normal ml-1 bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-400/20">{{ t('composer.doubleClickPreview') }}</span>
         </div>
         <button
           class="text-[10px] text-rose-400/80 hover:text-rose-300 transition-colors cursor-pointer"
@@ -214,8 +190,11 @@ function openSnippetPicker() {
           :title="t('editor.badgeTitle')"
           @dblclick="openImagePreview(img, idx, state.composer.images)"
         >
-          <!-- 图片主体区域 -->
-          <div class="thumbnail-preview-area">
+          <!-- 图片主体区域（单击与双击均可全屏预览查看） -->
+          <div
+            class="thumbnail-preview-area"
+            @click="openImagePreview(img, idx, state.composer.images)"
+          >
             <img :src="imgUrl(img.path)" class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-108" alt="thumb">
             
             <!-- 左上角图N角标 -->
@@ -224,13 +203,14 @@ function openSnippetPicker() {
             </span>
 
             <!-- 悬浮居中放大提示图标 -->
-            <div class="thumbnail-zoom-hint">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <div class="thumbnail-zoom-hint" :title="t('composer.doubleClickPreview')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 <line x1="11" y1="8" x2="11" y2="14" />
                 <line x1="8" y1="11" x2="14" y2="11" />
               </svg>
+              <span class="text-[9px] font-semibold leading-none">{{ currentLocale === 'en' ? 'Zoom' : '双击放大' }}</span>
             </div>
 
             <!-- 删除按钮 -->
