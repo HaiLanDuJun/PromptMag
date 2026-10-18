@@ -471,11 +471,21 @@ function bindHotkeyEvents() {
     }
   })
 
-  /* 快捷键 2：收录当前选中文字到词库 */
-  window.pm.onHotkeyCollected(({ ok, text }) => {
-    if (ok && text && text.trim()) {
-      addSnippet(text.trim())
-      toast(t('toast.collectedSnippet'))
+  /* 快捷键 2：收录当前选中的文字/图片到收藏弹夹 */
+  window.pm.onHotkeyCollected(({ ok, text, images }) => {
+    const validImages = Array.isArray(images) ? images : []
+    const hasText = !!(text && text.trim())
+    const hasImages = validImages.length > 0
+
+    if (ok && (hasText || hasImages)) {
+      addSnippet(text, validImages)
+      if (hasImages && hasText && !text.startsWith('[图')) {
+        toast(currentLocale.value === 'en' ? 'Collected selected text & image to Favorites' : '已收录选中文本与图片到收藏弹夹')
+      } else if (hasImages) {
+        toast(currentLocale.value === 'en' ? 'Collected selected image to Favorites' : '已收录选中图片到收藏弹夹')
+      } else {
+        toast(t('toast.collectedSnippet'))
+      }
     } else {
       toast(t('toast.noSelectedText'))
     }
@@ -1132,14 +1142,15 @@ export async function chooseDataDir() {
 }
 
 /* ---------------- 收藏弹夹提示词 (替代旧版独立词库) ---------------- */
-export function addSnippet(text) {
+export function addSnippet(text, images = []) {
   const t = String(text || '').trim()
-  if (!t) return
+  const validImages = Array.isArray(images) ? images : []
+  if (!t && !validImages.length) return
   const favMag = state.magazines.find((m) => m.id === 'favorites')
   const item = {
     id: uid(),
-    text: t,
-    images: [],
+    text: t || (validImages.length === 1 ? '[图1]' : validImages.map((_, i) => `[图${i + 1}]`).join(' ')),
+    images: validImages,
     createdAt: Date.now(),
     done: false,
     status: 'pending',

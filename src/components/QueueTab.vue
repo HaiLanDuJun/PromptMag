@@ -440,23 +440,6 @@ function displayTitle(item) {
           </button>
           <span v-else class="text-amber-400 text-xs shrink-0 select-none">⭐</span>
 
-          <!-- 状态图标：仅在普通项目弹夹显示；收藏弹夹不显示状态切换图标 -->
-          <span
-            v-if="activeMagazine && activeMagazine.id !== 'favorites'"
-            class="shrink-0 flex items-center transition-colors cursor-pointer"
-            :class="item.done ? 'text-slate-500 hover:text-emerald-400' : 'text-sky-400 group-hover:text-sky-300'"
-            :title="t('queue.toggleDoneTitle')"
-            @click.stop="toggleTaskDone(item.id)"
-          >
-            <svg v-if="item.done" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
-
           <!-- 关键词标题 -->
           <span
             class="history-title truncate flex-1 min-w-0"

@@ -1,191 +1,1972 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PromptMag — 提示词弹夹 | Your floating prompt magazine</title>
-<meta name="description" content="PromptMag — 挂在 Windows 桌面上的提示词弹夹悬浮窗。数据全存本地，不用登录，下载即用。A floating prompt magazine for your Windows desktop.">
+<title>PromptMag — 提示词弹夹 | Your Floating Prompt Magazine for Windows</title>
+<meta name="description" content="PromptMag 是一款挂在 Windows 桌面上的开源提示词弹夹悬浮窗。零歧义图文强绑定、三种出弹模式（霰弹枪/左轮/手枪）、光标处瞬发直贴、CLI Agent 多任务自动接力与互斥写锁。数据 100% 留存在本地，不用登录，下载即用。">
+<meta name="keywords" content="PromptMag, 提示词管理, AI提示词, Claude Code, Cursor, Aider, 桌面悬浮窗, 提示词弹夹, 提示词编译器, 开源工具, Windows效率工具">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%230f172a' stroke='%2338bdf8' stroke-width='6'/><text x='50' y='64' font-size='42' text-anchor='middle' fill='%2338bdf8' font-weight='900'>P</text></svg>">
 <style>
 :root{
-  --bg:#0b0e17; --bg2:#111527; --card:#151b31; --line:#232b4d;
-  --txt:#eef1ff; --mut:#9aa3c7; --acc:#6c8cff; --acc2:#9d7bff;
-  --ok:#3ddc84;
+  --bg:#07090f;
+  --bg-elevated:#0e1322;
+  --bg-card:rgba(15, 23, 42, 0.72);
+  --bg-glass:rgba(18, 26, 47, 0.65);
+  --border:rgba(56, 189, 248, 0.16);
+  --border-light:rgba(255, 255, 255, 0.08);
+  --border-hover:rgba(56, 189, 248, 0.45);
+  --txt:#f1f5f9;
+  --txt-dim:#94a3b8;
+  --txt-muted:#64748b;
+  --cyan:#38bdf8;
+  --cyan-glow:rgba(56, 189, 248, 0.35);
+  --purple:#818cf8;
+  --violet:#a855f7;
+  --amber:#f59e0b;
+  --emerald:#10b981;
+  --rose:#f43f5e;
+  --grad-primary:linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+  --grad-card:linear-gradient(180deg, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.6) 100%);
+  --grad-amber:linear-gradient(135deg, #f59e0b, #fbbf24);
+  --radius-sm:8px;
+  --radius-md:14px;
+  --radius-lg:22px;
+  --radius-full:9999px;
+  --shadow-glow:0 0 30px rgba(56, 189, 248, 0.18);
+  --shadow-card:0 12px 34px rgba(0, 0, 0, 0.45);
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",Inter,Roboto,sans-serif;line-height:1.7;overflow-x:hidden}
-a{color:inherit}
-.wrap{max-width:1060px;margin:0 auto;padding:0 22px}
-/* nav */
-nav{position:sticky;top:0;z-index:50;background:rgba(11,14,23,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
-.logo{font-weight:800;font-size:19px;letter-spacing:.5px}
-.logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
-.nav-r{display:flex;gap:10px;align-items:center}
-.langbtn{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:999px;padding:7px 16px;cursor:pointer;font-size:13px}
-.langbtn:hover{border-color:var(--acc)}
-.ghbtn{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:999px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none}
-/* hero */
-.hero{text-align:center;padding:96px 0 60px;position:relative}
-.hero::before{content:"";position:absolute;inset:-40px 0 0;background:radial-gradient(600px 320px at 50% 0%,rgba(108,140,255,.16),transparent 70%);pointer-events:none}
-.pill{display:inline-block;border:1px solid var(--line);background:var(--card);color:var(--mut);border-radius:999px;padding:6px 18px;font-size:13px;margin-bottom:26px}
-h1{font-size:clamp(34px,6vw,58px);line-height:1.25;font-weight:800;letter-spacing:.5px}
-h1 .grad{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
-.sub{color:var(--mut);font-size:clamp(15px,2.4vw,18px);max-width:640px;margin:22px auto 0}
-.cta{margin-top:34px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-.btn-primary{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:12px;padding:14px 34px;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
-.btn-ghost{border:1px solid var(--line);background:var(--card);color:var(--txt);border-radius:12px;padding:14px 34px;font-size:16px;cursor:pointer;text-decoration:none;display:inline-block}
-.btn-ghost:hover{border-color:var(--acc)}
-.meta{margin-top:18px;color:var(--mut);font-size:13px}
-.verline{margin-top:6px;color:var(--mut);font-size:13px}
-.verline #verTag{color:var(--txt);font-weight:700}
-/* ball demo */
-.ballstage{margin:56px auto 0;width:120px;height:120px;position:relative}
-.ball{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 32% 30%,#8fa4ff,#4a5fd6 70%);box-shadow:0 0 44px rgba(108,140,255,.55);position:absolute;left:18px;top:18px;animation:float 4s ease-in-out infinite;display:flex;align-items:center;justify-content:center;font-size:30px}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-.ring{position:absolute;inset:0;border:1px dashed var(--line);border-radius:50%;animation:spin 14s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-/* sections */
-section{padding:64px 0}
-h2{font-size:clamp(24px,4vw,34px);text-align:center;margin-bottom:12px;font-weight:800}
-.secsub{color:var(--mut);text-align:center;max-width:620px;margin:0 auto 40px;font-size:15px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
-.card .ic{font-size:28px;margin-bottom:12px}
-.card h3{font-size:17px;margin-bottom:8px}
-.card p{color:var(--mut);font-size:14px}
-/* modes */
-.mode{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:26px;margin-bottom:16px;display:flex;gap:20px;align-items:flex-start}
-.mode .n{flex:0 0 46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
-.mode h3{font-size:17px;margin-bottom:6px}
-.mode p{color:var(--mut);font-size:14px}
-/* steps */
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;counter-reset:st}
-.step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px;position:relative}
-.step::before{counter-increment:st;content:counter(st);position:absolute;top:18px;right:22px;font-size:34px;font-weight:800;color:var(--line)}
-.step h3{font-size:16px;margin-bottom:8px}
-.step p{color:var(--mut);font-size:14px}
-kbd{background:#0b0e17;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:2px 8px;font-family:inherit;font-size:13px}
-/* final cta */
-.final{background:linear-gradient(135deg,#182046,#241d4d);border:1px solid var(--line);border-radius:22px;text-align:center;padding:64px 30px;margin:20px 0 70px}
-.final h2{margin-bottom:10px}
-footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--mut);font-size:13px;text-align:center}
-footer a{color:var(--mut)}
-@media (max-width:640px){
-  nav .wrap{height:56px}
-  .logo{font-size:17px}
-  .langbtn{padding:6px 12px;font-size:12px}
-  .ghbtn{padding:7px 14px;font-size:12px}
-  .hero{padding:60px 0 40px}
-  .pill{font-size:12px;margin-bottom:20px}
-  section{padding:44px 0}
-  .grid,.steps{grid-template-columns:1fr}
-  .card{padding:20px}
-  .mode{padding:20px;gap:14px}
-  .mode .n{flex:0 0 40px;height:40px;font-size:16px;border-radius:10px}
-  .cta{flex-direction:column;align-items:stretch;padding:0 8px}
-  .btn-primary,.btn-ghost{text-align:center;padding:13px 20px;font-size:15px}
-  .ballstage{width:100px;height:100px;margin-top:44px}
-  .ball{width:70px;height:70px;left:15px;top:15px;font-size:26px}
-  .final{padding:48px 22px}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Inter,Roboto,sans-serif;
+  line-height:1.65;
+  overflow-x:hidden;
+  position:relative;
 }
-body [lang]{display:none}
-html[data-lang="zh"] body [lang="zh"]{display:block}
-html[data-lang="en"] body [lang="en"]{display:block}
-body span[lang]{display:none}
-html[data-lang="zh"] body span[lang="zh"]{display:inline}
-html[data-lang="en"] body span[lang="en"]{display:inline}
+/* Background ambient glow */
+body::before{
+  content:"";
+  position:fixed;
+  top:-200px;
+  left:50%;
+  transform:translateX(-50%);
+  width:1000px;
+  height:700px;
+  background:radial-gradient(ellipse at center, rgba(56, 189, 248, 0.12) 0%, rgba(129, 140, 248, 0.08) 40%, transparent 70%);
+  pointer-events:none;
+  z-index:0;
+}
+body::after{
+  content:"";
+  position:fixed;
+  bottom:-200px;
+  right:-100px;
+  width:600px;
+  height:600px;
+  background:radial-gradient(circle, rgba(168, 85, 247, 0.09) 0%, transparent 70%);
+  pointer-events:none;
+  z-index:0;
+}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+
+/* Bilingual switcher system */
+[lang="zh"], [lang="en"]{display:none}
+html[data-lang="zh"] [lang="zh"]{display:revert}
+html[data-lang="en"] [lang="en"]{display:revert}
+html[data-lang="zh"] span[lang="zh"], html[data-lang="zh"] strong[lang="zh"], html[data-lang="zh"] kbd[lang="zh"], html[data-lang="zh"] a[lang="zh"]{display:inline}
+html[data-lang="en"] span[lang="en"], html[data-lang="en"] strong[lang="en"], html[data-lang="en"] kbd[lang="en"], html[data-lang="en"] a[lang="en"]{display:inline}
+html[data-lang="zh"] .flex[lang="zh"], html[data-lang="en"] .flex[lang="en"]{display:flex}
+
+/* Header & Nav */
+header.site-nav{
+  position:sticky;
+  top:0;
+  z-index:100;
+  background:rgba(7, 9, 15, 0.85);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+}
+.nav-row{display:flex;align-items:center;justify-content:space-between;height:68px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:21px;letter-spacing:0.3px}
+.brand-icon{
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  background:linear-gradient(135deg, #38bdf8, #818cf8);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:16px;
+  box-shadow:0 0 14px rgba(56, 189, 248, 0.4);
+}
+.brand-name span{
+  background:var(--grad-primary);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+}
+.nav-links{display:flex;align-items:center;gap:22px;font-size:14px;color:var(--txt-dim)}
+.nav-links a:hover{color:var(--cyan)}
+.nav-actions{display:flex;align-items:center;gap:12px}
+.lang-btn{
+  background:rgba(255, 255, 255, 0.05);
+  border:1px solid var(--border);
+  color:var(--txt-dim);
+  border-radius:var(--radius-full);
+  padding:6px 14px;
+  font-size:12.5px;
+  font-weight:600;
+  cursor:pointer;
+  transition:all 0.2s;
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.lang-btn:hover{color:var(--txt);border-color:var(--cyan);background:rgba(56, 189, 248, 0.1)}
+.gh-btn{
+  background:rgba(255, 255, 255, 0.06);
+  border:1px solid var(--border);
+  color:var(--txt);
+  border-radius:var(--radius-full);
+  padding:7px 16px;
+  font-size:13px;
+  font-weight:600;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  transition:all 0.2s;
+}
+.gh-btn:hover{background:rgba(255, 255, 255, 0.12);border-color:var(--purple);box-shadow:0 0 16px rgba(129, 140, 248, 0.3)}
+
+/* Hero section */
+.hero{padding:80px 0 40px;text-align:center;position:relative}
+.version-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:rgba(56, 189, 248, 0.08);
+  border:1px solid rgba(56, 189, 248, 0.25);
+  padding:6px 18px;
+  border-radius:var(--radius-full);
+  font-size:13px;
+  color:var(--cyan);
+  margin-bottom:28px;
+  backdrop-filter:blur(8px);
+}
+.version-pill .pulse-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--emerald);
+  box-shadow:0 0 10px var(--emerald);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:0.4;transform:scale(0.8)}
+}
+h1.hero-title{
+  font-size:clamp(36px, 5.8vw, 62px);
+  font-weight:900;
+  line-height:1.22;
+  letter-spacing:-0.5px;
+  margin-bottom:22px;
+}
+h1.hero-title .grad{
+  background:linear-gradient(135deg, #38bdf8 10%, #818cf8 50%, #c084fc 90%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+}
+p.hero-desc{
+  font-size:clamp(16px, 2.2vw, 19px);
+  color:var(--txt-dim);
+  max-width:760px;
+  margin:0 auto 36px;
+  line-height:1.75;
+}
+.cta-group{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:30px}
+.btn-primary{
+  background:linear-gradient(135deg, #0284c7, #6366f1);
+  color:#fff;
+  border:0;
+  border-radius:var(--radius-md);
+  padding:15px 36px;
+  font-size:16px;
+  font-weight:700;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  cursor:pointer;
+  box-shadow:0 8px 26px rgba(99, 102, 241, 0.4);
+  transition:all 0.25s;
+}
+.btn-primary:hover{
+  transform:translateY(-2px);
+  box-shadow:0 12px 34px rgba(56, 189, 248, 0.5);
+  background:linear-gradient(135deg, #0ea5e9, #818cf8);
+}
+.btn-secondary{
+  background:rgba(255, 255, 255, 0.05);
+  border:1px solid var(--border);
+  color:var(--txt);
+  border-radius:var(--radius-md);
+  padding:15px 32px;
+  font-size:16px;
+  font-weight:600;
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  backdrop-filter:blur(8px);
+  transition:all 0.25s;
+}
+.btn-secondary:hover{border-color:var(--cyan);background:rgba(56, 189, 248, 0.1);color:var(--cyan)}
+.trust-badges{
+  display:flex;
+  justify-content:center;
+  gap:26px;
+  color:var(--txt-muted);
+  font-size:13px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+.trust-badges span{display:inline-flex;align-items:center;gap:6px}
+.trust-badges .dot{color:var(--cyan)}
+
+/* ==================================================================== */
+/* INTERACTIVE PLAYGROUND (LIVE DEMO IN THE CENTER)                     */
+/* ==================================================================== */
+.demo-section{
+  padding:50px 0 90px;
+  position:relative;
+}
+.demo-container{
+  background:linear-gradient(180deg, rgba(20, 27, 49, 0.85) 0%, rgba(11, 15, 28, 0.95) 100%);
+  border:1px solid rgba(56, 189, 248, 0.28);
+  border-radius:var(--radius-lg);
+  box-shadow:0 24px 60px rgba(0, 0, 0, 0.6), 0 0 45px rgba(56, 189, 248, 0.15);
+  overflow:hidden;
+  position:relative;
+}
+/* Demo window top bar */
+.demo-window-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 20px;
+  background:rgba(15, 23, 42, 0.9);
+  border-bottom:1px solid var(--border);
+}
+.window-dots{display:flex;gap:7px}
+.window-dot{width:11px;height:11px;border-radius:50%}
+.window-dot.r{background:#ef4444}
+.window-dot.y{background:#eab308}
+.window-dot.g{background:#22c55e}
+.demo-window-title{
+  font-size:12.5px;
+  color:var(--txt-dim);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.demo-window-title .live-pill{
+  background:rgba(16, 185, 129, 0.18);
+  color:var(--emerald);
+  border:1px solid rgba(16, 185, 129, 0.35);
+  padding:2px 8px;
+  border-radius:var(--radius-full);
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:0.5px;
+}
+
+/* Scenario selector tabs inside demo */
+.demo-tabs-bar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:12px 18px;
+  background:rgba(11, 15, 28, 0.7);
+  border-bottom:1px solid rgba(255, 255, 255, 0.06);
+  overflow-x:auto;
+}
+.demo-tab-btn{
+  background:rgba(255, 255, 255, 0.04);
+  border:1px solid rgba(255, 255, 255, 0.08);
+  color:var(--txt-dim);
+  padding:8px 16px;
+  border-radius:var(--radius-sm);
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:all 0.2s;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+}
+.demo-tab-btn:hover{background:rgba(56, 189, 248, 0.08);color:var(--txt)}
+.demo-tab-btn.active{
+  background:rgba(56, 189, 248, 0.16);
+  border-color:var(--cyan);
+  color:var(--cyan);
+  box-shadow:0 0 14px rgba(56, 189, 248, 0.25);
+}
+
+/* Demo workspace split */
+.demo-workspace{
+  display:grid;
+  grid-template-columns:390px 1fr;
+  min-height:510px;
+}
+@media (max-width:960px){
+  .demo-workspace{grid-template-columns:1fr}
+}
+
+/* Left Pane: PromptMag App Simulator */
+.demo-left-pane{
+  background:rgba(14, 20, 36, 0.95);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  padding:16px;
+  position:relative;
+}
+.app-header-sim{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding-bottom:12px;
+  border-bottom:1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom:12px;
+}
+.app-brand-sim{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700}
+.app-brand-sim .sim-badge{
+  background:rgba(56, 189, 248, 0.15);
+  color:var(--cyan);
+  padding:2px 6px;
+  border-radius:4px;
+  font-size:10px;
+}
+.mag-nav-sim{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-bottom:12px;
+  overflow-x:auto;
+  padding-bottom:4px;
+}
+.mag-tab-sim{
+  background:rgba(30, 41, 59, 0.6);
+  border:1px solid rgba(255, 255, 255, 0.08);
+  color:var(--txt-dim);
+  border-radius:6px;
+  padding:4px 10px;
+  font-size:11px;
+  font-weight:600;
+  cursor:pointer;
+  white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  transition:all 0.15s;
+}
+.mag-tab-sim.active{
+  background:rgba(56, 189, 248, 0.18);
+  border-color:var(--cyan);
+  color:#fff;
+}
+.mag-tab-sim.fav-active{
+  background:rgba(245, 158, 11, 0.2);
+  border-color:var(--amber);
+  color:#fde68a;
+}
+.mode-bar-sim{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:rgba(15, 23, 42, 0.6);
+  border:1px solid rgba(255, 255, 255, 0.06);
+  border-radius:8px;
+  padding:6px 10px;
+  margin-bottom:12px;
+}
+.mode-bar-label{font-size:11px;color:var(--txt-muted)}
+.mode-badges-sim{display:flex;gap:4px}
+.mode-pill-btn{
+  background:transparent;
+  border:1px solid transparent;
+  color:var(--txt-dim);
+  font-size:10.5px;
+  padding:3px 8px;
+  border-radius:4px;
+  cursor:pointer;
+  font-weight:600;
+  transition:all 0.15s;
+}
+.mode-pill-btn.active{
+  background:linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.25));
+  border-color:var(--cyan);
+  color:var(--cyan);
+}
+
+/* Queue items in simulator */
+.queue-list-sim{
+  flex:1;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:260px;
+  padding-right:4px;
+}
+.queue-card-sim{
+  background:rgba(21, 30, 54, 0.7);
+  border:1px solid rgba(255, 255, 255, 0.08);
+  border-radius:8px;
+  padding:9px 11px;
+  font-size:12px;
+  cursor:pointer;
+  transition:all 0.2s;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  position:relative;
+}
+.queue-card-sim:hover{
+  border-color:var(--cyan);
+  background:rgba(56, 189, 248, 0.06);
+}
+.queue-card-sim.is-done{
+  opacity:0.55;
+  background:rgba(15, 23, 42, 0.4);
+}
+.queue-card-sim.is-done .card-title{
+  text-decoration:line-through;
+  color:var(--txt-muted);
+}
+.card-header-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+}
+.card-title-group{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.card-status-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  flex-shrink:0;
+}
+.card-status-dot.pending{background:var(--cyan);box-shadow:0 0 6px var(--cyan)}
+.card-status-dot.doing{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulse 1.4s infinite}
+.card-status-dot.done{background:var(--emerald)}
+.card-title{
+  font-weight:600;
+  color:var(--txt);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.card-tags-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:2px}
+.img-badge-sim{
+  background:rgba(56, 189, 248, 0.15);
+  border:1px solid rgba(56, 189, 248, 0.3);
+  color:var(--cyan);
+  border-radius:4px;
+  padding:1px 6px;
+  font-size:10px;
+  font-weight:600;
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+}
+.agent-badge-sim{
+  background:rgba(245, 158, 11, 0.15);
+  border:1px solid rgba(245, 158, 11, 0.3);
+  color:#fde68a;
+  border-radius:4px;
+  padding:1px 6px;
+  font-size:10px;
+  font-weight:600;
+}
+
+/* Control buttons in simulator */
+.sim-controls{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid rgba(255, 255, 255, 0.08);
+}
+.sim-fire-btn{
+  background:linear-gradient(135deg, #0284c7, #6366f1);
+  color:#fff;
+  border:0;
+  border-radius:8px;
+  padding:11px 16px;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  box-shadow:0 0 16px rgba(56, 189, 248, 0.35);
+  transition:all 0.2s;
+}
+.sim-fire-btn:hover{
+  box-shadow:0 0 24px rgba(56, 189, 248, 0.6);
+  transform:scale(1.02);
+}
+.sim-sub-controls{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+.sim-sub-btn{
+  background:rgba(255, 255, 255, 0.05);
+  border:1px solid rgba(255, 255, 255, 0.1);
+  color:var(--txt-dim);
+  border-radius:6px;
+  padding:6px 10px;
+  font-size:11px;
+  font-weight:600;
+  cursor:pointer;
+  text-align:center;
+  transition:all 0.15s;
+}
+.sim-sub-btn:hover{
+  border-color:var(--cyan);
+  color:var(--txt);
+  background:rgba(56, 189, 248, 0.08);
+}
+
+/* Right Pane: Target Editor / CLI Terminal Simulator */
+.demo-right-pane{
+  background:#090d18;
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
+.ide-tabs-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 16px;
+  background:#0c1120;
+  border-bottom:1px solid rgba(255, 255, 255, 0.06);
+}
+.ide-tab-active{
+  background:#131c33;
+  color:var(--txt);
+  padding:5px 14px;
+  border-radius:6px 6px 0 0;
+  font-size:12px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border-bottom:2px solid var(--cyan);
+}
+.ide-subtab{
+  font-size:11.5px;
+  color:var(--txt-muted);
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+}
+.ide-editor-area{
+  flex:1;
+  padding:18px 20px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12.5px;
+  line-height:1.75;
+  color:#cbd5e1;
+  overflow-y:auto;
+  position:relative;
+}
+.prompt-cursor-box{
+  background:rgba(18, 26, 47, 0.9);
+  border:1.5px solid var(--cyan);
+  border-radius:10px;
+  padding:14px;
+  margin-top:14px;
+  box-shadow:0 0 20px rgba(56, 189, 248, 0.2);
+  transition:all 0.3s;
+}
+.prompt-box-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:8px;
+  font-size:11px;
+  color:var(--cyan);
+  font-weight:700;
+  letter-spacing:0.5px;
+}
+.prompt-typed-text{
+  color:#e2e8f0;
+  white-space:pre-wrap;
+  word-break:break-word;
+  min-height:54px;
+}
+.cursor-blink{
+  display:inline-block;
+  width:2px;
+  height:14px;
+  background:var(--cyan);
+  vertical-align:middle;
+  animation:blink 1s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Terminal simulator strip */
+.terminal-strip{
+  background:#06080e;
+  border-top:1px solid rgba(255, 255, 255, 0.08);
+  padding:12px 18px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:11.5px;
+}
+.terminal-strip-title{
+  color:var(--txt-muted);
+  margin-bottom:6px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:10.5px;
+}
+.terminal-lines{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  color:#94a3b8;
+  max-height:85px;
+  overflow-y:auto;
+}
+.term-line.ok{color:var(--emerald)}
+.term-line.warn{color:var(--amber)}
+.term-line.cyan{color:var(--cyan)}
+
+/* Floating interactive ball mockup */
+.ball-banner-mock{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:rgba(56, 189, 248, 0.06);
+  border:1px solid rgba(56, 189, 248, 0.2);
+  border-radius:var(--radius-md);
+  padding:14px 20px;
+  margin-top:24px;
+}
+.ball-desc{display:flex;align-items:center;gap:14px}
+.ball-disc{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, #38bdf8, #4f46e5);
+  box-shadow:0 0 18px rgba(56, 189, 248, 0.5);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:18px;
+  animation:floatBall 3s ease-in-out infinite;
+}
+@keyframes floatBall{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-6px)}
+}
+
+/* ==================================================================== */
+/* FULL FEATURE GRID & SECTIONS                                         */
+/* ==================================================================== */
+section{padding:70px 0}
+h2.sec-title{
+  font-size:clamp(26px, 4.2vw, 38px);
+  text-align:center;
+  font-weight:800;
+  margin-bottom:12px;
+  letter-spacing:-0.3px;
+}
+h2.sec-title .grad{
+  background:var(--grad-primary);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+}
+p.sec-sub{
+  color:var(--txt-dim);
+  text-align:center;
+  max-width:700px;
+  margin:0 auto 46px;
+  font-size:16px;
+  line-height:1.7;
+}
+
+/* Feature 6-Grid */
+.features-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
+  gap:22px;
+}
+.feat-card{
+  background:var(--grad-card);
+  border:1px solid var(--border-light);
+  border-radius:var(--radius-md);
+  padding:30px 26px;
+  position:relative;
+  transition:all 0.3s;
+  overflow:hidden;
+}
+.feat-card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  padding:1px;
+  background:linear-gradient(135deg, rgba(56, 189, 248, 0.3), transparent 60%);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+  pointer-events:none;
+}
+.feat-card:hover{
+  transform:translateY(-4px);
+  border-color:var(--border-hover);
+  box-shadow:var(--shadow-card), 0 0 25px rgba(56, 189, 248, 0.15);
+}
+.feat-card .icon-wrap{
+  width:50px;
+  height:50px;
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  margin-bottom:18px;
+  background:rgba(56, 189, 248, 0.1);
+  border:1px solid rgba(56, 189, 248, 0.2);
+}
+.feat-card.amber .icon-wrap{background:rgba(245, 158, 11, 0.12);border-color:rgba(245, 158, 11, 0.25)}
+.feat-card.purple .icon-wrap{background:rgba(129, 140, 248, 0.12);border-color:rgba(129, 140, 248, 0.25)}
+.feat-card.emerald .icon-wrap{background:rgba(16, 185, 129, 0.12);border-color:rgba(16, 185, 129, 0.25)}
+.feat-card h3{
+  font-size:18.5px;
+  font-weight:700;
+  margin-bottom:10px;
+  color:var(--txt);
+}
+.feat-card p{
+  color:var(--txt-dim);
+  font-size:14.5px;
+  line-height:1.7;
+}
+.feat-card .tag-pill{
+  display:inline-block;
+  margin-top:16px;
+  background:rgba(255, 255, 255, 0.05);
+  border:1px solid rgba(255, 255, 255, 0.1);
+  color:var(--txt-muted);
+  border-radius:4px;
+  padding:3px 8px;
+  font-size:11.5px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+}
+
+/* Three Firing Modes Visual Deep Dive */
+.modes-section{
+  background:linear-gradient(180deg, transparent, rgba(14, 20, 36, 0.5) 40%, transparent);
+}
+.modes-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(310px, 1fr));
+  gap:22px;
+}
+.mode-card{
+  background:rgba(15, 23, 42, 0.65);
+  border:1px solid var(--border);
+  border-radius:var(--radius-md);
+  padding:28px 24px;
+  display:flex;
+  flex-direction:column;
+  transition:all 0.25s;
+}
+.mode-card:hover{
+  border-color:var(--cyan);
+  box-shadow:0 8px 30px rgba(0, 0, 0, 0.4);
+}
+.mode-badge-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:14px;
+}
+.mode-num{
+  width:32px;
+  height:32px;
+  border-radius:8px;
+  background:linear-gradient(135deg, var(--cyan), var(--purple));
+  color:#fff;
+  font-weight:800;
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.mode-hotkey{
+  font-size:12px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;
+  color:var(--cyan);
+  background:rgba(56, 189, 248, 0.1);
+  border:1px solid rgba(56, 189, 248, 0.2);
+  padding:2px 8px;
+  border-radius:4px;
+}
+.mode-card h3{
+  font-size:18px;
+  font-weight:700;
+  margin-bottom:8px;
+}
+.mode-card p{
+  color:var(--txt-dim);
+  font-size:14px;
+  line-height:1.65;
+  margin-bottom:16px;
+  flex:1;
+}
+.mode-usecase{
+  background:rgba(255, 255, 255, 0.03);
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:12.5px;
+  color:var(--txt-muted);
+  border-left:3px solid var(--cyan);
+}
+
+/* Multi-Agent Relay Diagram & Architecture */
+.relay-architecture{
+  background:linear-gradient(180deg, rgba(17, 24, 39, 0.75), rgba(11, 15, 28, 0.95));
+  border:1px solid rgba(129, 140, 248, 0.25);
+  border-radius:var(--radius-lg);
+  padding:40px 32px;
+  box-shadow:0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.relay-steps-flow{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:16px;
+  margin-bottom:30px;
+}
+.relay-flow-node{
+  background:rgba(15, 23, 42, 0.8);
+  border:1px solid rgba(255, 255, 255, 0.08);
+  border-radius:12px;
+  padding:20px;
+  position:relative;
+}
+.relay-flow-node .node-step{
+  font-size:11px;
+  font-weight:800;
+  color:var(--purple);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin-bottom:6px;
+}
+.relay-flow-node h4{font-size:15px;margin-bottom:6px}
+.relay-flow-node p{font-size:13px;color:var(--txt-dim);line-height:1.6}
+.code-preview-box{
+  background:#090d18;
+  border:1px solid rgba(255, 255, 255, 0.08);
+  border-radius:12px;
+  padding:18px 22px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12.5px;
+  line-height:1.75;
+  color:#cbd5e1;
+  overflow-x:auto;
+}
+
+/* Steps section */
+.steps-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+  gap:20px;
+  counter-reset:step;
+}
+.step-item{
+  background:var(--bg-card);
+  border:1px solid var(--border-light);
+  border-radius:var(--radius-md);
+  padding:28px 22px;
+  position:relative;
+}
+.step-item::before{
+  counter-increment:step;
+  content:counter(step);
+  position:absolute;
+  top:16px;
+  right:20px;
+  font-size:36px;
+  font-weight:900;
+  color:rgba(56, 189, 248, 0.12);
+  line-height:1;
+}
+.step-item h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.step-item p{color:var(--txt-dim);font-size:14px;line-height:1.65}
+kbd{
+  background:#090d18;
+  border:1px solid var(--border);
+  border-bottom-width:2px;
+  border-radius:5px;
+  padding:2px 7px;
+  font-size:12px;
+  font-family:inherit;
+  color:var(--cyan);
+}
+
+/* FAQ Accordion */
+.faq-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(460px, 1fr));
+  gap:18px;
+}
+@media (max-width:640px){
+  .faq-grid{grid-template-columns:1fr}
+}
+.faq-card{
+  background:rgba(15, 23, 42, 0.6);
+  border:1px solid var(--border-light);
+  border-radius:var(--radius-md);
+  padding:22px 24px;
+}
+.faq-card h4{
+  font-size:16px;
+  font-weight:700;
+  margin-bottom:8px;
+  color:var(--txt);
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.faq-card h4 span{color:var(--cyan)}
+.faq-card p{color:var(--txt-dim);font-size:14px;line-height:1.7}
+
+/* Final CTA */
+.final-cta-wrap{
+  background:linear-gradient(135deg, rgba(2, 132, 199, 0.25) 0%, rgba(99, 102, 241, 0.3) 100%);
+  border:1px solid rgba(56, 189, 248, 0.35);
+  border-radius:var(--radius-lg);
+  padding:70px 30px;
+  text-align:center;
+  box-shadow:0 0 50px rgba(56, 189, 248, 0.15);
+  margin:40px 0 80px;
+  position:relative;
+}
+.final-cta-wrap h2{font-size:clamp(28px, 4.5vw, 42px);font-weight:900;margin-bottom:12px}
+.final-cta-wrap p{color:var(--txt-dim);max-width:640px;margin:0 auto 32px;font-size:16px}
+
+/* Footer */
+footer{
+  border-top:1px solid rgba(255, 255, 255, 0.08);
+  padding:36px 0 50px;
+  color:var(--txt-muted);
+  font-size:13.5px;
+  text-align:center;
+}
+footer a{color:var(--txt-dim);transition:color 0.2s}
+footer a:hover{color:var(--cyan)}
+.footer-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+
+/* Mobile responsive adjustments */
+@media (max-width:768px){
+  .nav-links{display:none}
+  .hero{padding:50px 0 30px}
+  .cta-group{flex-direction:column}
+  .btn-primary, .btn-secondary{width:100%;justify-content:center}
+  .demo-window-header{padding:10px 14px}
+  .demo-tabs-bar{padding:8px 10px}
+  .demo-left-pane{padding:12px}
+  .ide-editor-area{padding:14px}
+  .footer-row{flex-direction:column;gap:12px;text-align:center}
+}
 </style>
 </head>
 <body data-lang="zh">
-<script>document.documentElement.dataset.lang='zh'</script>
-<nav><div class="wrap">
-  <div class="logo">Prompt<span>Mag</span></div>
-  <div class="nav-r">
-    <button class="langbtn" onclick="toggleLang()">EN / 中文</button>
-    <a class="ghbtn" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener">GitHub</a>
-  </div>
-</div></nav>
 
-<header class="hero"><div class="wrap">
-  <div class="pill"><span lang="zh">🪟 Windows 桌面工具 · 开源免费</span><span lang="en">🪟 Windows desktop tool · Open source &amp; free</span></div>
-  <h1><span lang="zh">提示词翻来覆去地敲？<br><span class="grad">弹夹一次装好，一键弹出。</span></span><span lang="en">Tired of retyping prompts?<br><span class="grad">Load the magazine once, eject with one key.</span></span></h1>
-  <p class="sub">
-    <span lang="zh">天天用 AI 写代码的人都懂：复制粘贴烦死人，攒的好提示词还散落在各处，用时找不到。PromptMag 是一个挂在 Windows 桌面上的提示词弹夹悬浮窗——数据全存本地，不用登录，下载即用。</span>
-    <span lang="en">If you code with AI every day, you know the pain: endless copy-pasting, and good prompts scattered everywhere when you need them. PromptMag is a prompt magazine that lives as a floating widget on your Windows desktop — all data stays local, no login needed, download and use.</span>
-  </p>
-  <div class="cta">
-    <a class="btn-primary" id="dlBtn" href="https://github.com/HaiLanDuJun/PromptMag/releases/latest" target="_blank" rel="noopener"><span lang="zh">⬇ 免费下载</span><span lang="en">⬇ Download free</span></a>
-    <a class="btn-ghost" href="#features"><span lang="zh">看看功能</span><span lang="en">See features</span></a>
+<!-- Navigation -->
+<header class="site-nav"><div class="wrap">
+  <div class="nav-row">
+    <a href="#" class="brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-name">Prompt<span>Mag</span></div>
+    </a>
+    <nav class="nav-links">
+      <a href="#demo"><span lang="zh">实时演示</span><span lang="en">Live Demo</span></a>
+      <a href="#features"><span lang="zh">全部功能</span><span lang="en">Features</span></a>
+      <a href="#modes"><span lang="zh">出弹模式</span><span lang="en">Firing Modes</span></a>
+      <a href="#relay"><span lang="zh">Agent 接力</span><span lang="en">Agent Relay</span></a>
+      <a href="#quickstart"><span lang="zh">三步上手</span><span lang="en">Quick Start</span></a>
+      <a href="#faq"><span lang="zh">常见问答</span><span lang="en">FAQ</span></a>
+    </nav>
+    <div class="nav-actions">
+      <button class="lang-btn" onclick="toggleLang()" title="Toggle Language">
+        🌐 <span id="langLabel">EN / 中文</span>
+      </button>
+      <a class="gh-btn" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
   </div>
-  <div class="meta"><span lang="zh">✓ 本地存储 &nbsp; ✓ 无需登录 &nbsp; ✓ 中英双语</span><span lang="en">✓ Local storage &nbsp; ✓ No login &nbsp; ✓ EN / 中文</span></div>
-  <div class="verline"><span lang="zh">当前版本：</span><span lang="en">Latest: </span><span id="verTag">…</span></div>
-  <div class="ballstage"><div class="ring"></div><div class="ball">💬</div></div>
 </div></header>
 
+<!-- Hero Section -->
+<header class="hero"><div class="wrap">
+  <div class="version-pill">
+    <span class="pulse-dot"></span>
+    <span lang="zh">PromptMag v<span id="verTagPill">1.9.5</span> · 桌面提示词弹夹与多模态自动化套件</span>
+    <span lang="en">PromptMag v<span id="verTagPillEn">1.9.5</span> · Desktop Prompt Magazine &amp; Multimodal Relay</span>
+  </div>
+
+  <h1 class="hero-title">
+    <span lang="zh">提示词翻来覆去地敲？<br><span class="grad">桌面弹夹一次装好，一键瞬发。</span></span>
+    <span lang="en">Stop Retyping Your Prompts.<br><span class="grad">Load into Magazine Once, Fire with One Key.</span></span>
+  </h1>
+
+  <p class="hero-desc">
+    <span lang="zh">专为重度 AI 开发者打造的 Windows 桌面悬浮弹夹。零歧义图文强绑定、三种出弹模式（霰弹枪/左轮/手枪）、光标处免切瞬发直贴、CLI Agent 任务自动接力与文件互斥写锁。数据 100% 存本地，零云端无登录，开箱即用。</span>
+    <span lang="en">The Windows floating prompt magazine built for heavy AI engineers. Bulletproof image-prompt binding, 3 firing modes (Shotgun / Revolver / Pistol), direct-to-cursor auto-pasting, and CLI Agent auto-relay with write locks. 100% local, zero telemetry, no login required.</span>
+  </p>
+
+  <div class="cta-group">
+    <a class="btn-primary" id="mainDownloadBtn" href="https://github.com/HaiLanDuJun/PromptMag/releases/latest" target="_blank" rel="noopener">
+      <span>⬇</span>
+      <span lang="zh">免费下载 Windows 版</span>
+      <span lang="en">Download Free for Windows</span>
+    </a>
+    <a class="btn-secondary" href="#demo">
+      <span>⚡</span>
+      <span lang="zh">体验代码互动演示</span>
+      <span lang="en">Try Interactive Playground</span>
+    </a>
+  </div>
+
+  <div class="trust-badges">
+    <span><span class="dot">✓</span> <span lang="zh">100% 纯本地隐私安全</span><span lang="en">100% Local &amp; Private</span></span>
+    <span><span class="dot">✓</span> <span lang="zh">免注册无登录零云端</span><span lang="en">No Account / Zero Cloud</span></span>
+    <span><span class="dot">✓</span> <span lang="zh">支持 Claude Code / Cursor / Aider 接力</span><span lang="en">Claude Code / Cursor Relay Ready</span></span>
+    <span><span class="dot">✓</span> <span lang="zh">提供安装版与绿色便携版</span><span lang="en">Setup &amp; Portable Versions</span></span>
+  </div>
+</div></header>
+
+<!-- ==================================================================== -->
+<!-- INTERACTIVE LIVE PLAYGROUND DEMO (CENTERPIECE)                       -->
+<!-- ==================================================================== -->
+<section id="demo" class="demo-section"><div class="wrap">
+  <h2 class="sec-title">
+    <span lang="zh">代码级<span class="grad">实时交互演示</span></span>
+    <span lang="en">Interactive <span class="grad">Live Playground</span></span>
+  </h2>
+  <p class="sec-sub">
+    <span lang="zh">无需安装，直接在下方体验 PromptMag 的悬浮出弹、图文零歧义编译、光标瞬发直贴与多 Agent 协同接力。</span>
+    <span lang="en">Experience PromptMag right here: eject prompts, inspect multi-image compilation, test auto-paste, and watch multi-agent relay handoffs.</span>
+  </p>
+
+  <!-- Dual-Pane Live Simulator -->
+  <div class="demo-container">
+    <!-- Simulator Topbar -->
+    <div class="demo-window-header">
+      <div class="window-dots">
+        <span class="window-dot r"></span>
+        <span class="window-dot y"></span>
+        <span class="window-dot g"></span>
+      </div>
+      <div class="demo-window-title">
+        <span>PromptMag.Interactive.Simulator</span>
+        <span class="live-pill">LIVE PLAYGROUND</span>
+      </div>
+      <div style="font-size:11px;color:var(--txt-muted);font-family:monospace;">
+        <span lang="zh">按键响应：极速 15ms</span>
+        <span lang="en">Latency: ~15ms</span>
+      </div>
+    </div>
+
+    <!-- Scenario Switcher Bar -->
+    <div class="demo-tabs-bar">
+      <button class="demo-tab-btn active" onclick="switchDemoScenario('modes')">
+        <span>🔫</span>
+        <span lang="zh">三种出弹模式与光标直贴</span>
+        <span lang="en">3 Firing Modes &amp; Auto Paste</span>
+      </button>
+      <button class="demo-tab-btn" onclick="switchDemoScenario('images')">
+        <span>📸</span>
+        <span lang="zh">多图零歧义编译引擎</span>
+        <span lang="en">Zero-Ambiguity Image Compiler</span>
+      </button>
+      <button class="demo-tab-btn" onclick="switchDemoScenario('collect')">
+        <span>⭐</span>
+        <span lang="zh">外部选区瞬发收录 (Alt+T)</span>
+        <span lang="en">Selection Collector (Alt+T)</span>
+      </button>
+      <button class="demo-tab-btn" onclick="switchDemoScenario('relay')">
+        <span>🤖</span>
+        <span lang="zh">CLI Agent 接力与互斥写锁</span>
+        <span lang="en">Agent Relay &amp; Write Locks</span>
+      </button>
+    </div>
+
+    <!-- Workspace Split -->
+    <div class="demo-workspace">
+      <!-- Left Pane: PromptMag Floating Widget Mockup -->
+      <div class="demo-left-pane">
+        <!-- App Title Bar inside sim -->
+        <div class="app-header-sim">
+          <div class="app-brand-sim">
+            <span>⚡ PromptMag</span>
+            <span class="sim-badge" id="simMagBadge">🎯 默认弹夹</span>
+          </div>
+          <div style="font-size:11px;color:var(--txt-dim);">
+            <span id="simCountPending">3</span> <span lang="zh">条待发</span><span lang="en">pending</span>
+          </div>
+        </div>
+
+        <!-- Magazines Row inside sim -->
+        <div class="mag-nav-sim">
+          <button class="mag-tab-sim active" id="tabMagDefault" onclick="switchSimMag('default')">
+            <span>🎯 默认项目</span> (3)
+          </button>
+          <button class="mag-tab-sim" id="tabMagRefactor" onclick="switchSimMag('refactor')">
+            <span>⚡ 前端重构</span> (2)
+          </button>
+          <button class="mag-tab-sim" id="tabMagFav" onclick="switchSimMag('favorites')">
+            <span>⭐ 收藏弹夹</span> (4)
+          </button>
+        </div>
+
+        <!-- Mode Bar inside sim -->
+        <div class="mode-bar-sim">
+          <span class="mode-bar-label"><span lang="zh">出弹模式:</span><span lang="en">Firing Mode:</span></span>
+          <div class="mode-badges-sim">
+            <button class="mode-pill-btn active" id="btnModeShotgun" onclick="setSimMode('shotgun')">
+              <span lang="zh">霰弹枪(顺序)</span><span lang="en">Shotgun</span>
+            </button>
+            <button class="mode-pill-btn" id="btnModeRevolver" onclick="setSimMode('revolver')">
+              <span lang="zh">左轮(随机)</span><span lang="en">Revolver</span>
+            </button>
+            <button class="mode-pill-btn" id="btnModePistol" onclick="setSimMode('pistol')">
+              <span lang="zh">手枪(最新)</span><span lang="en">Pistol</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Queue Cards List -->
+        <div class="queue-list-sim" id="simQueueList">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Controls -->
+        <div class="sim-controls">
+          <button class="sim-fire-btn" id="simFireBtn" onclick="triggerSimFire()">
+            <span>🔥</span>
+            <span lang="zh">模拟按下快捷键出弹 (Alt+V)</span>
+            <span lang="en">Simulate Fire Hotkey (Alt+V)</span>
+          </button>
+          <div class="sim-sub-controls">
+            <button class="sim-sub-btn" onclick="resetSimQueue()">
+              <span lang="zh">↺ 重置所有为待发</span>
+              <span lang="en">↺ Reset Queue</span>
+            </button>
+            <button class="sim-sub-btn" onclick="triggerSimCollect()">
+              <span lang="zh">⭐ 模拟选区收录 (Alt+T)</span>
+              <span lang="en">⭐ Collect (Alt+T)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Pane: Target IDE / Terminal Simulator -->
+      <div class="demo-right-pane">
+        <div class="ide-tabs-bar">
+          <div class="ide-tab-active">
+            <span>📄</span>
+            <span id="ideFileName">app-auth.ts — VS Code / Cursor</span>
+          </div>
+          <div class="ide-subtab">
+            <span lang="zh">前台活动光标位置</span>
+            <span lang="en">Foreground Active Cursor</span>
+          </div>
+        </div>
+
+        <!-- IDE Text / Simulated Editor -->
+        <div class="ide-editor-area">
+          <div style="color:#64748b;margin-bottom:8px;">// Current editor buffer at line 142</div>
+          <div style="color:#f87171;">export async function <span style="color:#67e8f9;">validateUserSession</span>(token: string) {</div>
+          <div style="color:#94a3b8;padding-left:16px;">const payload = verifyJWT(token);</div>
+          <div style="color:#94a3b8;padding-left:16px;">if (!payload.isValid) throw new UnauthorizedError();</div>
+          
+          <!-- Animated Prompt Injection Destination -->
+          <div class="prompt-cursor-box" id="simPromptBox">
+            <div class="prompt-box-header">
+              <span>⚡ PROMPT INPUT / AI COPILOT CHAT</span>
+              <span id="simPromptModeTag">[Shotgun Mode · Ready]</span>
+            </div>
+            <div class="prompt-typed-text" id="simTypedText">
+              <span style="color:#64748b;">(点击左侧「🔥 模拟按下快捷键出弹」按钮，体验 PromptMag 如何一键将提示词直接送至光标处)</span>
+            </div>
+            <span class="cursor-blink"></span>
+          </div>
+        </div>
+
+        <!-- Simulated CLI Terminal for Agent Relay -->
+        <div class="terminal-strip">
+          <div class="terminal-strip-title">
+            <span>🤖 CLI AGENT RELAY TERMINAL (Claude Code / Gemini CLI / Aider)</span>
+            <span id="termStatusBadge" style="color:var(--emerald);">IDLE · WATCHING next_tasks.md</span>
+          </div>
+          <div class="terminal-lines" id="simTerminalLines">
+            <div class="term-line ok">[PromptMag Daemon] 自动双向同步 next_tasks.md 已开启...</div>
+            <div class="term-line">[System] 待出弹任务就绪，等待快捷键触发或 Agent 自动认领。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Ball Callout -->
+  <div class="ball-banner-mock">
+    <div class="ball-desc">
+      <div class="ball-disc">💬</div>
+      <div>
+        <h4 style="font-size:15px;margin-bottom:3px;">
+          <span lang="zh">常驻桌面边缘的磁吸悬浮球</span>
+          <span lang="en">Floating Ball Docked on Desktop Edge</span>
+        </h4>
+        <p style="font-size:13px;color:var(--txt-dim);">
+          <span lang="zh">轻点呼出极速输入框，右键快捷切换模式，贴边自动半隐藏，绝不打断你的编码专注心流。</span>
+          <span lang="en">Click to open instant composer, right-click to switch modes, auto-docks to screen edge without interrupting your flow.</span>
+        </p>
+      </div>
+    </div>
+    <kbd>Alt + Q</kbd>
+  </div>
+</div></section>
+
+<!-- ==================================================================== -->
+<!-- ALL CORE FEATURES COMPREHENSIVE BREAKDOWN                            -->
+<!-- ==================================================================== -->
 <section id="features"><div class="wrap">
-  <h2><span lang="zh">为重度 AI 用户打造</span><span lang="en">Built for heavy AI users</span></h2>
-  <p class="secsub"><span lang="zh">不是又一个在线提示词网站，而是一个常驻桌面的出弹工具。</span><span lang="en">Not another online prompt directory — a magazine docked on your desktop, ready to fire.</span></p>
-  <div class="grid">
-    <div class="card"><div class="ic">🎯</div><h3><span lang="zh">悬浮小球，随叫随到</span><span lang="en">Floating ball, always on standby</span></h3><p><span lang="zh">小球悬浮在桌面边缘，一个快捷键弹出提示词，不打断你的代码心流。</span><span lang="en">The ball floats at your screen edge; one hotkey pops up your prompts without breaking your flow.</span></p></div>
-    <div class="card"><div class="ic">🔫</div><h3><span lang="zh">三种出弹模式</span><span lang="en">Three eject modes</span></h3><p><span lang="zh">霰弹枪（按顺序）、左轮（随机）、手枪（最近保存先出），不同场景不同打法。</span><span lang="en">Shotgun (in order), revolver (random), pistol (most-recent-first) — a mode for every scenario.</span></p></div>
-    <div class="card"><div class="ic">📋</div><h3><span lang="zh">保存即复制，拿来即用</span><span lang="en">Auto-copy on save</span></h3><p><span lang="zh">保存提示词的同时自动复制到剪贴板，切到编辑器直接粘贴。</span><span lang="en">Saving a prompt copies it to your clipboard automatically — paste straight into your editor.</span></p></div>
-    <div class="card"><div class="ic">🖼️</div><h3><span lang="zh">提示词 × 图片，一键粘贴</span><span lang="en">Prompts × images, one-click paste</span></h3><p><span lang="zh">每条提示词精准对应一张图片，一键把图文一起粘贴出去。</span><span lang="en">Each prompt is precisely paired with its image — paste them together with one click.</span></p></div>
-    <div class="card"><div class="ic">🔒</div><h3><span lang="zh">数据全存本地</span><span lang="en">100% local data</span></h3><p><span lang="zh">不用注册，不用登录，没有云端。你的提示词只属于你自己。</span><span lang="en">No signup, no login, no cloud. Your prompts belong to you alone.</span></p></div>
-    <div class="card"><div class="ic">🌏</div><h3><span lang="zh">中英双语，开源免费</span><span lang="en">Bilingual, open source &amp; free</span></h3><p><span lang="zh">界面中英双语，代码完全开源，免费下载使用。</span><span lang="en">Bilingual UI, fully open-source code, free to download and use.</span></p></div>
+  <h2 class="sec-title">
+    <span lang="zh">为重度 AI 开发者设计的<span class="grad">九大核心武器</span></span>
+    <span lang="en">Nine Heavy-Duty Features <span class="grad">Built for AI Coders</span></span>
+  </h2>
+  <p class="sec-sub">
+    <span lang="zh">不是平庸的网页端提示词记事本，而是一个具备图文编译、光标直贴、多弹夹管理与 Agent 接力写锁的常驻生产力底座。</span>
+    <span lang="en">Not another web-based prompt directory — a desktop firing system equipped with multi-image compilation, cursor auto-paste, and multi-agent concurrency locks.</span>
+  </p>
+
+  <div class="features-grid">
+    <!-- Card 1 -->
+    <div class="feat-card">
+      <div class="icon-wrap">🎯</div>
+      <h3><span lang="zh">边缘磁吸悬浮球 · 随时待命</span><span lang="en">Floating Ball · Always on Standby</span></h3>
+      <p><span lang="zh">悬停在 Windows 屏幕边缘，贴边半透明自动收拢。单击瞬发极速输入框，右键快速切换弹夹，全局热键（Alt+Q）秒级召之即来，用完即退。</span><span lang="en">Floats on the screen edge and smoothly tucks away. One click pops the composer; right-click switches magazines. Summons via Alt+Q in milliseconds.</span></p>
+      <span class="tag-pill">HOTKEY: Alt+Q</span>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="feat-card purple">
+      <div class="icon-wrap">🔫</div>
+      <h3><span lang="zh">三种差异化出弹打法</span><span lang="en">Three Firing Modes</span></h3>
+      <p><span lang="zh">霰弹枪（严格按顺序逐条执行，适合检查单与重构流）、左轮（随机抽取未完成条目，打破思维定式）、手枪（最新保存条目优先顶格出击，高频连续微调）。</span><span lang="en">Shotgun (sequential for checklists &amp; refactors), Revolver (randomized to spark creative angles), and Pistol (most-recent-first for rapid tuning iterations).</span></p>
+      <span class="tag-pill">Shotgun / Revolver / Pistol</span>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="feat-card">
+      <div class="icon-wrap">🚀</div>
+      <h3><span lang="zh">光标处免切瞬发直贴</span><span lang="en">Direct-to-Cursor Auto Paste</span></h3>
+      <p><span lang="zh">按下出弹热键（Alt+V），无需切换窗口、无需手动 Ctrl+V，PromptMag 自动在后台将当前条目编译并直接粘贴到前台任何应用光标所在位置！</span><span lang="en">Press the hotkey (Alt+V) without switching windows or pressing Ctrl+V. PromptMag compiles and injects the prompt right at your cursor.</span></p>
+      <span class="tag-pill">HOTKEY: Alt+V</span>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="feat-card emerald">
+      <div class="icon-wrap">📸</div>
+      <h3><span lang="zh">多图零歧义编译架构</span><span lang="en">Bulletproof Multi-Image Compiler</span></h3>
+      <p><span lang="zh">专为 Claude 3.5 Sonnet / GPT-4o / DeepSeek 打造。拖入图片自动关联内联标记 [图1: 批注]，自动生成结构化绝对路径映射表，彻底根除大模型多图混淆与顺序看错。</span><span lang="en">Custom-engineered for Claude 3.5 Sonnet &amp; GPT-4o. Inline tokens [Img 1: Note] with structured absolute path tables guarantee the LLM never confuses images.</span></p>
+      <span class="tag-pill">Zero Confusion</span>
+    </div>
+
+    <!-- Card 5 -->
+    <div class="feat-card amber">
+      <div class="icon-wrap">📦</div>
+      <h3><span lang="zh">多项目独立弹夹 + ⭐ 专属收藏</span><span lang="en">Multi-Magazines &amp; Starred</span></h3>
+      <p><span lang="zh">支持无限新建项目弹夹（如前端重构、安全排查）。专属「⭐ 收藏弹夹」永不清理；支持在任何网页或代码中选中一段文字或图片，一键瞬录进收藏库（Alt+T）。</span><span lang="en">Create unlimited magazines by project. The Starred Magazine is permanently preserved. Select any text or image in external apps and collect it instantly with Alt+T.</span></p>
+      <span class="tag-pill">HOTKEY: Alt+T / Alt+X</span>
+    </div>
+
+    <!-- Card 6 -->
+    <div class="feat-card purple">
+      <div class="icon-wrap">🤖</div>
+      <h3><span lang="zh">CLI Agent 自动接力与互斥写锁</span><span lang="en">Multi-Agent Relay &amp; Write Locks</span></h3>
+      <p><span lang="zh">无缝打通 Claude Code、Gemini CLI、Aider 等命令行 Agent。自动生成 next_tasks.md 三态机文件，独创独占写锁机制，彻底防止多 Agent 协同覆写冲突。</span><span lang="en">Seamlessly bridges Claude Code, Gemini CLI, and Aider. Auto-syncs next_tasks.md with a dedicated write lock to eliminate concurrent overwrite collisions.</span></p>
+      <span class="tag-pill">next_tasks.md &amp; Locks</span>
+    </div>
+
+    <!-- Card 7 -->
+    <div class="feat-card">
+      <div class="icon-wrap">🧹</div>
+      <h3><span lang="zh">按弹夹智能自动清理与安全确认</span><span lang="en">Smart Lifecycle &amp; Safety Checks</span></h3>
+      <p><span lang="zh">每个弹夹独立设定生命周期规则（1小时至7天或永不清理）；收藏弹夹自动免疫清理；清空操作具备暗黑玻璃拟态双重确认，绝不误删重要提示词。</span><span lang="en">Independent retention policies per magazine (1 hr to 7 days, or never). Starred magazines are strictly immune. Double-confirmation prevents accidental wiping.</span></p>
+      <span class="tag-pill">Safe Lifecycle</span>
+    </div>
+
+    <!-- Card 8 -->
+    <div class="feat-card emerald">
+      <div class="icon-wrap">🔒</div>
+      <h3><span lang="zh">100% 纯本地离线与隐私保护</span><span lang="en">100% Local &amp; Private</span></h3>
+      <p><span lang="zh">不用注册，不用登录，无云端服务器，无数据遥测。你的所有提示词、图片和代码机密绝对保存在本机硬盘中，断网环境下毫厘不差稳定运行。</span><span lang="en">No signup, no login, no cloud servers, no telemetry. Every single prompt and screenshot stays encrypted on your local drive, working offline flawlessly.</span></p>
+      <span class="tag-pill">Offline Ready</span>
+    </div>
+
+    <!-- Card 9 -->
+    <div class="feat-card amber">
+      <div class="icon-wrap">⚡</div>
+      <h3><span lang="zh">极速轻量与绿色便携版支持</span><span lang="en">Ultra Lightweight &amp; Portable</span></h3>
+      <p><span lang="zh">原生按键注入辅助工具，仅 6KB 原生体积，热键延迟仅毫秒级别；提供免安装 Portable 绿色便携版，解压即用，插上 U 盘即可随身携带个人生产力弹药库。</span><span lang="en">Native C# injection helper at just 6KB, ensuring single-digit millisecond latency. Single-file Portable edition runs right from a flash drive without installation.</span></p>
+      <span class="tag-pill">Portable .exe</span>
+    </div>
   </div>
 </div></section>
 
-<section><div class="wrap">
-  <h2><span lang="zh">三种出弹模式，怎么玩</span><span lang="en">Three eject modes, how they play</span></h2>
-  <p class="secsub"><span lang="zh">像弹夹一样管理提示词，按场景切换出弹方式。</span><span lang="en">Manage prompts like a magazine — switch eject modes by scenario.</span></p>
-  <div class="mode"><div class="n">1</div><div><h3><span lang="zh">霰弹枪 · 按顺序输出</span><span lang="en">Shotgun · Sequential</span></h3><p><span lang="zh">适合固定流程：code review 清单、发布前检查项，一条条按顺序过，谁都不会漏。</span><span lang="en">For fixed workflows: code-review checklists, pre-release checks — walk through them in order, miss nothing.</span></p></div></div>
-  <div class="mode"><div class="n">2</div><div><h3><span lang="zh">左轮 · 随机输出</span><span lang="en">Revolver · Random</span></h3><p><span lang="zh">适合头脑风暴：随机抽一条提示词换个角度看问题，灵感常常来自意外。</span><span lang="en">For brainstorming: draw a random prompt to see the problem from a new angle — inspiration loves accidents.</span></p></div></div>
-  <div class="mode"><div class="n">3</div><div><h3><span lang="zh">手枪 · 最近保存先出</span><span lang="en">Pistol · Most-recent-first</span></h3><p><span lang="zh">适合高频复用：刚调好的那条提示词正在手感上，连续用它，越打越顺。</span><span lang="en">For heavy reuse: the prompt you just tuned is hot — keep firing it while it's fresh.</span></p></div></div>
-</div></section>
+<!-- ==================================================================== -->
+<!-- THREE FIRING MODES DEEP DIVE                                         -->
+<!-- ==================================================================== -->
+<section id="modes" class="modes-section"><div class="wrap">
+  <h2 class="sec-title">
+    <span lang="zh">三种出弹模式，<span class="grad">应对不同开发心流</span></span>
+    <span lang="en">Three Firing Modes <span class="grad">for Every AI Workflow</span></span>
+  </h2>
+  <p class="sec-sub">
+    <span lang="zh">像换枪械弹匣一样管理提示词，不同场景切换最佳输出节奏。</span>
+    <span lang="en">Switch eject modes just like changing magazines — dialed for specific development scenarios.</span>
+  </p>
 
-<section><div class="wrap">
-  <h2><span lang="zh">三步上手</span><span lang="en">Up and running in 3 steps</span></h2>
-  <p class="secsub"><span lang="zh">下载即用，不用注册，不用配置服务器。</span><span lang="en">Download and go — no signup, no server to configure.</span></p>
-  <div class="steps">
-    <div class="step"><h3><span lang="zh">下载安装</span><span lang="en">Download</span></h3><p><span lang="zh">从 GitHub Releases 下载安装包，一路下一步。</span><span lang="en">Grab the installer from GitHub Releases and click through.</span></p></div>
-    <div class="step"><h3><span lang="zh">攒你的弹夹</span><span lang="en">Load your magazine</span></h3><p><span lang="zh">把常用提示词存进去，可选配图，保存时自动复制。</span><span lang="en">Save your go-to prompts, attach images optionally — auto-copied on save.</span></p></div>
-    <div class="step"><h3><span lang="zh">快捷键出弹</span><span lang="en">Eject with a hotkey</span></h3><p><span lang="zh">按 <kbd>快捷键</kbd> 弹出提示词，选模式，开火。</span><span lang="en">Hit the <kbd>hotkey</kbd>, pick a mode, fire.</span></p></div>
+  <div class="modes-cards">
+    <!-- Mode 1 -->
+    <div class="mode-card">
+      <div class="mode-badge-top">
+        <div class="mode-num">1</div>
+        <div class="mode-hotkey">Shotgun · 顺序模式</div>
+      </div>
+      <h3><span lang="zh">霰弹枪 · 按部就班，绝不漏条</span><span lang="en">Shotgun · Sequential Eject</span></h3>
+      <p><span lang="zh">队列中第一条最旧的未完成提示词优先弹出，执行完毕后自动出下一条。适合步骤紧凑的有序工程流，如发布清单、测试流程或需求逐项重构。</span><span lang="en">Pops the oldest pending prompt in the queue. Perfect for ordered workflows like deployment checklists, step-by-step refactoring, and QA passes.</span></p>
+      <div class="mode-usecase">
+        <strong lang="zh">🎯 典型场景：</strong><strong lang="en">🎯 Ideal for:</strong>
+        <span lang="zh">Code Review 清单检查、系统发布前准备项、大型 PR 模块逐个攻坚。</span>
+        <span lang="en">Code reviews, pre-flight checklists, sequential module refactoring.</span>
+      </div>
+    </div>
+
+    <!-- Mode 2 -->
+    <div class="mode-card">
+      <div class="mode-badge-top">
+        <div class="mode-num" style="background:linear-gradient(135deg, #a855f7, #ec4899);">2</div>
+        <div class="mode-hotkey" style="color:#f472b6;border-color:rgba(244, 114, 182, 0.3);">Revolver · 随机抽弹</div>
+      </div>
+      <h3><span lang="zh">左轮 · 随机抽选，激发灵感</span><span lang="en">Revolver · Random Draw</span></h3>
+      <p><span lang="zh">在弹夹所有未使用的提示词中随机抽取一条弹出。适合发散思维、探索架构设计死角或进行安全边缘测试，从意想不到的角度突袭问题。</span><span lang="en">Randomly draws any pending prompt. Designed for brainstorming, architectural exploration, and fuzz testing edge cases from unexpected angles.</span></p>
+      <div class="mode-usecase">
+        <strong lang="zh">🎯 典型场景：</strong><strong lang="en">🎯 Ideal for:</strong>
+        <span lang="zh">头脑风暴构思新功能、安全漏洞对抗性检查、测试用例随机覆盖。</span>
+        <span lang="en">Brainstorming sessions, exploratory testing, security penetration prompts.</span>
+      </div>
+    </div>
+
+    <!-- Mode 3 -->
+    <div class="mode-card">
+      <div class="mode-badge-top">
+        <div class="mode-num" style="background:linear-gradient(135deg, #f59e0b, #ef4444);">3</div>
+        <div class="mode-hotkey" style="color:var(--amber);border-color:rgba(245, 158, 11, 0.3);">Pistol · 最近优先</div>
+      </div>
+      <h3><span lang="zh">手枪 · 刚调优的 Prompt 优先出</span><span lang="en">Pistol · Most-Recent-First</span></h3>
+      <p><span lang="zh">后进先出（LIFO）。最新录入或调优好的那条提示词永远排在出弹口。当你刚刚打磨出一条完美的 Prompt 正在手感上时，连续高频使用。</span><span lang="en">Last-in, first-out (LIFO). The prompt you just crafted or refined stays chambered at the top. Keep firing it while it's hot.</span></p>
+      <div class="mode-usecase">
+        <strong lang="zh">🎯 典型场景：</strong><strong lang="en">🎯 Ideal for:</strong>
+        <span lang="zh">Prompt 连续微调测试、当前正在集中处理的高频同构任务、Bug 连续定位。</span>
+        <span lang="en">Rapid iterative tuning, repetitive bug-hunting templates, batch tasks.</span>
+      </div>
+    </div>
   </div>
 </div></section>
 
-<div class="wrap"><div class="final">
-  <h2><span lang="zh">别再翻来覆去敲提示词了</span><span lang="en">Stop retyping your prompts</span></h2>
-  <p class="secsub" style="margin-bottom:30px"><span lang="zh">PromptMag 开源免费，现在就把你的提示词装进弹夹。</span><span lang="en">PromptMag is open source and free — load your prompts into the magazine today.</span></p>
-  <a class="btn-primary" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener"><span lang="zh">⭐ 去 GitHub 获取 PromptMag</span><span lang="en">⭐ Get PromptMag on GitHub</span></a>
+<!-- ==================================================================== -->
+<!-- CLI AGENT RELAY & CONCURRENCY LOCK ARCHITECTURE                      -->
+<!-- ==================================================================== -->
+<section id="relay"><div class="wrap">
+  <h2 class="sec-title">
+    <span lang="zh">CLI Agent <span class="grad">任务自动接力与写锁架构</span></span>
+    <span lang="en">CLI Agent <span class="grad">Relay &amp; Concurrency Lock</span></span>
+  </h2>
+  <p class="sec-sub">
+    <span lang="zh">告别单次会话只能跑一条指令的局限。PromptMag 与终端 Agent 形成闭环，自动分配任务并提供独占文件互斥写锁。</span>
+    <span lang="en">Break free from single-shot chats. PromptMag creates an automated loop with CLI agents, dispatching tasks with mutex write locks.</span>
+  </p>
+
+  <div class="relay-architecture">
+    <div class="relay-steps-flow">
+      <div class="relay-flow-node">
+        <div class="node-step">Step 01</div>
+        <h4><span lang="zh">装弹并生成接力任务</span><span lang="en">Load &amp; Generate Tasks</span></h4>
+        <p><span lang="zh">在 PromptMag 中录入多个复杂开发任务，自动同步为带机器注释的标准 <code>next_tasks.md</code>。</span><span lang="en">Compose multiple complex tasks in PromptMag; auto-synced to machine-annotated <code>next_tasks.md</code>.</span></p>
+      </div>
+
+      <div class="relay-flow-node">
+        <div class="node-step">Step 02</div>
+        <h4><span lang="zh">一键启动接力指令</span><span lang="en">Launch Relay Command</span></h4>
+        <p><span lang="zh">点击「⚡ 生成接力启动指令」，在 Claude Code 或终端中粘贴，Agent 立即接入调度。</span><span lang="en">Click "⚡ Generate Relay Prompt", paste into your terminal, and the agent begins execution immediately.</span></p>
+      </div>
+
+      <div class="relay-flow-node">
+        <div class="node-step">Step 03</div>
+        <h4><span lang="zh">独占获取文件写锁 🔒</span><span lang="en">Acquire Mutex Write Lock 🔒</span></h4>
+        <p><span lang="zh">Agent 认领任务并标记 <code>[~]</code>，同时加锁防止外部改动覆盖代码；完成后标记 <code>[x]</code> 释放锁。</span><span lang="en">The agent claims the task with <code>[~]</code> and locks the file. When tests pass, it marks <code>[x]</code> and unlocks.</span></p>
+      </div>
+
+      <div class="relay-flow-node">
+        <div class="node-step">Step 04</div>
+        <h4><span lang="zh">自动交接至下一任务</span><span lang="en">Seamless Next Handoff</span></h4>
+        <p><span lang="zh">无需人工守护，下一条待办任务自动被唤醒并接力执行，直至整个弹夹全部顺利搞定。</span><span lang="en">Runs autonomously: the next pending task is triggered automatically until the entire magazine is cleared.</span></p>
+      </div>
+    </div>
+
+    <!-- Code format preview -->
+    <div class="code-preview-box">
+      <div style="color:#64748b;margin-bottom:6px;"># next_tasks.md (PromptMag 三态机与机器状态注释规范)</div>
+      <div>- [x] 1. 重构权限验证中间件并增加单元测试 <span style="color:#10b981;"><!-- pm:solver=ClaudeCode pm:solution=all_tests_passed --></span></div>
+      <div>- [~] 2. 修复个人中心卡片溢出问题 [图1: 样式错位: "D:\Assets\shot_01.png"] <span style="color:#f59e0b;"><!-- pm:solver=GeminiCLI pm:lock=WRITE_MUTEX --></span></div>
+      <div>- [ ] 3. 补充 SQL 注入隐患排查报告与防御参数化验证</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ==================================================================== -->
+<!-- 3-STEP QUICK START                                                   -->
+<!-- ==================================================================== -->
+<section id="quickstart"><div class="wrap">
+  <h2 class="sec-title">
+    <span lang="zh">三步上手，<span class="grad">立即拥有你的提示词弹夹</span></span>
+    <span lang="en">Get Started in 3 Steps, <span class="grad">Zero Configuration</span></span>
+  </h2>
+  <p class="sec-sub">
+    <span lang="zh">下载即用，不用注册任何账号，不用配置任何远程服务。</span>
+    <span lang="en">Download and go — no registration, no cloud setup, runs 100% on your machine.</span>
+  </p>
+
+  <div class="steps-grid">
+    <div class="step-item">
+      <h3><span lang="zh">1. 下载安装或解压便携版</span><span lang="en">1. Download Installer or Portable</span></h3>
+      <p><span lang="zh">从 GitHub Releases 下载最新的 <code>PromptMag-Setup.exe</code> 安装版，或下载无需安装的 <code>PromptMag-Portable.exe</code> 绿色单文件版。</span><span lang="en">Grab the installer or the single-file Portable version from GitHub Releases.</span></p>
+    </div>
+
+    <div class="step-item">
+      <h3><span lang="zh">2. 装填你的 Prompt 与图片</span><span lang="en">2. Load Prompts &amp; Attach Images</span></h3>
+      <p><span lang="zh">点击悬浮球或按 <kbd>Alt+Q</kbd> 打开极速输入框，输入你的常用提示词或直接拖入缺陷截图，自动编译保存。</span><span lang="en">Click the floating ball or press <kbd>Alt+Q</kbd> to type prompts and drop screenshots.</span></p>
+    </div>
+
+    <div class="step-item">
+      <h3><span lang="zh">3. 光标处一键呼出开火</span><span lang="en">3. Eject Straight to Cursor</span></h3>
+      <p><span lang="zh">在 VS Code、Cursor 或终端中聚焦光标，按 <kbd>Alt+V</kbd> 出弹直贴；选中网页文字时按 <kbd>Alt+T</kbd> 瞬间收录！</span><span lang="en">Focus your cursor in VS Code or Cursor, press <kbd>Alt+V</kbd> to fire; select text &amp; press <kbd>Alt+T</kbd> to collect!</span></p>
+    </div>
+  </div>
+</div></section>
+
+<!-- ==================================================================== -->
+<!-- FAQ SECTION                                                          -->
+<!-- ==================================================================== -->
+<section id="faq"><div class="wrap">
+  <h2 class="sec-title">
+    <span lang="zh">常见问题解答</span>
+    <span lang="en">Frequently Asked Questions</span>
+  </h2>
+  <p class="sec-sub">
+    <span lang="zh">了解更多 PromptMag 的运行原理与设计哲学。</span>
+    <span lang="en">Learn more about PromptMag's design architecture and philosophy.</span>
+  </p>
+
+  <div class="faq-grid">
+    <div class="faq-card">
+      <h4><span>Q:</span> <span lang="zh">PromptMag 是云端工具还是本地软件？</span><span lang="en">Is PromptMag cloud-based or local?</span></h4>
+      <p><span lang="zh">100% 本地软件。所有弹夹数据、提示词文本和关联截图均保存在你本地的电脑硬盘中。没有注册系统，没有登录界面，没有云端同步，甚至拔掉网线也能顺畅运行。</span><span lang="en">100% local. Prompts, magazines, and image attachments stay entirely on your disk. No accounts, no telemetry, runs completely offline.</span></p>
+    </div>
+
+    <div class="faq-card">
+      <h4><span>Q:</span> <span lang="zh">为什么需要「图文零歧义编译」？</span><span lang="en">Why do we need Zero-Ambiguity Compilation?</span></h4>
+      <p><span lang="zh">在多图场景下，直接向 Claude / GPT-4o 粘贴多张图片常常导致模型把第 1 张图看成第 2 张。PromptMag 在正文中精准锚定 <code>[图1: 按钮错位]</code> 并在末尾生成排他性路径映射表，彻底根治大模型认错图片顺序的硬伤。</span><span lang="en">Multimodal LLMs often confuse sequential images. PromptMag binds inline tokens to structured mapping tables so models never read the wrong image.</span></p>
+    </div>
+
+    <div class="faq-card">
+      <h4><span>Q:</span> <span lang="zh">快捷键如果和系统其他软件冲突怎么办？</span><span lang="en">What if hotkeys conflict with other apps?</span></h4>
+      <p><span lang="zh">PromptMag 支持所有功能快捷键自定义修改，并具备严格的单键约束与防冲突检测机制。若快捷键被系统其他全局软件占用，会有友好轻量提示并允许重新绑定。</span><span lang="en">All hotkeys can be fully customized with real-time conflict detection and friendly prompts if an external app occupies a key.</span></p>
+    </div>
+
+    <div class="faq-card">
+      <h4><span>Q:</span> <span lang="zh">什么是「⭐ 专属收藏弹夹」？</span><span lang="en">What is the Starred Magazine?</span></h4>
+      <p><span lang="zh">收藏弹夹是永久保留的专用弹药库，永远不参与定时自动清理。通过快捷键 <kbd>Alt+T</kbd> 在任何软件中选中文本或图片即可瞬间收录；通过 <kbd>Alt+X</kbd> 可以光标就地呼出收藏弹窗一键插入常用语。</span><span lang="en">The Starred Magazine is immune to auto-cleanup. Select text or images and press <kbd>Alt+T</kbd> to collect; press <kbd>Alt+X</kbd> to browse and insert anywhere.</span></p>
+    </div>
+  </div>
+</div></section>
+
+<!-- ==================================================================== -->
+<!-- FINAL CTA                                                            -->
+<!-- ==================================================================== -->
+<div class="wrap"><div class="final-cta-wrap">
+  <h2>
+    <span lang="zh">别再翻来覆去敲提示词了</span>
+    <span lang="en">Stop Retyping Your Prompts.</span>
+  </h2>
+  <p>
+    <span lang="zh">PromptMag 完全开源免费。今天就将高频 Prompt、缺陷截图与任务清单装进桌面弹夹。</span>
+    <span lang="en">PromptMag is free and 100% open source. Load your go-to prompts and screenshots into your desktop magazine today.</span>
+  </p>
+  <div class="cta-group" style="margin-bottom:0;">
+    <a class="btn-primary" id="footerDownloadBtn" href="https://github.com/HaiLanDuJun/PromptMag/releases/latest" target="_blank" rel="noopener">
+      <span>⬇</span>
+      <span lang="zh">获取最新安装包 (v<span class="foot-ver">1.9.5</span>)</span>
+      <span lang="en">Get Latest Release (v<span class="foot-ver">1.9.5</span>)</span>
+    </a>
+    <a class="btn-secondary" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener">
+      <span>⭐</span>
+      <span>GitHub Repository</span>
+    </a>
+  </div>
 </div></div>
 
+<!-- Footer -->
 <footer><div class="wrap">
-  <span lang="zh">PromptMag · 开源免费 · 由 <a href="https://github.com/HaiLanDuJun" target="_blank" rel="noopener">HaiLanDuJun</a> 打造</span><span lang="en">PromptMag · Open source &amp; free · Built by <a href="https://github.com/HaiLanDuJun" target="_blank" rel="noopener">HaiLanDuJun</a></span>
+  <div class="footer-row">
+    <div>
+      <strong>PromptMag</strong> — Floating Prompt Magazine for Windows.
+      <span lang="zh">开源免费 · MIT License</span>
+      <span lang="en">Open Source · MIT License</span>
+    </div>
+    <div style="display:flex;gap:18px;">
+      <a href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/HaiLanDuJun/PromptMag/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/HaiLanDuJun/PromptMag/issues" target="_blank" rel="noopener">Issues</a>
+      <a href="https://promptmag.dev">promptmag.dev</a>
+    </div>
+  </div>
 </div></footer>
 
+<!-- ==================================================================== -->
+<!-- INTERACTIVE SIMULATOR SCRIPT                                         -->
+<!-- ==================================================================== -->
 <script>
-function toggleLang(){
-  const h=document.documentElement;
-  h.dataset.lang = h.dataset.lang==='zh' ? 'en' : 'zh';
-  document.documentElement.lang = h.dataset.lang==='zh' ? 'zh-CN' : 'en';
+/* 1. Language Toggle System */
+function toggleLang() {
+  const h = document.documentElement;
+  const next = h.dataset.lang === 'zh' ? 'en' : 'zh';
+  h.dataset.lang = next;
+  h.lang = next === 'zh' ? 'zh-CN' : 'en';
+  try { localStorage.setItem('pm_lang', next); } catch(e){}
+  const label = document.getElementById('langLabel');
+  if (label) label.textContent = next === 'zh' ? 'EN / 中文' : '中文 / EN';
+  renderSimQueue();
 }
-/* 动态获取最新版安装器：优先 Setup 安装版，失败则回退到 Releases 页面 */
+
+// Restore saved language
+try {
+  const saved = localStorage.getItem('pm_lang');
+  if (saved && (saved === 'zh' || saved === 'en')) {
+    document.documentElement.dataset.lang = saved;
+    document.documentElement.lang = saved === 'zh' ? 'zh-CN' : 'en';
+  }
+} catch(e){}
+
+/* 2. Interactive Simulator State & Data */
+const demoState = {
+  scenario: 'modes', // 'modes' | 'images' | 'collect' | 'relay'
+  mode: 'shotgun',    // 'shotgun' | 'revolver' | 'pistol'
+  activeMag: 'default',
+  shotIndex: 0,
+  magazines: {
+    default: {
+      nameZh: '🎯 默认项目',
+      nameEn: '🎯 Default Project',
+      badge: '🎯 默认弹夹',
+      items: [
+        {
+          id: 1,
+          titleZh: '修复登录表单校验与错误提示 [图1: 样式错位]',
+          titleEn: 'Fix login form validation & alert [Img 1: Style bug]',
+          textZh: '请根据下方图片批注，修复移动端登录表单验证失败时的红色提示框布局重叠，并增加防抖提交。\n\n=== 📸 图片精确映射表 ===\n[图1: 样式错位] -> D:\\Assets\\login_bug.png\n========================',
+          textEn: 'Please fix the overlapping alert box on mobile login based on the attached screenshot.\n\n=== 📸 Image Mapping Table ===\n[Img 1: Style bug] -> D:\\Assets\\login_bug.png\n==============================',
+          images: ['login_bug.png'],
+          done: false,
+          agent: 'Claude Code'
+        },
+        {
+          id: 2,
+          titleZh: '重构 JWT 鉴权中间件并补充单元测试',
+          titleEn: 'Refactor JWT auth middleware with unit tests',
+          textZh: '优化 validateUserSession 方法，增加 token 过期安全续期机制，并编写 5 个核心边界用例。',
+          textEn: 'Refactor validateUserSession, add safe refresh tokens, and add 5 edge-case unit tests.',
+          images: [],
+          done: false,
+          agent: 'Gemini CLI'
+        },
+        {
+          id: 3,
+          titleZh: '排查 SQL 注入安全隐患并补充参数化校验',
+          titleEn: 'Audit SQL injection risks with parameterized queries',
+          textZh: '全面扫描 user-repository 中所有原始拼串 SQL，统一替换为安全参数化调用。',
+          textEn: 'Audit user-repository for raw SQL concatenation and replace with parameterized queries.',
+          images: [],
+          done: false,
+          agent: 'Aider'
+        }
+      ]
+    },
+    refactor: {
+      nameZh: '⚡ 前端重构',
+      nameEn: '⚡ Frontend Refactor',
+      badge: '⚡ 前端重构弹夹',
+      items: [
+        {
+          id: 11,
+          titleZh: '全面迁移到 Tailwind CSS v3 并清除旧冗余 CSS',
+          titleEn: 'Migrate to Tailwind CSS v3 and clean legacy CSS',
+          textZh: '将项目所有旧版样式表重构为标准 Tailwind 类名，压缩 bundle 体积。',
+          textEn: 'Refactor old stylesheet classes into standard Tailwind utility classes.',
+          images: [],
+          done: false
+        },
+        {
+          id: 12,
+          titleZh: '优化虚拟滚动列表长列表渲染性能 [图1: 掉帧分析]',
+          titleEn: 'Optimize virtual scrolling frame drops [Img 1: Perf trace]',
+          textZh: '根据性能火焰图，避免快速滚动时的 DOM 频繁重绘，保持 60 FPS。\n\n=== 📸 图片精确映射表 ===\n[图1: 掉帧分析] -> D:\\Assets\\perf_trace.png\n========================',
+          textEn: 'Resolve frame drops during rapid scrolling based on the performance trace.\n\n=== 📸 Image Mapping Table ===\n[Img 1: Perf trace] -> D:\\Assets\\perf_trace.png\n==============================',
+          images: ['perf_trace.png'],
+          done: false
+        }
+      ]
+    },
+    favorites: {
+      nameZh: '⭐ 收藏弹夹',
+      nameEn: '⭐ Starred Magazine',
+      badge: '⭐ 专属收藏弹夹 (永不自动清理)',
+      items: [
+        {
+          id: 21,
+          titleZh: '审查这段代码的时间复杂度并给出极致优化方案',
+          titleEn: 'Review time complexity & suggest optimization',
+          textZh: '请作为资深算法架构师，全面分析当前函数的 Big-O 复杂度，并给出兼顾内存与速度的最优实现。',
+          textEn: 'Act as a principal algorithm engineer: analyze Big-O complexity and optimize for speed and memory.',
+          images: [],
+          done: false,
+          favorite: true
+        },
+        {
+          id: 22,
+          titleZh: '为当前函数补充详尽的 JSDoc / TSDoc 中英文注释',
+          titleEn: 'Generate comprehensive JSDoc / TSDoc comments',
+          textZh: '请为所有导出类型、入参和返回值补齐严谨的 TSDoc 注释，说明边界异常情况。',
+          textEn: 'Generate complete TSDoc annotations for all export types, params, returns, and edge exceptions.',
+          images: [],
+          done: false,
+          favorite: true
+        },
+        {
+          id: 23,
+          titleZh: '分析这道 Bug 的根因并给出预防性防御方案 [图1: 崩溃堆栈]',
+          titleEn: 'Root-cause analysis for crash [Img 1: Crash stack]',
+          textZh: '请根据控制台报错堆栈截图，定位空指针或异步未捕获的根因，并给出修复 PR。\n\n=== 📸 图片精确映射表 ===\n[图1: 崩溃堆栈] -> D:\\Assets\\stack_trace.png\n========================',
+          textEn: 'Analyze crash callstack from screenshot, locate root cause, and formulate fix PR.\n\n=== 📸 Image Mapping Table ===\n[Img 1: Crash stack] -> D:\\Assets\\stack_trace.png\n==============================',
+          images: ['stack_trace.png'],
+          done: false,
+          favorite: true
+        }
+      ]
+    }
+  }
+};
+
+/* 3. Render Simulator Queue */
+function renderSimQueue() {
+  const isEn = document.documentElement.dataset.lang === 'en';
+  const mag = demoState.magazines[demoState.activeMag];
+  const listEl = document.getElementById('simQueueList');
+  const countEl = document.getElementById('simCountPending');
+  const badgeEl = document.getElementById('simMagBadge');
+
+  if (!mag || !listEl) return;
+  badgeEl.textContent = isEn ? (mag.nameEn || mag.nameZh) : mag.badge;
+
+  const pendingCount = mag.items.filter(i => !i.done).length;
+  countEl.textContent = pendingCount;
+
+  listEl.innerHTML = '';
+  mag.items.forEach((item, index) => {
+    const card = document.createElement('div');
+    card.className = 'queue-card-sim' + (item.done ? ' is-done' : '');
+    card.onclick = () => previewSimItem(item);
+
+    const title = isEn ? (item.titleEn || item.titleZh) : item.titleZh;
+    let statusClass = item.done ? 'done' : (item.doing ? 'doing' : 'pending');
+
+    let tagsHtml = '';
+    if (item.images && item.images.length) {
+      tagsHtml += `<span class="img-badge-sim">📸 ${isEn ? 'Img' : '图'} (${item.images.length})</span>`;
+    }
+    if (item.agent) {
+      tagsHtml += `<span class="agent-badge-sim">🤖 ${item.agent}</span>`;
+    }
+    if (item.favorite) {
+      tagsHtml += `<span class="img-badge-sim" style="color:var(--amber);border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);">⭐ ${isEn ? 'Starred' : '收藏'}</span>`;
+    }
+
+    card.innerHTML = `
+      <div class="card-header-row">
+        <div class="card-title-group">
+          <span class="card-status-dot ${statusClass}"></span>
+          <span class="card-title" title="${title}">${index + 1}. ${title}</span>
+        </div>
+        <span style="font-size:10px;color:var(--txt-muted);">${item.done ? (isEn ? 'Used' : '已出弹') : (isEn ? 'Ready' : '待发')}</span>
+      </div>
+      <div class="card-tags-row">${tagsHtml}</div>
+    `;
+    listEl.appendChild(card);
+  });
+}
+
+function switchSimMag(magKey) {
+  demoState.activeMag = magKey;
+  ['default', 'refactor', 'favorites'].forEach(k => {
+    const btn = document.getElementById(k === 'default' ? 'tabMagDefault' : (k === 'refactor' ? 'tabMagRefactor' : 'tabMagFav'));
+    if (btn) {
+      btn.className = 'mag-tab-sim' + (k === magKey ? (k === 'favorites' ? ' fav-active' : ' active') : '');
+    }
+  });
+  renderSimQueue();
+}
+
+function setSimMode(modeKey) {
+  demoState.mode = modeKey;
+  ['shotgun', 'revolver', 'pistol'].forEach(k => {
+    const btn = document.getElementById('btnMode' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (btn) btn.className = 'mode-pill-btn' + (k === modeKey ? ' active' : '');
+  });
+  const tagEl = document.getElementById('simPromptModeTag');
+  if (tagEl) {
+    const isEn = document.documentElement.dataset.lang === 'en';
+    const names = {
+      shotgun: isEn ? 'Shotgun Mode · Sequential' : '霰弹枪模式 · 严格按顺序',
+      revolver: isEn ? 'Revolver Mode · Randomized' : '左轮模式 · 随机抽取',
+      pistol: isEn ? 'Pistol Mode · Most-Recent-First' : '手枪模式 · 最近优先'
+    };
+    tagEl.textContent = `[${names[modeKey] || modeKey}]`;
+  }
+}
+
+/* 4. Scenario Switching */
+function switchDemoScenario(scKey) {
+  demoState.scenario = scKey;
+  const buttons = document.querySelectorAll('.demo-tab-btn');
+  buttons.forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  const isEn = document.documentElement.dataset.lang === 'en';
+
+  if (scKey === 'modes') {
+    switchSimMag('default');
+    setSimMode('shotgun');
+    addTermLine('ok', isEn ? '[Scenario] Firing Modes active: Press Alt+V to test direct cursor auto-paste.' : '【场景】出弹模式演练：按 Alt+V 体验免切窗口光标处瞬发直贴。');
+  } else if (scKey === 'images') {
+    switchSimMag('refactor');
+    addTermLine('cyan', isEn ? '[Scenario] Multimodal compiler: inspecting structured path table mapping.' : '【场景】多图零歧义编译：查看内联标记 [图1] 与本地绝对路径映射表。');
+    // Pre-load an image prompt
+    const item = demoState.magazines.refactor.items[1];
+    previewSimItem(item);
+  } else if (scKey === 'collect') {
+    switchSimMag('favorites');
+    addTermLine('warn', isEn ? '[Scenario] External Selection Collector: Press Alt+T to collect selected text or image into Starred Magazine.' : '【场景】外部选区收录：按 Alt+T 瞬时收录选中文本或截图至收藏弹夹。');
+  } else if (scKey === 'relay') {
+    switchSimMag('default');
+    addTermLine('ok', isEn ? '[Scenario] CLI Agent Relay: Simulating Claude Code grabbing mutex write lock on next_tasks.md.' : '【场景】CLI Agent 接力演练：模拟 Claude Code 认领任务并获取文件互斥写锁。');
+    simulateAgentRelay();
+  }
+}
+
+/* 5. Trigger Simulate Fire (Alt+V) */
+let isTyping = false;
+function triggerSimFire() {
+  if (isTyping) return;
+  const isEn = document.documentElement.dataset.lang === 'en';
+  const mag = demoState.magazines[demoState.activeMag];
+  const pendingItems = mag.items.filter(i => !i.done);
+
+  if (!pendingItems.length) {
+    addTermLine('warn', isEn ? '[Magazine Empty] All prompts used. Resetting queue...' : '【弹药耗尽】当前弹夹已全部出弹，正在重置队列...');
+    resetSimQueue();
+    return;
+  }
+
+  let targetItem = null;
+  if (demoState.mode === 'shotgun') {
+    targetItem = pendingItems[0]; // oldest
+  } else if (demoState.mode === 'revolver') {
+    targetItem = pendingItems[Math.floor(Math.random() * pendingItems.length)]; // random
+  } else if (demoState.mode === 'pistol') {
+    targetItem = pendingItems[pendingItems.length - 1]; // most recent
+  }
+
+  if (!targetItem) targetItem = pendingItems[0];
+
+  // Visual feedback: animate typing into right pane
+  isTyping = true;
+  const textToType = isEn ? (targetItem.textEn || targetItem.textZh) : targetItem.textZh;
+  const typedEl = document.getElementById('simTypedText');
+  const boxEl = document.getElementById('simPromptBox');
+
+  boxEl.style.boxShadow = '0 0 35px rgba(56, 189, 248, 0.7)';
+  boxEl.style.borderColor = '#38bdf8';
+  typedEl.textContent = '';
+
+  let charIdx = 0;
+  const timer = setInterval(() => {
+    if (charIdx < textToType.length) {
+      typedEl.textContent += textToType.charAt(charIdx);
+      charIdx++;
+    } else {
+      clearInterval(timer);
+      isTyping = false;
+      targetItem.done = true;
+      renderSimQueue();
+      boxEl.style.boxShadow = '0 0 20px rgba(56, 189, 248, 0.2)';
+
+      addTermLine('ok', isEn
+        ? `[Eject Success] Alt+V fired "${targetItem.titleEn || targetItem.titleZh}". Pasted to cursor in 18ms.`
+        : `【出弹成功】Alt+V 瞬发直贴已完成，耗时 18ms，已标记为已使用。`
+      );
+    }
+  }, 10);
+}
+
+function previewSimItem(item) {
+  if (!item || isTyping) return;
+  const isEn = document.documentElement.dataset.lang === 'en';
+  const text = isEn ? (item.textEn || item.textZh) : item.textZh;
+  document.getElementById('simTypedText').textContent = text;
+}
+
+function resetSimQueue() {
+  const mag = demoState.magazines[demoState.activeMag];
+  if (!mag) return;
+  mag.items.forEach(i => { i.done = false; i.doing = false; });
+  renderSimQueue();
+  const isEn = document.documentElement.dataset.lang === 'en';
+  addTermLine('cyan', isEn ? '[Queue Reset] All prompts restored to pending state.' : '【弹药装填完毕】所有提示词已恢复为待出弹状态。');
+}
+
+function triggerSimCollect() {
+  const isEn = document.documentElement.dataset.lang === 'en';
+  switchSimMag('favorites');
+  const newId = Date.now();
+  const newItem = {
+    id: newId,
+    titleZh: '新收录选中文本 [图1: 屏幕截图]',
+    titleEn: 'Newly collected selection [Img 1: Screenshot]',
+    textZh: '在外部应用中选中该段落并按下 Alt+T，PromptMag 已捕获文字并同步保存屏幕选区截图，已永久保存在收藏弹夹。',
+    textEn: 'Captured from active selection via Alt+T with attached image. Safely saved in Starred Magazine.',
+    images: ['collected_shot.png'],
+    done: false,
+    favorite: true
+  };
+  demoState.magazines.favorites.items.unshift(newItem);
+  renderSimQueue();
+  previewSimItem(newItem);
+  addTermLine('warn', isEn
+    ? '⭐ [Alt+T Captured] Text & image collected directly into Starred Magazine (exempt from auto-cleanup).'
+    : '⭐【Alt+T 收录成功】已将选中文本与图片收录进专属收藏弹夹（永不自动清理）。'
+  );
+}
+
+function simulateAgentRelay() {
+  const isEn = document.documentElement.dataset.lang === 'en';
+  const termEl = document.getElementById('termStatusBadge');
+  const item = demoState.magazines.default.items[0];
+  item.doing = true;
+  renderSimQueue();
+
+  if (termEl) {
+    termEl.textContent = '🔒 LOCKED BY [Claude Code]';
+    termEl.style.color = 'var(--amber)';
+  }
+
+  addTermLine('warn', isEn ? '🔒 [Agent Relay] Claude Code acquired WRITE_LOCK on next_tasks.md' : '🔒【Agent 接力】Claude Code 独占获取文件修改写锁 (WRITE_LOCK)...');
+  setTimeout(() => {
+    addTermLine('ok', isEn ? '⚡ [Agent Relay] Tests passed (14/14). Marking task [x] and releasing lock.' : '⚡【Agent 接力】单元测试全部通过 (14/14)，任务标记已完成 [x]，写锁已释放。');
+    item.doing = false;
+    item.done = true;
+    renderSimQueue();
+    if (termEl) {
+      termEl.textContent = 'IDLE · READY FOR NEXT TASK';
+      termEl.style.color = 'var(--emerald)';
+    }
+  }, 1600);
+}
+
+function addTermLine(type, text) {
+  const box = document.getElementById('simTerminalLines');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'term-line' + (type ? ' ' + type : '');
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+/* 6. Fetch Latest Release from GitHub API */
 fetch('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest')
-  .then(function(r){ if(!r.ok) throw 0; return r.json(); })
-  .then(function(d){
-    var assets=d.assets||[];
-    var exe=null;
-    for(var i=0;i<assets.length;i++){ if(/setup.*\.exe$/i.test(assets[i].name)){ exe=assets[i]; break; } }
-    if(!exe){ for(var j=0;j<assets.length;j++){ if(/\.exe$/i.test(assets[j].name)){ exe=assets[j]; break; } } }
-    var v=document.getElementById('verTag');
-    if(v) v.textContent=d.tag_name||'';
-    if(exe){
-      var b=document.getElementById('dlBtn');
-      b.href=exe.browser_download_url;
-      b.removeAttribute('target');
+  .then(r => { if (!r.ok) throw 0; return r.json(); })
+  .then(d => {
+    const tag = (d.tag_name || '1.9.5').replace(/^v/i, '');
+    const p1 = document.getElementById('verTagPill');
+    const p2 = document.getElementById('verTagPillEn');
+    if (p1) p1.textContent = tag;
+    if (p2) p2.textContent = tag;
+    document.querySelectorAll('.foot-ver').forEach(el => el.textContent = tag);
+
+    const assets = d.assets || [];
+    let setupExe = null;
+    let portableExe = null;
+    for (let a of assets) {
+      if (/setup.*\.exe$/i.test(a.name)) setupExe = a;
+      if (/portable.*\.exe$/i.test(a.name)) portableExe = a;
+    }
+    const targetExe = setupExe || portableExe || assets.find(a => /\.exe$/i.test(a.name));
+    if (targetExe) {
+      const b1 = document.getElementById('mainDownloadBtn');
+      const b2 = document.getElementById('footerDownloadBtn');
+      if (b1) { b1.href = targetExe.browser_download_url; b1.removeAttribute('target'); }
+      if (b2) { b2.href = targetExe.browser_download_url; b2.removeAttribute('target'); }
     }
   })
-  .catch(function(){});
+  .catch(() => {});
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  renderSimQueue();
+});
+renderSimQueue();
 </script>
 </body>
 </html>

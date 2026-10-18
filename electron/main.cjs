@@ -1223,19 +1223,44 @@ function onHotkeyPop() {
   sendToRenderer('pm:hotkey-pop', { fgHwnd })
 }
 
-/** 模拟按下 Ctrl+C（对前台窗口生效），让目标应用把选中文本复制到剪贴板 */
-function sendCopyKeys() {
+/** 模拟按下 Ctrl+C（对前台窗口生效），让目标应用把选中文本/图片复制到剪贴板 */
+function sendCopyKeys(targetHwnd = '0') {
+  return new Promise((resolve) => {
+    const helperPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'bin', 'paste-helper.exe')
+      : path.join(__dirname, 'bin', 'paste-helper.exe')
+
+    if (fs.existsSync(helperPath)) {
+      try {
+        const hwndStr = String(targetHwnd || '0')
+        log('executing paste-helper copy with hwnd:', hwndStr)
+        const p = spawn(helperPath, ['copy', hwndStr], { windowsHide: true })
+        let stdout = ''
+        p.stdout.on('data', (d) => { stdout += d.toString() })
+        p.on('exit', () => resolve(stdout.trim()))
+        p.on('error', () => fallbackVbsCopy().then(resolve))
+        setTimeout(() => resolve(stdout.trim() || 'TIMEOUT'), 1500)
+        return
+      } catch (err) {
+        log('paste-helper copy spawn error:', err && err.message)
+      }
+    }
+    fallbackVbsCopy().then(resolve)
+  })
+}
+
+function fallbackVbsCopy() {
   return new Promise((resolve) => {
     let done = false
-    const finish = () => { if (!done) { done = true; resolve() } }
+    const finish = (res = 'UNCHANGED') => { if (!done) { done = true; resolve(res) } }
     try {
       const vbs = path.join(os.tmpdir(), 'pm-sendcopy.vbs')
-      fs.writeFileSync(vbs, 'CreateObject("WScript.Shell").SendKeys "^c"', 'utf8')
+      fs.writeFileSync(vbs, 'WScript.Sleep 150\r\nCreateObject("WScript.Shell").SendKeys "^c"', 'utf8')
       const p = spawn('wscript.exe', ['//nologo', '//B', vbs], { windowsHide: true, stdio: 'ignore' })
-      p.on('exit', finish)
-      p.on('error', finish)
-    } catch { finish() }
-    setTimeout(finish, 900)
+      p.on('exit', () => finish('COPIED'))
+      p.on('error', () => finish('UNCHANGED'))
+    } catch { finish('UNCHANGED') }
+    setTimeout(() => finish('UNCHANGED'), 900)
   })
 }
 
@@ -1343,17 +1368,56 @@ function restoreClipboard(snap) {
   } catch { /* ignore */ }
 }
 
-/** 快捷键 2：收录当前选中文字到词库（保存剪贴板 -> 模拟 Ctrl+C -> 读文本 -> 还原） */
+/** 快捷键 2：收录当前选中的文字/图片到收藏弹夹 */
 async function onHotkeyCollect() {
-  log('hotkey collect ->', customHotkeys.collect)
-  const snap = snapshotClipboard()
-  await sendCopyKeys()
-  await sleep(260) // 等目标应用完成复制
+  const fgHwnd = getForegroundHwndSync()
+  log('hotkey collect ->', customHotkeys.collect, 'fgHwnd:', fgHwnd)
+
+  // 1. 调用具有物理修饰键释放与纯净按键提升的 helper 发送 Ctrl+C
+  const copyResult = await sendCopyKeys(fgHwnd)
+  log('sendCopyKeys returned:', copyResult)
+
+  // 2. 检查是否检测到复制动作（剪贴板内容发生改变）
+  if (copyResult === 'UNCHANGED') {
+    log('hotkey collect: nothing selected in target window')
+    sendToRenderer('pm:hotkey-collected', { ok: false, reason: 'no_selection' })
+    return
+  }
+
+  // 给予目标应用写入剪贴板的安全缓冲（如浏览器处理富文本/图片）
+  await sleep(80)
+
+  // 3. 检查剪贴板中是否包含图片（截图、复制的图片文件、网页选中的图文）
+  let images = []
+  try {
+    const imgRes = saveClipboardImages()
+    if (imgRes && imgRes.ok && Array.isArray(imgRes.images) && imgRes.images.length) {
+      images = imgRes.images
+      log('hotkey collect captured images:', images.length)
+    }
+  } catch (err) {
+    log('hotkey collect saveClipboardImages error:', err && err.message)
+  }
+
+  // 4. 读取剪贴板中的文字
   let text = ''
-  try { text = clipboard.readText() || '' } catch { /* ignore */ }
-  log('hotkey collect captured:', JSON.stringify(text.slice(0, 60)), 'len:', text.length)
-  if (text !== snap.text) restoreClipboard(snap)
-  sendToRenderer('pm:hotkey-collected', { ok: !!(text && text.trim()), text })
+  try {
+    text = (clipboard.readText() || '').trim()
+  } catch { /* ignore */ }
+
+  log('hotkey collect captured text:', JSON.stringify(text.slice(0, 60)), 'images:', images.length)
+
+  // 5. 校验捕获结果
+  const hasContent = !!(text || images.length)
+  if (hasContent) {
+    sendToRenderer('pm:hotkey-collected', {
+      ok: true,
+      text: text || (images.length === 1 ? '[图1]' : images.map((_, i) => `[图${i + 1}]`).join(' ')),
+      images
+    })
+  } else {
+    sendToRenderer('pm:hotkey-collected', { ok: false, reason: 'empty' })
+  }
 }
 
 /* ---------------- 专属收藏夹提示词独立弹窗 ---------------- */

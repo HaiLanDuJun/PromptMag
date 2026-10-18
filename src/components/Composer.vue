@@ -10,6 +10,7 @@ import { nextTick, ref } from 'vue'
 import {
   state, addImages, requestSaveComposer,
   copyCompiled, toast, readClipboardText, cancelEditingTask,
+  openImagePreview, removeImage, imgUrl, currentLocale,
   t
 } from '../lib/store.js'
 import { parseCompiledPrompt } from '../lib/compilePrompt.js'

@@ -42,6 +42,9 @@ public class PasteHelper {
     [DllImport("user32.dll")]
     public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
 
+    [DllImport("user32.dll")]
+    public static extern uint GetClipboardSequenceNumber();
+
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT {
         public int X;
@@ -57,6 +60,7 @@ public class PasteHelper {
     const int VK_LWIN = 0x5B;
     const int VK_RWIN = 0x5C;
     const int VK_V = 0x56;
+    const int VK_C = 0x43;
 
     const uint KEYEVENTF_KEYUP = 0x0002;
 
@@ -169,6 +173,88 @@ public class PasteHelper {
             Thread.Sleep(15);
             keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
 
+            return 0;
+        }
+
+        if (args[0] == "copy") {
+            IntPtr target = IntPtr.Zero;
+            if (args.Length >= 2) {
+                long hwndVal;
+                if (long.TryParse(args[1], out hwndVal) && hwndVal != 0) {
+                    target = new IntPtr(hwndVal);
+                }
+            }
+
+            IntPtr currentFg = GetForegroundWindow();
+            if (target == IntPtr.Zero) {
+                target = currentFg;
+            }
+
+            // 如果指定了目标窗口且当前并非前台，确保将目标窗口恢复并激活为前台
+            if (target != IntPtr.Zero && target != currentFg) {
+                try {
+                    if (IsIconic(target)) {
+                        ShowWindow(target, SW_RESTORE);
+                    }
+
+                    uint dummyPid1;
+                    uint dummyPid2;
+                    uint fgThread = GetWindowThreadProcessId(currentFg, out dummyPid1);
+                    uint curThread = GetCurrentThreadId();
+                    uint targetThread = GetWindowThreadProcessId(target, out dummyPid2);
+
+                    if (fgThread != 0 && fgThread != targetThread) {
+                        AttachThreadInput(curThread, targetThread, true);
+                        AttachThreadInput(fgThread, targetThread, true);
+                        BringWindowToTop(target);
+                        SetForegroundWindow(target);
+                        AttachThreadInput(fgThread, targetThread, false);
+                        AttachThreadInput(curThread, targetThread, false);
+                    } else {
+                        BringWindowToTop(target);
+                        SetForegroundWindow(target);
+                    }
+                } catch {
+                    // ignore
+                }
+                Thread.Sleep(40);
+            }
+
+            // 记录发送前剪贴板序列号
+            uint seqBefore = GetClipboardSequenceNumber();
+
+            // 1. 等待物理快捷键（尤其是 Alt、Shift、Win 等修饰键）自然释放
+            WaitModifiersReleased(800);
+            Thread.Sleep(20);
+
+            // 2. 发送纯净的标准 Ctrl+C 组合键
+            // 先压下 Ctrl，并在 Ctrl 按住的状态下强制虚拟释放物理可能残留的 Alt/Shift/Win
+            keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+            Thread.Sleep(10);
+            keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_RWIN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            Thread.Sleep(15);
+
+            keybd_event(VK_C, 0, 0, UIntPtr.Zero);
+            Thread.Sleep(30);
+            keybd_event(VK_C, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            Thread.Sleep(15);
+            keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+            // 3. 轮询检测目标应用是否响应 Ctrl+C 写入了剪贴板（序列号变化）
+            int waited = 0;
+            while (waited < 450) {
+                Thread.Sleep(25);
+                waited += 25;
+                if (GetClipboardSequenceNumber() != seqBefore) {
+                    Console.WriteLine("COPIED");
+                    return 0;
+                }
+            }
+
+            Console.WriteLine("UNCHANGED");
             return 0;
         }
 
