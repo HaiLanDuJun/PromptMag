@@ -6,7 +6,7 @@
  *  - 支持显示 Agent 认领人、写锁保护、解决者与解决方案
  *  - 收藏的提示词图片存入独立目录并受防删保护
  */
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import {
   state, removeTask, editBackfill, copyCompiled, clearAllQueue,
   toggleTaskDone, resetAllTasksPending, formatDateTime, toast, openImagePreview,
@@ -54,13 +54,17 @@ function cancelEditConfirm() {
   taskToEdit.value = null
 }
 
-// 2. 新建弹夹弹窗（替换原生 window.prompt 解决 Electron 下无响应问题）
+// 2. 新建弹夹弹窗（替换原生 window.prompt，支持自动聚焦与输入保证）
 const showNewMagModal = ref(false)
 const newMagNameInput = ref('')
+const newMagInputRef = ref(null)
 
 function onNewMagazine() {
   newMagNameInput.value = ''
   showNewMagModal.value = true
+  nextTick(() => {
+    newMagInputRef.value?.focus()
+  })
 }
 
 function submitNewMag() {
@@ -81,12 +85,16 @@ function closeNewMagModal() {
 const showRenameMagModal = ref(false)
 const renameMagTarget = ref(null)
 const renameMagInput = ref('')
+const renameMagInputRef = ref(null)
 
 function onRenameMagazine(mag) {
   if (!mag) return
   renameMagTarget.value = mag
   renameMagInput.value = mag.name || ''
   showRenameMagModal.value = true
+  nextTick(() => {
+    renameMagInputRef.value?.focus()
+  })
 }
 
 function submitRenameMag() {
@@ -105,11 +113,27 @@ function closeRenameMagModal() {
   renameMagInput.value = ''
 }
 
+// 4. 删除弹夹深度定制弹窗（替换原生 window.confirm）
+const showDeleteMagModal = ref(false)
+const magToDelete = ref(null)
+
 function onDeleteMagazine(mag) {
   if (!mag) return
-  if (window.confirm(t('magazines.deleteConfirm', { name: mag.name }))) {
-    deleteMagazine(mag.id)
+  magToDelete.value = mag
+  showDeleteMagModal.value = true
+}
+
+function confirmDeleteMag() {
+  if (magToDelete.value) {
+    deleteMagazine(magToDelete.value.id)
   }
+  showDeleteMagModal.value = false
+  magToDelete.value = null
+}
+
+function cancelDeleteMag() {
+  showDeleteMagModal.value = false
+  magToDelete.value = null
 }
 
 function onOpenRelayStartup(magId = null) {
@@ -167,12 +191,21 @@ function onRemove(tTask) {
   toast(t('toast.removed'))
 }
 
-async function onClearAll() {
+const showClearConfirmModal = ref(false)
+
+function onClearAll() {
   if (!state.queue.length) return
-  const magName = activeMagazine.value?.name || t('magazines.currentMagazine')
-  if (!window.confirm(t('queue.clearConfirm', { name: magName }))) return
+  showClearConfirmModal.value = true
+}
+
+async function confirmClearAll() {
+  showClearConfirmModal.value = false
   await clearAllQueue()
   toast(t('toast.clearedHistory'))
+}
+
+function cancelClearAll() {
+  showClearConfirmModal.value = false
 }
 
 function onResetAll() {
@@ -540,10 +573,10 @@ function displayTitle(item) {
       </div>
     </div>
 
-    <!-- 弹窗 2：新建项目弹夹弹窗（替换原生 window.prompt 解决 Electron 下无反应问题） -->
-    <div v-if="showNewMagModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
+    <!-- 弹窗 2：新建项目弹夹弹窗（替换原生 window.prompt，输入框强制聚焦与可写） -->
+    <div v-if="showNewMagModal" class="fixed inset-0 z-50 flex items-center justify-center p-3">
       <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" @click="closeNewMagModal" />
-      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.5)] p-4 flex flex-col gap-3 z-10" @click.stop>
+      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.5)] p-4 flex flex-col gap-3 z-10 select-text" @click.stop>
         <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
           <div class="flex items-center gap-2">
             <span class="text-sky-400">📁</span>
@@ -554,10 +587,10 @@ function displayTitle(item) {
         <div class="flex flex-col gap-1.5">
           <label class="text-[10.5px] text-slate-400">{{ t('magazines.nameLabel') }}</label>
           <input
+            ref="newMagInputRef"
             v-model="newMagNameInput"
             type="text"
-            autofocus
-            class="input-box text-xs w-full py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 focus:border-sky-400 text-slate-100 outline-none"
+            class="text-xs w-full py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 focus:border-sky-400 text-slate-100 outline-none select-text cursor-text"
             :placeholder="t('magazines.namePlaceholder')"
             @keydown.enter.prevent="submitNewMag"
             @keydown.esc.prevent="closeNewMagModal"
@@ -571,9 +604,9 @@ function displayTitle(item) {
     </div>
 
     <!-- 弹窗 3：重命名弹夹弹窗（替换原生 window.prompt） -->
-    <div v-if="showRenameMagModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
+    <div v-if="showRenameMagModal" class="fixed inset-0 z-50 flex items-center justify-center p-3">
       <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" @click="closeRenameMagModal" />
-      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.5)] p-4 flex flex-col gap-3 z-10" @click.stop>
+      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.5)] p-4 flex flex-col gap-3 z-10 select-text" @click.stop>
         <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
           <div class="flex items-center gap-2">
             <span class="text-sky-400">✏️</span>
@@ -584,10 +617,10 @@ function displayTitle(item) {
         <div class="flex flex-col gap-1.5">
           <label class="text-[10.5px] text-slate-400">{{ t('magazines.nameLabel') }}</label>
           <input
+            ref="renameMagInputRef"
             v-model="renameMagInput"
             type="text"
-            autofocus
-            class="input-box text-xs w-full py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 focus:border-sky-400 text-slate-100 outline-none"
+            class="text-xs w-full py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 focus:border-sky-400 text-slate-100 outline-none select-text cursor-text"
             :placeholder="t('magazines.namePlaceholder')"
             @keydown.enter.prevent="submitRenameMag"
             @keydown.esc.prevent="closeRenameMagModal"
@@ -596,6 +629,48 @@ function displayTitle(item) {
         <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
           <button class="btn !py-1 !px-3 text-xs cursor-pointer" @click="closeRenameMagModal">{{ t('common.cancel') }}</button>
           <button class="btn btn-primary !py-1 !px-3 text-xs cursor-pointer" @click="submitRenameMag">{{ t('magazines.saveBtn') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗 4：清空弹夹深度定制确认弹窗（UI风格与应用深度统一） -->
+    <div v-if="showClearConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
+      <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm" @click="cancelClearAll" />
+      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.6)] p-4 flex flex-col gap-3 z-10" @click.stop>
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-rose-400 text-sm">🗑️</span>
+            <span class="font-semibold text-slate-100 text-xs">{{ t('queue.clearTitle') }}</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-200 p-1 cursor-pointer transition-colors" @click="cancelClearAll">✕</button>
+        </div>
+        <p class="text-[11.5px] text-slate-300 leading-relaxed">
+          {{ t('queue.clearConfirm', { name: activeMagazine?.name || t('magazines.currentMagazine') }) }}
+        </p>
+        <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
+          <button class="btn !py-1 !px-3 text-xs cursor-pointer" @click="cancelClearAll">{{ t('common.cancel') }}</button>
+          <button class="btn btn-danger !py-1 !px-3 text-xs cursor-pointer" @click="confirmClearAll">{{ t('queue.clear') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗 5：删除项目弹夹深度定制确认弹窗（UI风格与应用深度统一） -->
+    <div v-if="showDeleteMagModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
+      <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm" @click="cancelDeleteMag" />
+      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.6)] p-4 flex flex-col gap-3 z-10" @click.stop>
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-rose-400 text-sm">🗑️</span>
+            <span class="font-semibold text-slate-100 text-xs">{{ t('magazines.deleteTitle') }}</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-200 p-1 cursor-pointer transition-colors" @click="cancelDeleteMag">✕</button>
+        </div>
+        <p class="text-[11.5px] text-slate-300 leading-relaxed">
+          {{ t('magazines.deleteConfirm', { name: magToDelete?.name || '' }) }}
+        </p>
+        <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
+          <button class="btn !py-1 !px-3 text-xs cursor-pointer" @click="cancelDeleteMag">{{ t('common.cancel') }}</button>
+          <button class="btn btn-danger !py-1 !px-3 text-xs cursor-pointer" @click="confirmDeleteMag">{{ t('magazines.delete') }}</button>
         </div>
       </div>
     </div>

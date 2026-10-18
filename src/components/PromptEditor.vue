@@ -176,9 +176,12 @@ function createChipNode(imgIdx, keyword = '') {
   return chip
 }
 
-/* ---------- 反序列化：字符串 -> DOM (渲染带框的高亮关键词) ---------- */
 function renderFromText(text) {
   if (!editorRef.value || isUserTyping) return
+  const current = serializeEditor()
+  if (current === text && (editorRef.value.childNodes.length > 0 || !text)) {
+    return
+  }
   editorRef.value.innerHTML = ''
   if (!text) return
 
@@ -403,10 +406,30 @@ async function onPaste(e) {
   }
 }
 
+let isComposing = false
+
+function onCompositionStart() {
+  isComposing = true
+  isUserTyping = true
+}
+
+function onCompositionEnd() {
+  isComposing = false
+  onInput()
+}
+
 function onInput() {
+  if (isComposing) return
   isUserTyping = true
   state.composer.text = serializeEditor()
   nextTick(() => { isUserTyping = false })
+}
+
+function focusEditor(e) {
+  if (e && e.target === editorRef.value) return
+  if (editorRef.value) {
+    editorRef.value.focus()
+  }
 }
 
 function onKeydown(e) {
@@ -530,14 +553,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="prompt-editor-card h-full flex flex-col min-h-0">
+  <div class="prompt-editor-card h-full flex flex-col min-h-0 cursor-text" @click="focusEditor">
     <div
       ref="editorRef"
-      class="prompt-editor-content flex-1 min-h-0"
+      class="prompt-editor-content flex-1 min-h-0 select-text"
       :style="{ minHeight }"
       contenteditable="true"
       :data-placeholder="placeholder"
       @input="onInput"
+      @compositionstart="onCompositionStart"
+      @compositionend="onCompositionEnd"
       @paste="onPaste"
       @keydown="onKeydown"
       @mouseup="saveSelection"
