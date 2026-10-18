@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PromptMag — 提示词弹夹 | Your Floating Prompt Magazine for Windows</title>
+<title>promptmag</title>
 <meta name="description" content="PromptMag 是一款挂在 Windows 桌面上的开源提示词弹夹悬浮窗。零歧义图文强绑定、三种出弹模式（霰弹枪/左轮/手枪）、光标处瞬发直贴、CLI Agent 多任务自动接力与互斥写锁。数据 100% 留存在本地，不用登录，下载即用。">
 <meta name="keywords" content="PromptMag, 提示词管理, AI提示词, Claude Code, Cursor, Aider, 桌面悬浮窗, 提示词弹夹, 提示词编译器, 开源工具, Windows效率工具">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%230f172a' stroke='%2338bdf8' stroke-width='6'/><text x='50' y='64' font-size='42' text-anchor='middle' fill='%2338bdf8' font-weight='900'>P</text></svg>">
+<link rel="icon" href="icon.ico" type="image/x-icon">
 <style>
 :root{
   --bg:#07090f;
@@ -73,13 +73,9 @@ body::after{
 a{color:inherit;text-decoration:none}
 .wrap{max-width:1160px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
 
-/* Bilingual switcher system */
-[lang="zh"], [lang="en"]{display:none}
-html[data-lang="zh"] [lang="zh"]{display:revert}
-html[data-lang="en"] [lang="en"]{display:revert}
-html[data-lang="zh"] span[lang="zh"], html[data-lang="zh"] strong[lang="zh"], html[data-lang="zh"] kbd[lang="zh"], html[data-lang="zh"] a[lang="zh"]{display:inline}
-html[data-lang="en"] span[lang="en"], html[data-lang="en"] strong[lang="en"], html[data-lang="en"] kbd[lang="en"], html[data-lang="en"] a[lang="en"]{display:inline}
-html[data-lang="zh"] .flex[lang="zh"], html[data-lang="en"] .flex[lang="en"]{display:flex}
+/* Bilingual switcher: hide inactive language only (robust, no revert) */
+html[data-lang="zh"] [lang="en"]{display:none}
+html[data-lang="en"] [lang="zh"]{display:none}
 
 /* Header & Nav */
 header.site-nav{
