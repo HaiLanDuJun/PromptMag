@@ -86,6 +86,7 @@ export const state = reactive({
   queue: [],
   preview: null,
   isDialogOpening: false,
+  editingTaskId: null,
   relayStatus: { isWriteLocked: false, lockedBy: null, taskId: null },
   filterTab: 'all'
 })
@@ -691,6 +692,56 @@ export function pushComposerToQueue(targetMagId = null) {
   const c = state.composer
   if (!String(c.text).trim() && !c.images.length) return null
   const textStr = String(c.text)
+
+  // 1. 如果处于编辑状态，执行更新原有任务（不删除，原地更新最新内容）
+  if (state.editingTaskId) {
+    const editId = state.editingTaskId
+    let target = null
+    let targetMag = null
+    for (const m of state.magazines) {
+      const found = (m.queue || []).find((t) => t.id === editId)
+      if (found) {
+        target = found
+        targetMag = m
+        break
+      }
+    }
+    if (!target) {
+      target = state.queue.find((t) => t.id === editId)
+      targetMag = getActiveMagazine()
+    }
+
+    if (target) {
+      target.text = textStr
+      target.images = JSON.parse(JSON.stringify(c.images))
+      target.type = inferTaskType(textStr)
+      target.updatedAt = Date.now()
+
+      // 同步其它弹夹中相同 id 的任务（例如在收藏弹夹中编辑，同步到所属原弹夹，或反之）
+      state.magazines.forEach((m) => {
+        (m.queue || []).forEach((t) => {
+          if (t.id === editId && t !== target) {
+            t.text = textStr
+            t.images = JSON.parse(JSON.stringify(c.images))
+            t.type = inferTaskType(textStr)
+            t.updatedAt = Date.now()
+          }
+        })
+      })
+
+      // 保存完后自动把编译后的最新结构化 Prompt 写入系统剪贴板
+      copyCompiled(target, { magazineId: targetMag ? targetMag.id : state.activeMagazineId }).catch(() => {})
+      c.text = ''
+      c.images = []
+      state.editingTaskId = null
+      toast(t('toast.promptUpdated'))
+      return { task: target, targetMagazine: targetMag, isUpdate: true }
+    }
+    state.editingTaskId = null
+  }
+
+  // 2. 正常新增任务
+  const isTargetFav = (targetMagId === 'favorites') || (state.activeMagazineId === 'favorites')
   const task = {
     id: uid(),
     text: textStr,
@@ -702,7 +753,7 @@ export function pushComposerToQueue(targetMagId = null) {
     agent: '',
     solver: '',
     solution: '',
-    favorite: false
+    favorite: isTargetFav
   }
 
   const targetId = targetMagId || (
@@ -733,6 +784,13 @@ export function requestSaveComposer(onSelectDone = null) {
   if (!String(c.text).trim() && !c.images.length) {
     toast(t('toast.pleaseInputOrImg'))
     return false
+  }
+
+  // 若处于编辑中，直接更新当前正在编辑的任务，无需选择弹夹
+  if (state.editingTaskId) {
+    const res = pushComposerToQueue()
+    if (onSelectDone) onSelectDone(res)
+    return true
   }
 
   if (state.settings.saveTargetMode === 'ask') {
@@ -908,12 +966,32 @@ export function setAutoCleanupSetting(val) {
   setMagazineAutoCleanup(state.activeMagazineId, val)
 }
 
+export function startEditingTask(id) {
+  let target = null
+  for (const m of state.magazines) {
+    const found = (m.queue || []).find((t) => t.id === id)
+    if (found) {
+      target = found
+      break
+    }
+  }
+  if (!target) target = state.queue.find((t) => t.id === id)
+  if (!target) return
+  state.editingTaskId = target.id
+  state.composer.text = String(target.text || '')
+  state.composer.images = JSON.parse(JSON.stringify(target.images || []))
+  toast(t('toast.editingStarted'))
+}
+
+export function cancelEditingTask() {
+  state.editingTaskId = null
+  state.composer.text = ''
+  state.composer.images = []
+  toast(t('toast.editCancelled'))
+}
+
 export function editBackfill(id) {
-  const t = state.queue.find((x) => x.id === id)
-  if (!t) return
-  state.composer.text = String(t.text || '')
-  state.composer.images = JSON.parse(JSON.stringify(t.images || []))
-  removeTask(id)
+  startEditingTask(id)
 }
 
 export function toggleTaskDone(id) {

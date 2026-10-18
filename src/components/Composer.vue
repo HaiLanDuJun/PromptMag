@@ -9,7 +9,7 @@
 import { nextTick, ref } from 'vue'
 import {
   state, addImages, requestSaveComposer,
-  copyCompiled, toast, readClipboardText,
+  copyCompiled, toast, readClipboardText, cancelEditingTask,
   t
 } from '../lib/store.js'
 import { parseCompiledPrompt } from '../lib/compilePrompt.js'
@@ -87,6 +87,10 @@ function onEditorEnter(e) {
 }
 
 function clearComposer() {
+  if (state.editingTaskId) {
+    cancelEditingTask()
+    return
+  }
   state.composer.text = ''
   state.composer.images = []
 }
@@ -106,6 +110,23 @@ function clearAllImages() {
       :placeholder="t('composer.placeholder')"
       @keydown-enter="onEditorEnter"
     />
+
+    <!-- 正在编辑提示词横幅提示（含取消编辑按钮） -->
+    <div
+      v-if="state.editingTaskId"
+      class="flex items-center justify-between px-2.5 py-1 bg-amber-500/15 border border-amber-400/40 rounded-lg text-[10.5px] text-amber-200 select-none"
+    >
+      <div class="flex items-center gap-1.5 truncate">
+        <span>✏️</span>
+        <span class="font-medium">{{ t('composer.editingBanner') }}</span>
+      </div>
+      <button
+        class="text-[10px] text-amber-300 hover:text-amber-100 underline cursor-pointer ml-2 shrink-0"
+        @click="cancelEditingTask"
+      >
+        {{ t('composer.cancelEdit') }}
+      </button>
+    </div>
 
     <!-- 编辑框底部操作栏（规整左右分栏布局，不局促） -->
     <!-- 操作按钮工具栏 -->
@@ -133,14 +154,14 @@ function clearAllImages() {
       </div>
 
       <div class="flex items-center gap-1.5 ml-auto">
-        <!-- 清空 -->
+        <!-- 清空 / 取消编辑 -->
         <button
-          v-if="state.composer.text || state.composer.images.length"
+          v-if="state.composer.text || state.composer.images.length || state.editingTaskId"
           class="btn btn-danger"
-          :title="t('composer.clearBtnTitle')"
+          :title="state.editingTaskId ? t('composer.cancelEdit') : t('composer.clearBtnTitle')"
           @click="clearComposer"
         >
-          {{ t('composer.clearBtn') }}
+          {{ state.editingTaskId ? t('composer.cancelEdit') : t('composer.clearBtn') }}
         </button>
 
         <!-- 编译并复制 -->
@@ -148,13 +169,21 @@ function clearAllImages() {
           {{ t('composer.copyBtn') }}
         </button>
 
-        <!-- 保存入库 (Ctrl+Enter) -->
-        <button class="btn btn-primary" :title="t('composer.saveBtnTitle')" @click="enqueue">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- 保存入库 / 保存修改 (Ctrl+Enter) -->
+        <button
+          class="btn btn-primary"
+          :class="{ '!bg-amber-500/25 !border-amber-400 !text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.2)]': state.editingTaskId }"
+          :title="state.editingTaskId ? t('composer.saveEditBtnTitle') : t('composer.saveBtnTitle')"
+          @click="enqueue"
+        >
+          <svg v-if="state.editingTaskId" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          {{ t('composer.saveBtn') }}
+          {{ state.editingTaskId ? t('composer.saveEditBtn') : t('composer.saveBtn') }}
         </button>
       </div>
     </div>

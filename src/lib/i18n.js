@@ -50,6 +50,10 @@ export const messages = {
       copyBtnTitle: '编译提示词（含图文精确锚点）并复制到剪贴板',
       saveBtn: '保存',
       saveBtnTitle: '保存到弹夹 (Ctrl+Enter)',
+      editingBanner: '正在编辑提示词 (修改后点击「保存修改」即可更新)',
+      cancelEdit: '取消编辑',
+      saveEditBtn: '保存修改',
+      saveEditBtnTitle: '保存编辑后的提示词内容 (Ctrl+Enter)',
       relatedImages: '关联图片',
       doubleClickPreview: '· 双击图片放大预览',
       clearImages: '清空图片',
@@ -95,7 +99,11 @@ export const messages = {
       solution: '解决方案',
       solver: '解决者',
       doingBadge: '正在处理',
-      writeLockBadge: '写锁'
+      writeLockBadge: '写锁',
+      editingBadge: '编辑中',
+      editConfirmTitle: '编辑提示词',
+      editConfirmNotice: '确定要编辑此提示词吗？回填将覆盖当前上方输入框的内容。在上方修改完成后，点击「保存修改」即可更新最新内容；若未保存，此提示词将保持原有内容不变。',
+      confirmEditBtn: '确定编辑'
     },
     snippets: {
       addPlaceholder: '输入常用指令或关键词，Enter 添加',
@@ -205,6 +213,11 @@ export const messages = {
       delete: '删除',
       deleteTitle: '删除弹夹',
       deleteConfirm: '确定要删除「{name}」弹夹吗？包含的任务与对应图片将被永久删除且无法恢复！',
+      newModalTitle: '新建项目弹夹',
+      renameModalTitle: '重命名项目弹夹',
+      nameLabel: '弹夹名称',
+      createBtn: '创建',
+      saveBtn: '保存',
       relayStartup: '接力启动',
       relayStartupTitle: '生成项目接力启动提示词',
       selectTarget: '选择保存目标弹夹',
@@ -271,7 +284,10 @@ export const messages = {
       cannotDeleteLastMagazine: '至少保留一个弹夹，无法删除',
       cannotDeleteSystemMagazine: '默认弹夹与收藏弹夹为系统级弹夹，受保护不可删除',
       savedToMagazine: '已保存到「{name}」并复制到剪贴板',
-      copiedRelayStartupPrompt: '已复制「{name}」接力启动提示词！'
+      copiedRelayStartupPrompt: '已复制「{name}」接力启动提示词！',
+      editingStarted: '已回填到上方输入框，修改完成后点击「保存修改」即可更新',
+      editCancelled: '已取消编辑，原提示词内容未变更',
+      promptUpdated: '提示词已更新！'
     }
   },
   en: {
@@ -321,6 +337,10 @@ export const messages = {
       copyBtnTitle: 'Compile structured prompt (with image mapping) and copy',
       saveBtn: 'Save',
       saveBtnTitle: 'Save to magazine (Ctrl+Enter)',
+      editingBanner: 'Editing prompt (click Save Changes to update)',
+      cancelEdit: 'Cancel Edit',
+      saveEditBtn: 'Save Changes',
+      saveEditBtnTitle: 'Save edited prompt (Ctrl+Enter)',
       relatedImages: 'Attached Images',
       doubleClickPreview: '· Double-click to zoom',
       clearImages: 'Clear Images',
@@ -366,7 +386,11 @@ export const messages = {
       solution: 'Resolution',
       solver: 'Solved by',
       doingBadge: 'Processing',
-      writeLockBadge: 'Write Lock'
+      writeLockBadge: 'Write Lock',
+      editingBadge: 'Editing',
+      editConfirmTitle: 'Edit Prompt',
+      editConfirmNotice: 'Are you sure you want to edit this prompt? Loading it will overwrite current text and images in the input box. Click Save Changes to update, or cancel to keep original content.',
+      confirmEditBtn: 'Edit'
     },
     snippets: {
       addPlaceholder: 'Enter frequent prompt or instruction, Enter to add',
@@ -476,6 +500,11 @@ export const messages = {
       delete: 'Delete',
       deleteTitle: 'Delete Magazine',
       deleteConfirm: 'Are you sure you want to delete magazine "{name}"? Its tasks and images will be permanently deleted and cannot be recovered!',
+      newModalTitle: 'New Project Magazine',
+      renameModalTitle: 'Rename Project Magazine',
+      nameLabel: 'Magazine Name',
+      createBtn: 'Create',
+      saveBtn: 'Save',
       relayStartup: 'Relay Boot',
       relayStartupTitle: 'Generate Agent Relay Startup Prompt',
       selectTarget: 'Select Target Magazine',
@@ -542,7 +571,10 @@ export const messages = {
       cannotDeleteLastMagazine: 'Cannot delete the only magazine',
       cannotDeleteSystemMagazine: 'Default Magazine and Favorites Magazine are protected system magazines and cannot be deleted',
       savedToMagazine: 'Saved to "{name}" and copied to clipboard',
-      copiedRelayStartupPrompt: 'Copied relay boot prompt for "{name}"!'
+      copiedRelayStartupPrompt: 'Copied relay boot prompt for "{name}"!',
+      editingStarted: 'Backfilled to editor. Click Save Changes when done.',
+      editCancelled: 'Edit cancelled. Original prompt kept unchanged.',
+      promptUpdated: 'Prompt updated successfully!'
     }
   }
 }

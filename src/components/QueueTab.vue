@@ -10,7 +10,7 @@ import { computed, ref } from 'vue'
 import {
   state, removeTask, editBackfill, copyCompiled, clearAllQueue,
   toggleTaskDone, resetAllTasksPending, formatDateTime, toast, openImagePreview,
-  cyclePopMode, toggleFavorite, cleanupUnfavorited,
+  cyclePopMode, toggleFavorite, cleanupUnfavorited, startEditingTask,
   setActiveMagazine, createMagazine, renameMagazine, deleteMagazine, openRelayStartupModal, getActiveMagazine,
   t, currentLocale
 } from '../lib/store'
@@ -23,19 +23,79 @@ function onSwitchMag(id) {
   setActiveMagazine(id)
 }
 
-function onNewMagazine() {
-  const name = window.prompt(t('magazines.namePlaceholder'))
-  if (name && name.trim()) {
-    createMagazine(name.trim())
-  }
+// 1. 编辑提示词确认弹窗
+const showEditConfirmModal = ref(false)
+const taskToEdit = ref(null)
+
+function onClickItem(item) {
+  if (!item) return
+  if (state.editingTaskId === item.id) return
+  taskToEdit.value = item
+  showEditConfirmModal.value = true
 }
+
+function confirmEditTask() {
+  if (taskToEdit.value) {
+    startEditingTask(taskToEdit.value.id)
+  }
+  showEditConfirmModal.value = false
+  taskToEdit.value = null
+}
+
+function cancelEditConfirm() {
+  showEditConfirmModal.value = false
+  taskToEdit.value = null
+}
+
+// 2. 新建弹夹弹窗（替换原生 window.prompt 解决 Electron 下无响应问题）
+const showNewMagModal = ref(false)
+const newMagNameInput = ref('')
+
+function onNewMagazine() {
+  newMagNameInput.value = ''
+  showNewMagModal.value = true
+}
+
+function submitNewMag() {
+  const name = newMagNameInput.value && newMagNameInput.value.trim()
+  if (name) {
+    createMagazine(name)
+  }
+  showNewMagModal.value = false
+  newMagNameInput.value = ''
+}
+
+function closeNewMagModal() {
+  showNewMagModal.value = false
+  newMagNameInput.value = ''
+}
+
+// 3. 重命名弹夹弹窗（替换原生 window.prompt）
+const showRenameMagModal = ref(false)
+const renameMagTarget = ref(null)
+const renameMagInput = ref('')
 
 function onRenameMagazine(mag) {
   if (!mag) return
-  const newName = window.prompt(t('magazines.renameTitle'), mag.name)
-  if (newName && newName.trim() && newName.trim() !== mag.name) {
-    renameMagazine(mag.id, newName.trim())
+  renameMagTarget.value = mag
+  renameMagInput.value = mag.name || ''
+  showRenameMagModal.value = true
+}
+
+function submitRenameMag() {
+  const newName = renameMagInput.value && renameMagInput.value.trim()
+  if (renameMagTarget.value && newName && newName !== renameMagTarget.value.name) {
+    renameMagazine(renameMagTarget.value.id, newName)
   }
+  showRenameMagModal.value = false
+  renameMagTarget.value = null
+  renameMagInput.value = ''
+}
+
+function closeRenameMagModal() {
+  showRenameMagModal.value = false
+  renameMagTarget.value = null
+  renameMagInput.value = ''
 }
 
 function onDeleteMagazine(mag) {
@@ -210,9 +270,18 @@ function displayTitle(item) {
       </div>
     </div>
 
-    <!-- 过滤器与快捷控制栏（去重合并：无需再重复当前弹夹名称，各功能规整于单行） -->
+    <!-- 过滤器与快捷控制栏（去重合并：收藏弹夹为专属模板库，不显示待用/已用/出弹模式） -->
     <div class="flex items-center justify-between gap-1.5 my-1.5 px-0.5 select-none shrink-0">
-      <div class="flex items-center gap-1 flex-wrap">
+      <!-- 1. 若为收藏弹夹：简洁展示收藏提示词数量，隐藏出弹模式与待用/已用切换 -->
+      <div v-if="activeMagazine && activeMagazine.id === 'favorites'" class="flex items-center gap-1.5">
+        <span class="px-2.5 py-0.8 rounded-full text-[10.5px] font-medium bg-amber-500/15 border border-amber-400/40 text-amber-200 flex items-center gap-1 shadow-[0_0_6px_rgba(245,158,11,0.15)]">
+          <span>⭐</span>
+          <span>{{ t('queue.all') }} ({{ state.queue.length }})</span>
+        </span>
+      </div>
+
+      <!-- 2. 若为普通项目弹夹：正常提供全部 / 待用 / 收藏过滤 + 出弹模式切换 -->
+      <div v-else class="flex items-center gap-1 flex-wrap">
         <button
           class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer"
           :class="filterTab === 'all' ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
@@ -227,18 +296,7 @@ function displayTitle(item) {
         >
           {{ t('common.pending') }} ({{ pendingCount }})
         </button>
-
-        <!-- 收藏弹夹显示「已使用」，普通弹夹显示「已收藏 ⭐」 -->
         <button
-          v-if="activeMagazine && activeMagazine.id === 'favorites'"
-          class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer"
-          :class="filterTab === 'done' ? 'bg-slate-700/60 text-slate-200 border border-slate-600' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
-          @click="filterTab = 'done'"
-        >
-          {{ t('common.done') }} ({{ doneCount }})
-        </button>
-        <button
-          v-else
           class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all flex items-center gap-0.5 cursor-pointer"
           :class="filterTab === 'favorite' ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
           @click="filterTab = 'favorite'"
@@ -261,7 +319,7 @@ function displayTitle(item) {
 
       <div class="flex items-center gap-2">
         <button
-          v-if="hasDoneItems"
+          v-if="hasDoneItems && (!activeMagazine || activeMagazine.id !== 'favorites')"
           class="text-[10.5px] text-emerald-400/80 hover:text-emerald-300 transition-colors cursor-pointer"
           :title="t('queue.resetAllPendingTitle')"
           @click="onResetAll"
@@ -316,13 +374,18 @@ function displayTitle(item) {
       <div
         v-for="item in historyItems"
         :key="item.id"
-        class="history-item-row group flex flex-col !items-stretch !p-1.5 gap-1"
-        :class="{ 'is-done': item.done, '!border-amber-400/30 bg-amber-500/[.03]': item.favorite }"
-        @click="onEdit(item)"
+        class="history-item-row group flex flex-col !items-stretch !p-1.5 gap-1 transition-all cursor-pointer"
+        :class="{
+          'is-done': (activeMagazine?.id !== 'favorites') && item.done,
+          '!border-amber-400 !bg-amber-500/15 shadow-[0_0_8px_rgba(245,158,11,0.25)]': state.editingTaskId === item.id,
+          '!border-amber-400/30 bg-amber-500/[.03]': state.editingTaskId !== item.id && item.favorite
+        }"
+        @click="onClickItem(item)"
       >
         <div class="flex items-center gap-1.5 w-full min-w-0">
-          <!-- 收藏星星按钮 -->
+          <!-- 收藏星星按钮：仅在普通项目弹夹显示；收藏弹夹不显示星星按钮 -->
           <button
+            v-if="activeMagazine && activeMagazine.id !== 'favorites'"
             class="shrink-0 flex items-center transition-colors cursor-pointer p-0.5 rounded hover:bg-slate-700/40"
             :class="item.favorite ? 'text-amber-400 hover:text-amber-300' : 'text-slate-600 hover:text-amber-300/80'"
             :title="item.favorite ? t('queue.unfavoriteTitle') : t('queue.favoriteTitle')"
@@ -332,9 +395,11 @@ function displayTitle(item) {
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
           </button>
+          <span v-else class="text-amber-400 text-xs shrink-0 select-none">⭐</span>
 
-          <!-- 状态图标：已使用显示对勾，未使用显示圆圈（点击切换状态） -->
+          <!-- 状态图标：仅在普通项目弹夹显示；收藏弹夹不显示状态切换图标 -->
           <span
+            v-if="activeMagazine && activeMagazine.id !== 'favorites'"
             class="shrink-0 flex items-center transition-colors cursor-pointer"
             :class="item.done ? 'text-slate-500 hover:text-emerald-400' : 'text-sky-400 group-hover:text-sky-300'"
             :title="t('queue.toggleDoneTitle')"
@@ -352,10 +417,19 @@ function displayTitle(item) {
           <!-- 关键词标题 -->
           <span
             class="history-title truncate flex-1 min-w-0"
-            :class="{ 'line-through !text-slate-500': item.done }"
+            :class="{ 'line-through !text-slate-500': (activeMagazine?.id !== 'favorites') && item.done }"
             :title="item.text || 'Image record'"
           >
             {{ displayTitle(item) }}
+          </span>
+
+          <!-- 编辑中状态徽标 -->
+          <span
+            v-if="state.editingTaskId === item.id"
+            class="shrink-0 px-1.5 py-0.2 rounded bg-amber-500/25 border border-amber-400/80 text-[9px] text-amber-200 font-semibold flex items-center gap-0.5 animate-pulse"
+          >
+            <span>✏️</span>
+            <span>{{ t('queue.editingBadge') }}</span>
           </span>
 
           <!-- 附带图片角标（点击全屏放大预览） -->
@@ -379,36 +453,28 @@ function displayTitle(item) {
             <span v-if="item.type === 'write'" class="text-[8px] opacity-80">🔒</span>
           </span>
 
-          <!-- 状态标签：已完成（显示解决者姓名） / 待使用 -->
-          <span
-            v-else-if="item.done || item.status === 'done'"
-            class="queue-status-badge done shrink-0"
-            :title="item.solution ? `${t('queue.solver')}: ${item.solver || item.agent || 'Agent'} | ${t('queue.solution')}: ${item.solution}` : t('queue.toggleDoneTitle')"
-            @click.stop="toggleTaskDone(item.id)"
-          >
-            {{ item.solver || item.agent ? `${item.solver || item.agent} ✓` : t('common.done') }}
-          </span>
-          <span
-            v-else
-            class="queue-status-badge pending shrink-0"
-            :title="t('queue.toggleDoneTitle')"
-            @click.stop="toggleTaskDone(item.id)"
-          >
-            {{ t('common.pending') }}
-          </span>
-
-          <!-- 悬停快捷按钮（收藏 / 切换状态 / 复制 / 删除） -->
-          <div class="hidden group-hover:flex items-center gap-1 shrink-0" @click.stop>
-            <button
-              class="icon-btn !w-5 !h-5"
-              :class="{ 'text-amber-400': item.favorite }"
-              :title="item.favorite ? t('queue.unfavoriteTitle') : t('queue.favoriteTitle')"
-              @click="toggleFavorite(item.id)"
+          <!-- 状态标签：已完成 / 待使用（仅在普通项目弹夹显示；收藏弹夹不显示） -->
+          <template v-if="activeMagazine && activeMagazine.id !== 'favorites'">
+            <span
+              v-if="item.done || item.status === 'done'"
+              class="queue-status-badge done shrink-0"
+              :title="item.solution ? `${t('queue.solver')}: ${item.solver || item.agent || 'Agent'} | ${t('queue.solution')}: ${item.solution}` : t('queue.toggleDoneTitle')"
+              @click.stop="toggleTaskDone(item.id)"
             >
-              <svg viewBox="0 0 24 24" width="11" height="11" :fill="item.favorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-            </button>
+              {{ item.solver || item.agent ? `${item.solver || item.agent} ✓` : t('common.done') }}
+            </span>
+            <span
+              v-else
+              class="queue-status-badge pending shrink-0"
+              :title="t('queue.toggleDoneTitle')"
+              @click.stop="toggleTaskDone(item.id)"
+            >
+              {{ t('common.pending') }}
+            </span>
+          </template>
+
+          <!-- 悬停快捷按钮（彻底去重：只保留复制与删除按钮，移除多余的重复收藏星星） -->
+          <div class="hidden group-hover:flex items-center gap-1 shrink-0" @click.stop>
             <button class="icon-btn !w-5 !h-5" :title="t('queue.copyTitle')" @click="onCopy(item)">
               <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -436,6 +502,90 @@ function displayTitle(item) {
         >
           <span class="text-emerald-400 shrink-0 font-medium">↳ [{{ item.solver || 'Agent' }}]</span>
           <span class="truncate text-slate-300 flex-1">{{ item.solution }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗 1：编辑提示词二次确认弹窗 -->
+    <div v-if="showEditConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
+      <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" @click="cancelEditConfirm" />
+      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.5)] p-4 flex flex-col gap-3 z-10" @click.stop>
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-amber-400">✏️</span>
+            <span class="font-semibold text-slate-100 text-xs">{{ t('queue.editConfirmTitle') }}</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-200 p-1 cursor-pointer" @click="cancelEditConfirm">✕</button>
+        </div>
+        <p class="text-[11px] text-slate-300 leading-relaxed">
+          {{ t('queue.editConfirmNotice') }}
+        </p>
+        <div v-if="taskToEdit" class="p-2 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-sky-200 truncate font-mono">
+          {{ displayTitle(taskToEdit) }}
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
+          <button class="btn !py-1 !px-3 text-xs" @click="cancelEditConfirm">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary !py-1 !px-3 text-xs cursor-pointer" @click="confirmEditTask">{{ t('queue.confirmEditBtn') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗 2：新建项目弹夹弹窗（替换原生 window.prompt 解决 Electron 下无反应问题） -->
+    <div v-if="showNewMagModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
+      <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" @click="closeNewMagModal" />
+      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.5)] p-4 flex flex-col gap-3 z-10" @click.stop>
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-sky-400">📁</span>
+            <span class="font-semibold text-slate-100 text-xs">{{ t('magazines.newModalTitle') }}</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-200 p-1 cursor-pointer" @click="closeNewMagModal">✕</button>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10.5px] text-slate-400">{{ t('magazines.nameLabel') }}</label>
+          <input
+            v-model="newMagNameInput"
+            type="text"
+            autofocus
+            class="input-box text-xs w-full py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 focus:border-sky-400 text-slate-100 outline-none"
+            :placeholder="t('magazines.namePlaceholder')"
+            @keydown.enter.prevent="submitNewMag"
+            @keydown.esc.prevent="closeNewMagModal"
+          />
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
+          <button class="btn !py-1 !px-3 text-xs cursor-pointer" @click="closeNewMagModal">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary !py-1 !px-3 text-xs cursor-pointer" @click="submitNewMag">{{ t('magazines.createBtn') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗 3：重命名弹夹弹窗（替换原生 window.prompt） -->
+    <div v-if="showRenameMagModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
+      <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" @click="closeRenameMagModal" />
+      <div class="relative w-full max-w-sm rounded-xl bg-slate-900 border border-slate-700/80 shadow-[0_16px_36px_rgba(0,0,0,0.5)] p-4 flex flex-col gap-3 z-10" @click.stop>
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-sky-400">✏️</span>
+            <span class="font-semibold text-slate-100 text-xs">{{ t('magazines.renameModalTitle') }}</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-200 p-1 cursor-pointer" @click="closeRenameMagModal">✕</button>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10.5px] text-slate-400">{{ t('magazines.nameLabel') }}</label>
+          <input
+            v-model="renameMagInput"
+            type="text"
+            autofocus
+            class="input-box text-xs w-full py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 focus:border-sky-400 text-slate-100 outline-none"
+            :placeholder="t('magazines.namePlaceholder')"
+            @keydown.enter.prevent="submitRenameMag"
+            @keydown.esc.prevent="closeRenameMagModal"
+          />
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
+          <button class="btn !py-1 !px-3 text-xs cursor-pointer" @click="closeRenameMagModal">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary !py-1 !px-3 text-xs cursor-pointer" @click="submitRenameMag">{{ t('magazines.saveBtn') }}</button>
         </div>
       </div>
     </div>
