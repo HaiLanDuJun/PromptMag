@@ -56,24 +56,28 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 
 ### 🚀 Dream Roadmap
 
-#### 🌱 Phase 1 — Sharp Edge (MVP, current)
+#### 🌱 Phase 1 — Sharp Edge (MVP)
 
 - [x] Minimal dark always-on-top floating window, summoned by `Alt+Q`
 - [x] Silent clipboard-image interception, auto-saved to local absolute paths
-- [x] Inline `[图N]` anchors at the cursor + storyboard thumbnail cards with per-image notes
+- [x] Inline `[Img N]` anchors at the cursor + storyboard thumbnail cards with per-image notes
 - [x] Zero-ambiguity Prompt Compiler (inline path expansion + bottom precise mapping table)
 - [x] Agent auto-relay mode based on `next_tasks.md` + `fs.watch`
 
-#### 🌿 Phase 2 — Workflow Mastery
+#### 🌿 Phase 2 — Tactical Workflow (v1.8 ~ v1.9, Achieved)
 
-- [ ] **Dual-form switch**: a slim `420px` tactical bar by default; one click expands into a widescreen dashboard for long-form architecture prompts and snippet libraries
-- [ ] **Per-project queue isolation**: auto-detect the active git repo / working directory so different projects never share a magazine
-- [ ] **Screenshot doodles**: draw a red box or arrow right on the thumbnail card; saving overwrites the local image for sharper visual guidance
+- [x] **Tri-form tactical dock**: `56px` glass orb (capsule), `440x195` slim input bar (quick), and full command deck (`420x560`) with automatic screen-edge tucking
+- [x] **Multi-magazine project isolation**: create dedicated magazines per project/repo with separate queues & independent `magazines/<id>/tasks.md` files
+- [x] **Three tactical firing modes**: 💥 Shotgun (FIFO), 🎯 Pistol (LIFO), 🎲 Revolver (Random chamber)
+- [x] **⭐ Protected Favorites magazine**: permanent repository for snippets & instructions, image deletion protection, distraction-free view
+- [x] **Safe prompt editing mode**: confirmation modal prevents accidental overwrites, in-place editing with `[Editing]` badge
+- [x] **Autonomous multi-agent relay engine**: non-stop autonomous loop rule, mutex write locks with 3-5s wait-monitoring, dynamic new prompts discovery, and 1-click startup generator for Claude Code / Antigravity / General CLI agents
 
-#### 🌳 Phase 3 — The Ultimate Vision
+#### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
-- [ ] **Native MCP server engine**: a featherweight built-in MCP service so any MCP-capable agent can call `pop_next_prompt()` — millisecond, zero-context-loss handoffs
-- [ ] **Multi-agent dispatch deck**: magazine #1 feeds the frontend agent styling tasks, magazine #2 feeds the backend agent API work — a one-person command deck
+- [ ] **Screenshot visual annotations & crop**: draw red boxes, crop, or highlight directly on thumbnail cards before firing
+- [ ] **Native MCP Server engine**: lightweight built-in MCP server exposing `get_next_prompt()`, `claim_task()`, `complete_task()` directly to Claude Code, Cursor, Windsurf, and Antigravity
+- [ ] **Multi-Agent concurrent dispatch deck**: visual split-deck coordinating frontend, backend, and QA agents running in parallel across workspaces
 
 ### 💬 To Everyone Building the Future from a Terminal
 
@@ -128,7 +132,7 @@ May this little floating window catch every flash of brilliance you have — and
 
 ### 🚀 梦想路线图
 
-#### 🌱 Phase 1：利器出鞘（MVP，当前阶段）
+#### 🌱 Phase 1：利器出鞘（MVP 阶段 · 已实现）
 
 - [x] 极简暗黑置顶悬浮窗，`Alt+Q` 闪现呼出
 - [x] 剪贴板图片静默拦截，自动转存本地绝对路径
@@ -136,16 +140,20 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] 无歧义 Prompt 编译器（正文内联路径展开 + 底部精准映射表）
 - [x] 基于 `next_tasks.md` 与 `fs.watch` 的 Agent 自动接力模式
 
-#### 🌿 Phase 2：丝滑进化
+#### 🌿 Phase 2：丝滑进化与战术闭环（v1.8 ~ v1.9 · 已全部实现）
 
-- [ ] **双形态无缝切换**：平时是 `420px` 窄条战术悬浮窗；一键展开为宽屏工作台（Dashboard），从容管理长篇架构 Prompt 与高频词库
-- [ ] **项目级队列隔离**：自动识别当前活跃的 Git 仓库或工作目录，不同项目的待办弹夹互不串台
-- [ ] **截图涂鸦直通车**：在缩略图卡片上直接画个红框、打个箭头，保存时自动覆写本地图片，让视觉引导更精准
+- [x] **三形态无缝切换与边缘吸附**：`56px` 灵动玻璃球（胶囊）+ `440x195` 快捷输入条 + 完整战术工作台，支持屏幕边缘半缩进自动贴边
+- [x] **项目级多弹夹队列隔离**：支持按项目创建独立弹夹，各弹夹拥有独立队列与专属 `magazines/<id>/tasks.md`，保存支持弹窗选项目标弹夹
+- [x] **三大战术出弹模式**：💥 霰弹枪（先进先出 FIFO）、🎯 手枪（后进先出 LIFO）、🎲 左轮（轮盘随机抽弹）
+- [x] **⭐ 常用收藏弹夹与图片防删保护**：独立副本收藏机制、图片文件级防删保护、纯净知识库视图
+- [x] **提示词安全防覆盖编辑**：点击二次弹窗确认、原位编辑 `[✏️编辑中]` 标识、安全更新不丢历史
+- [x] **多 Agent 全自动接力闭环引擎**：无人值守自主循环、互斥写锁监控等待循环（3~5秒重读）、动态新词感知与一键生成专属接力启动指令（适配 Claude Code / Antigravity agy / 通用 Agent）
 
-#### 🌳 Phase 3：终极形态
+#### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 
-- [ ] **原生 MCP Server 引擎**：内置极轻量 MCP 服务，任何支持 MCP 的 Agent 都能原生调用 `pop_next_prompt()`，实现毫秒级零上下文损耗的任务交接
-- [ ] **多 Agent 并发调度台**：1 号弹夹喂给前端 Agent 调样式，2 号弹夹喂给后端 Agent 写接口，实现“一人成军”的并发指挥舱
+- [ ] **截图快速涂鸦与红框画笔**：在缩略图卡片上直接画红框、标箭头、局部裁剪，保存时自动更新本地图片
+- [ ] **原生内置 MCP Server 引擎**：内置轻量级 MCP Server，向 Claude Code、Cursor、Windsurf、Antigravity 暴露标准工具 `get_next_prompt()`、`claim_task()`、`complete_task()`，实现毫秒级零上下文损耗原生调度
+- [ ] **多 Agent 并发指挥舱**：可视化分栏调度台，前端 Agent、后端 Agent、测试 Agent 并发接力协同作战
 
 ### 💬 致同样在用 CLI 创造未来的你
 
