@@ -337,6 +337,16 @@ export function setActiveMagazine(id) {
   toast(t('toast.magazineSwitched', { name: mag.name }))
 }
 
+export function cycleMagazine(direction = 1) {
+  if (!state.magazines || !state.magazines.length) return null
+  const curIdx = state.magazines.findIndex((m) => m.id === state.activeMagazineId)
+  const baseIdx = curIdx >= 0 ? curIdx : 0
+  const nextIdx = (baseIdx + direction + state.magazines.length) % state.magazines.length
+  const nextMag = state.magazines[nextIdx]
+  setActiveMagazine(nextMag.id)
+  return nextMag
+}
+
 export function createMagazine(name, description = '', color = '#38bdf8') {
   const trimmed = String(name || '').trim() || (currentLocale.value === 'en' ? 'New Magazine' : '新弹夹')
   const newMag = {
@@ -494,14 +504,14 @@ function bindHotkeyEvents() {
 
     try {
       await copyCompiled(task)
-      task.done = true
-      const remaining = state.queue.filter((t) => !t.done).length
-      const modeKey = mode === 'shotgun' ? 'settings.popModeShotgun' : mode === 'revolver' ? 'settings.popModeRevolver' : 'settings.popModePistol'
-      toast(t('toast.poppedPrompt', { mode: t(modeKey), n: remaining }))
       // 关键：通知主进程将剪贴板内容直接粘贴到前台窗口光标处！
       if (window.pm && window.pm.pasteToForeground) {
         await window.pm.pasteToForeground(fgHwnd)
       }
+      task.done = true
+      const remaining = state.queue.filter((t) => !t.done).length
+      const modeKey = mode === 'shotgun' ? 'settings.popModeShotgun' : mode === 'revolver' ? 'settings.popModeRevolver' : 'settings.popModePistol'
+      toast(t('toast.poppedPrompt', { mode: t(modeKey), n: remaining }))
     } catch (e) {
       toast(t('toast.popFailed'))
     }
@@ -675,15 +685,27 @@ export function bindExternalEvents() {
 
 /* ---------------- 图片操作（自动重编 [图N: 关键词] 标记） ---------------- */
 function remapTokens(text, oldImages, newImages) {
-  const newIndexOfPath = new Map(newImages.map((im, i) => [im.path, i + 1]))
-  return String(text || '').replace(/\[图\s*(\d+)(?:\s*[:：]\s*([^\]]*))?\]/g, (m, n, note) => {
+  const newIndexOfItem = new Map(newImages.map((im, i) => [im, i + 1]))
+  const updated = String(text || '').replace(/\[(?:图|Img|Image)\s*(\d+)(?:\s*[:：]\s*([^\]]*))?\]/gi, (m, n, note) => {
     const old = oldImages[Number(n) - 1]
-    if (!old) return m
-    const next = newIndexOfPath.get(old.path)
+    if (!old) return ''
+    const next = newIndexOfItem.get(old)
     if (!next) return '' // 已删除图片的标记一并移除
+    const prefix = /Img|Image/i.test(m) || currentLocale.value === 'en' ? 'Img ' : '图'
     const suffix = note !== undefined && note !== null && note.trim() ? ': ' + note.trim() : ''
-    return '[图' + next + suffix + ']'
+    return '[' + prefix + next + suffix + ']'
   })
+  const cleaned = updated.replace(/[ \t]{2,}/g, ' ')
+  return cleaned.trim() === '' ? '' : cleaned
+}
+
+export function clearAllImages() {
+  state.composer.images = []
+  const cleaned = (state.composer.text || '')
+    .replace(/\[(?:图|Img|Image)\s*\d+(?:\s*[:：]\s*[^\]]*)?\]/gi, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+  state.composer.text = cleaned
 }
 
 export function addImages(imgs, initialNote = '') {
@@ -714,9 +736,11 @@ export async function pickAndAddImages(initialNote = '') {
 }
 
 export function removeImage(idx) {
+  if (idx < 0 || idx >= state.composer.images.length) return
   const old = state.composer.images.slice()
   state.composer.images.splice(idx, 1)
-  state.composer.text = remapTokens(state.composer.text, old, state.composer.images)
+  const newText = remapTokens(state.composer.text, old, state.composer.images)
+  state.composer.text = newText.trim() === '' ? '' : newText
 }
 
 export function reorderImage(from, to) {

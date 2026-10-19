@@ -73,6 +73,8 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 - [x] **Safe prompt editing mode**: confirmation modal prevents accidental overwrites, in-place editing with `[Editing]` badge
 - [x] **Autonomous multi-agent relay engine**: non-stop autonomous loop rule, mutex write locks with 3-5s wait-monitoring, dynamic new prompts discovery, and 1-click startup generator for Claude Code / Antigravity / General CLI agents
 - [x] **Streamlined single-row tactical layout & zero-friction chip re-editing (v1.9.7)**: eliminated clumsy toolbar wrapping by elevating relay actions to magazine bar, and perfected secondary in-place keyword editing with cursor jump prevention & IME composition protection
+- [x] **QuickPanel magazine indicators & keyboard switching (v1.9.8)**: real-time magazine status pill (color dot, title, pending count) with dropdown list; instant switching via `Ctrl+Tab`, `Ctrl+M`, `Ctrl+1~9` shortcuts right while typing; direct queue routing on save
+- [x] **Reliable foreground HWND tracking & hotkey pop pasting (v1.9.8)**: 64-bit native HWND matching with `lastExternalHwnd` fallbacks, eliminating self-paste swallowing and premature task-done flags; seamless thumbnail-chip lifecycle sync on image deletion
 
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
@@ -150,6 +152,8 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **提示词安全防覆盖编辑**：点击二次弹窗确认、原位编辑 `[✏️编辑中]` 标识、安全更新不丢历史
 - [x] **多 Agent 全自动接力闭环引擎**：无人值守自主循环、互斥写锁监控等待循环（3~5秒重读）、动态新词感知与一键生成专属接力启动指令（适配 Claude Code / Antigravity agy / 通用 Agent）
 - [x] **流线型单行战术排版与框内关键词零摩擦重编（v1.9.7）**：接力启动归位顶层弹夹控制区彻底告别换行凌乱，彻底解决图片关键词框二次编辑光标跳动与失焦问题，支持 IME 防抖与 `Ctrl+Enter` 原地快速提交
+- [x] **快捷弹窗实时弹夹信息与全局快捷切换（v1.9.8）**：快捷录入窗顶部常驻弹夹状态徽章（色彩、名称、待用数），支持打字时免切出使用 `Ctrl+Tab`、`Ctrl+M`、`Ctrl+1~9` 极速切换弹夹，回车直接存入当前目标弹夹
+- [x] **前台句柄智能嗅探与热键弹出粘贴防吞（v1.9.8）**：彻底修复 64 位原生 HWND 判定失效导致的自吞粘贴与过早标记问题，引入外部历史句柄追踪与鼠标悬停双重保底；完善图片删除/清空与框内关联卡片生命周期联动
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 

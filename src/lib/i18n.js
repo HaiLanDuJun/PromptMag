@@ -130,7 +130,12 @@ export const messages = {
       collapseOrb: '收起为小圆球',
       uploadImg: '上传图片',
       pasteText: '粘贴文本',
-      saveBtn: '保存'
+      saveBtn: '保存',
+      switchMag: '切换弹夹',
+      switchMagHint: '点击或快捷键 (Ctrl+Tab / Ctrl+M) 切换弹夹',
+      pendingCount: '{count} 待用',
+      magList: '弹夹列表',
+      shortcutHint: '快捷键: Ctrl+Tab 或 Ctrl+M 切换'
     },
     preview: {
       title: '图片预览',
@@ -419,7 +424,12 @@ export const messages = {
       collapseOrb: 'Collapse to orb',
       uploadImg: 'Upload Image',
       pasteText: 'Paste Text',
-      saveBtn: 'Save'
+      saveBtn: 'Save',
+      switchMag: 'Switch Magazine',
+      switchMagHint: 'Click or press (Ctrl+Tab / Ctrl+M) to switch magazine',
+      pendingCount: '{count} pending',
+      magList: 'Magazines',
+      shortcutHint: 'Shortcuts: Ctrl+Tab or Ctrl+M to cycle'
     },
     preview: {
       title: 'Image Preview',

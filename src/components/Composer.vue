@@ -10,7 +10,7 @@ import { nextTick, ref } from 'vue'
 import {
   state, addImages, requestSaveComposer,
   copyCompiled, toast, readClipboardText, cancelEditingTask,
-  openImagePreview, removeImage, imgUrl, currentLocale,
+  openImagePreview, removeImage, clearAllImages as storeClearAllImages, imgUrl, currentLocale,
   t
 } from '../lib/store.js'
 import { parseCompiledPrompt } from '../lib/compilePrompt.js'
@@ -94,11 +94,24 @@ function clearComposer() {
   }
   state.composer.text = ''
   state.composer.images = []
+  if (promptEditor.value && promptEditor.value.clearAllChips) {
+    promptEditor.value.clearAllChips()
+  }
 }
 
 function clearAllImages() {
-  state.composer.images = []
+  storeClearAllImages()
+  if (promptEditor.value && promptEditor.value.clearAllChips) {
+    promptEditor.value.clearAllChips()
+  }
   toast(t('toast.clearedImages'))
+}
+
+function onRemoveImage(idx) {
+  removeImage(idx)
+  if (promptEditor.value && promptEditor.value.syncFromStore) {
+    promptEditor.value.syncFromStore()
+  }
 }
 </script>
 
@@ -230,7 +243,8 @@ function clearAllImages() {
             <button
               class="thumbnail-del-btn"
               :title="t('composer.deleteImageTitle')"
-              @click.stop="removeImage(idx)"
+              @mousedown.stop
+              @click.stop="onRemoveImage(idx)"
             >
               <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />

@@ -99,10 +99,53 @@ function log(...args) {
 log('=== app start ===', 'version:', app.getVersion(), 'packaged:', app.isPackaged, 'dataDir:', P.home)
 
 let mainWindow = null
+let snippetWindow = null
 let tray = null
 let tasksWatcher = null
 let watchTimer = null
 let lastWrittenFileMap = new Map() // filePath (normalized) -> string content
+let lastExternalHwnd = '0'
+
+function getPasteHelperPath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'bin', 'paste-helper.exe')
+    : path.join(__dirname, 'bin', 'paste-helper.exe')
+}
+
+function getWindowHwndStrings(win) {
+  if (!win || win.isDestroyed()) return []
+  try {
+    const buf = win.getNativeWindowHandle()
+    const set = new Set()
+    if (buf.length >= 8) {
+      set.add(buf.readBigInt64LE(0).toString())
+      set.add(buf.readBigUInt64LE(0).toString())
+    }
+    if (buf.length >= 4) {
+      set.add(buf.readInt32LE(0).toString())
+      set.add(buf.readUInt32LE(0).toString())
+    }
+    return Array.from(set)
+  } catch {
+    return []
+  }
+}
+
+function isPromptMagHwnd(hwndStr) {
+  if (!hwndStr || hwndStr === '0') return false
+  const s = String(hwndStr).trim()
+  const allHwnds = new Set([
+    ...getWindowHwndStrings(mainWindow),
+    ...getWindowHwndStrings(snippetWindow)
+  ])
+  return allHwnds.has(s)
+}
+
+function updateLastExternalHwnd(hwnd) {
+  if (hwnd && hwnd !== '0' && !isPromptMagHwnd(hwnd)) {
+    lastExternalHwnd = String(hwnd).trim()
+  }
+}
 
 function normFilePath(p) {
   return p ? path.resolve(p).toLowerCase() : ''
@@ -1268,7 +1311,18 @@ function createWindow() {
 
   /* 边缘吸附：失焦一段时间后缩进屏幕边缘，重新聚焦/悬停时滑回 */
   mainWindow.on('focus', () => { applyAlwaysOnTop(); untuck() })
-  mainWindow.on('blur', () => scheduleTuck())
+  mainWindow.on('blur', () => {
+    scheduleTuck()
+    setTimeout(() => {
+      try {
+        const helperPath = getPasteHelperPath()
+        if (fs.existsSync(helperPath)) {
+          const curFg = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
+          updateLastExternalHwnd(curFg)
+        }
+      } catch { /* ignore */ }
+    }, 120)
+  })
 
   mainWindow.once('ready-to-show', () => {
     log('ready-to-show -> show()')
@@ -1296,6 +1350,13 @@ function toggleWindow() {
   if (mainWindow.isVisible() && mainWindow.isFocused()) {
     mainWindow.hide()
   } else {
+    try {
+      const helperPath = getPasteHelperPath()
+      if (fs.existsSync(helperPath)) {
+        const curFg = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
+        updateLastExternalHwnd(curFg)
+      }
+    } catch { /* ignore */ }
     if (mode === 'capsule') setMode('quick') // 呼出时若是胶囊则展开为快捷输入
     mainWindow.show()
     mainWindow.focus()
@@ -1322,13 +1383,17 @@ function onHotkeyPop() {
 /** 模拟按下 Ctrl+C（对前台窗口生效），让目标应用把选中文本/图片复制到剪贴板 */
 function sendCopyKeys(targetHwnd = '0') {
   return new Promise((resolve) => {
-    const helperPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'bin', 'paste-helper.exe')
-      : path.join(__dirname, 'bin', 'paste-helper.exe')
-
+    const helperPath = getPasteHelperPath()
     if (fs.existsSync(helperPath)) {
       try {
-        const hwndStr = String(targetHwnd || '0')
+        let hwndStr = String(targetHwnd || '0').trim()
+        if (isPromptMagHwnd(hwndStr)) {
+          if (lastExternalHwnd && !isPromptMagHwnd(lastExternalHwnd)) {
+            hwndStr = lastExternalHwnd
+          } else {
+            hwndStr = '0'
+          }
+        }
         log('executing paste-helper copy with hwnd:', hwndStr)
         const p = spawn(helperPath, ['copy', hwndStr], { windowsHide: true })
         let stdout = ''
@@ -1377,33 +1442,34 @@ function fallbackVbsPaste() {
 
 function getForegroundHwndSync() {
   try {
-    const helperPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'bin', 'paste-helper.exe')
-      : path.join(__dirname, 'bin', 'paste-helper.exe')
+    const helperPath = getPasteHelperPath()
     if (fs.existsSync(helperPath)) {
       const out = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
-      let mainHwnd = null
-      let snippetHwnd = null
+      log('getForegroundHwndSync raw out:', out, 'isPromptMag:', isPromptMagHwnd(out))
+
+      // 1. 如果当前前台窗口是有效外部应用（非 PromptMag 自身），立即更新并返回
+      if (out && out !== '0' && !isPromptMagHwnd(out)) {
+        updateLastExternalHwnd(out)
+        return out
+      }
+
+      // 2. 如果当前前台是 PromptMag 自身，优先嗅探鼠标光标悬停所在的外部窗口
       try {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainHwnd = mainWindow.getNativeWindowHandle().readInt32LE(0).toString()
-        }
-        if (snippetWindow && !snippetWindow.isDestroyed()) {
-          snippetHwnd = snippetWindow.getNativeWindowHandle().readInt32LE(0).toString()
+        const mouseOut = execFileSync(helperPath, ['get-mouse'], { windowsHide: true, timeout: 500 }).toString().trim()
+        if (mouseOut && mouseOut !== '0' && !isPromptMagHwnd(mouseOut)) {
+          log('detected external window under mouse:', mouseOut)
+          updateLastExternalHwnd(mouseOut)
+          return mouseOut
         }
       } catch { /* ignore */ }
 
-      // 如果当前前台窗口是 PromptMag 自身，优先获取鼠标悬停所在的外部目标窗口
-      if (out && (out === mainHwnd || out === snippetHwnd)) {
-        try {
-          const mouseOut = execFileSync(helperPath, ['get-mouse'], { windowsHide: true, timeout: 500 }).toString().trim()
-          if (mouseOut && mouseOut !== '0' && mouseOut !== mainHwnd && mouseOut !== snippetHwnd) {
-            log('detected external window under mouse:', mouseOut)
-            return mouseOut
-          }
-        } catch { /* ignore */ }
+      // 3. 鼠标不在有效外部窗口时，回退到此前记录的最近一次外部窗口
+      if (lastExternalHwnd && lastExternalHwnd !== '0' && !isPromptMagHwnd(lastExternalHwnd)) {
+        log('using lastExternalHwnd fallback:', lastExternalHwnd)
+        return lastExternalHwnd
       }
-      return out || '0'
+
+      return '0'
     }
   } catch (e) {
     log('getForegroundHwndSync error:', e && e.message)
@@ -1417,13 +1483,18 @@ function sendPasteKeys(targetHwnd = '0') {
     let done = false
     const finish = () => { if (!done) { done = true; resolve() } }
 
-    const helperPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'bin', 'paste-helper.exe')
-      : path.join(__dirname, 'bin', 'paste-helper.exe')
-
+    const helperPath = getPasteHelperPath()
     if (fs.existsSync(helperPath)) {
       try {
-        const hwndStr = String(targetHwnd || '0')
+        let hwndStr = String(targetHwnd || '0').trim()
+        // 关键防护：绝不允许把 PromptMag 自身作为粘贴的目标窗口！
+        if (isPromptMagHwnd(hwndStr)) {
+          if (lastExternalHwnd && !isPromptMagHwnd(lastExternalHwnd)) {
+            hwndStr = lastExternalHwnd
+          } else {
+            hwndStr = '0'
+          }
+        }
         log('executing paste-helper with hwnd:', hwndStr)
         const p = spawn(helperPath, ['paste', hwndStr], { windowsHide: true, stdio: 'ignore' })
         p.on('exit', finish)
@@ -1517,7 +1588,6 @@ async function onHotkeyCollect() {
 }
 
 /* ---------------- 专属收藏夹提示词独立弹窗 ---------------- */
-let snippetWindow = null
 let snippetTriggerSource = 'external'
 
 function createSnippetWindow() {
@@ -1575,8 +1645,6 @@ function createSnippetWindow() {
   return snippetWindow
 }
 
-let lastExternalHwnd = '0'
-
 function toggleSnippetPicker(source = null, capturedHwnd = '0') {
   if (source) {
     snippetTriggerSource = source
@@ -1584,7 +1652,7 @@ function toggleSnippetPicker(source = null, capturedHwnd = '0') {
     const isMainFocused = mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()
     snippetTriggerSource = isMainFocused ? 'main' : 'external'
   }
-  if (capturedHwnd && capturedHwnd !== '0') {
+  if (capturedHwnd && capturedHwnd !== '0' && !isPromptMagHwnd(capturedHwnd)) {
     lastExternalHwnd = capturedHwnd
   }
   log('toggleSnippetPicker source:', snippetTriggerSource, 'lastExternalHwnd:', lastExternalHwnd)

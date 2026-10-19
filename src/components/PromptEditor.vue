@@ -158,6 +158,16 @@ function createChipNode(imgIdx, keyword = '') {
     nextTick(() => { isUserTyping = false })
   })
 
+  textSpan.addEventListener('blur', () => {
+    isSpanComposing = false
+    isUserTyping = false
+    const currentIdx = Number(chip.getAttribute('data-img-idx'))
+    if (state.composer.images[currentIdx]) {
+      state.composer.images[currentIdx].note = textSpan.textContent.trim()
+    }
+    state.composer.text = serializeEditor()
+  })
+
   // 框内按回车/Tab 跳出框外；按退格且无内容时自动解绑删除；Ctrl+Enter 直接保存
   textSpan.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -165,7 +175,7 @@ function createChipNode(imgIdx, keyword = '') {
       emit('keydown-enter', e)
       return
     }
-    if (e.key === 'Enter' || e.key === 'Tab') {
+    if ((e.key === 'Enter' || e.key === 'Tab') && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
       textSpan.blur()
       // 将光标移到框外后方
@@ -239,6 +249,12 @@ function createChipNode(imgIdx, keyword = '') {
 function renderFromText(text) {
   if (!editorRef.value || isUserTyping) return
   const current = serializeEditor()
+  if (!text || !text.trim()) {
+    if (state.composer.images.length === 0) {
+      editorRef.value.innerHTML = ''
+      return
+    }
+  }
   if (current === text && (editorRef.value.childNodes.length > 0 || !text)) {
     return
   }
@@ -248,7 +264,7 @@ function renderFromText(text) {
   const frag = document.createDocumentFragment()
   let lastIndex = 0
 
-  const re = new RegExp(TOKEN_RE.source, 'g')
+  const re = new RegExp(TOKEN_RE.source, 'gi')
   let match
 
   while ((match = re.exec(text)) !== null) {
@@ -286,11 +302,37 @@ function renderFromText(text) {
   editorRef.value.appendChild(frag)
 }
 
-/* ---------- 刷新所有角标序号（满足需求 3：图片排序动态变化） ---------- */
-function refreshBadges() {
+/* ---------- 清空所有卡片并彻底重置输入框 ---------- */
+function clearAllChips() {
   if (!editorRef.value) return
   const chips = editorRef.value.querySelectorAll('.kw-chip')
-  chips.forEach((chip, i) => {
+  chips.forEach((c) => c.remove())
+  if (!editorRef.value.textContent.trim()) {
+    editorRef.value.innerHTML = ''
+  }
+}
+
+/* ---------- 刷新与同步所有卡片序号、孤儿卡片清理 ---------- */
+function syncChipsWithImages() {
+  if (!editorRef.value) return
+  const chips = Array.from(editorRef.value.querySelectorAll('.kw-chip'))
+  const imgCount = state.composer.images.length
+
+  if (imgCount === 0) {
+    clearAllChips()
+    return
+  }
+
+  // 若卡片数量多于图片数量，移除末尾孤儿卡片
+  if (chips.length > imgCount) {
+    for (let i = imgCount; i < chips.length; i++) {
+      chips[i].remove()
+    }
+  }
+
+  // 刷新剩余卡片的序号与角标
+  const remainingChips = editorRef.value.querySelectorAll('.kw-chip')
+  remainingChips.forEach((chip, i) => {
     chip.setAttribute('data-img-idx', String(i))
     const badge = chip.querySelector('.kw-badge')
     if (badge) badge.textContent = currentLocale.value === 'en' ? `Img ${i + 1}` : `图${i + 1}`
@@ -300,6 +342,8 @@ function refreshBadges() {
     }
   })
 }
+
+const refreshBadges = syncChipsWithImages
 
 /* ---------- 核心逻辑：选词贴图并强行关联 (关键词完整显示在框中) ---------- */
 async function bindImageToSelection(imagesList, forcedRange = null, forcedText = '') {
@@ -512,7 +556,7 @@ watch(
   (val) => {
     if (!isUserTyping) {
       renderFromText(val)
-      refreshBadges()
+      syncChipsWithImages()
     }
   },
   { immediate: true }
@@ -520,8 +564,14 @@ watch(
 
 watch(
   () => state.composer.images.length,
-  () => {
-    refreshBadges()
+  (newLen) => {
+    isUserTyping = false
+    if (newLen === 0) {
+      clearAllChips()
+    } else {
+      renderFromText(state.composer.text)
+      syncChipsWithImages()
+    }
   }
 )
 
@@ -592,18 +642,30 @@ function onInsertSnippetEvent(e) {
   }
 }
 
+function onEditorBlur(e) {
+  isComposing = false
+  isUserTyping = false
+  saveSelection(e)
+}
+
 defineExpose({
   focus: () => editorRef.value && editorRef.value.focus(),
   bindImageToSelection,
   saveSelection,
-  insertTextAtCursor
+  insertTextAtCursor,
+  clearAllChips,
+  syncFromStore: () => {
+    isUserTyping = false
+    renderFromText(state.composer.text)
+    syncChipsWithImages()
+  }
 })
 
 let unsubFocus = null
 
 onMounted(() => {
   renderFromText(state.composer.text)
-  refreshBadges()
+  syncChipsWithImages()
   document.addEventListener('selectionchange', saveSelection)
   window.addEventListener('pm:insert-snippet-at-cursor', onInsertSnippetEvent)
   if (window.pm && window.pm.onFocusComposer) {
@@ -635,7 +697,7 @@ onBeforeUnmount(() => {
       @keydown="onKeydown"
       @mouseup="saveSelection"
       @keyup="saveSelection"
-      @blur="saveSelection"
+      @blur="onEditorBlur"
       @focus="saveSelection"
     />
   </div>
