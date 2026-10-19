@@ -92,6 +92,9 @@ function createChipNode(imgIdx, keyword = '') {
   badge.className = 'kw-badge'
   badge.textContent = currentLocale.value === 'en' ? `Img ${imgIdx + 1}` : `图${imgIdx + 1}`
   badge.title = t('editor.badgeTitle')
+  badge.addEventListener('mousedown', (e) => {
+    e.stopPropagation()
+  })
   badge.addEventListener('click', (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -107,8 +110,34 @@ function createChipNode(imgIdx, keyword = '') {
   textSpan.setAttribute('contenteditable', 'plaintext-only')
   textSpan.textContent = keyword
 
-  // 框内修改时实时更新关联
-  textSpan.addEventListener('input', () => {
+  function focusText(atEnd = true) {
+    textSpan.focus()
+    const sel = window.getSelection()
+    if (sel) {
+      const r = document.createRange()
+      r.selectNodeContents(textSpan)
+      r.collapse(!atEnd)
+      sel.removeAllRanges()
+      sel.addRange(r)
+    }
+  }
+
+  // 阻止冒泡，保证在关键词框内点击输入时，光标精准定位且不被外部容器劫持
+  textSpan.addEventListener('mousedown', (e) => {
+    e.stopPropagation()
+  })
+  textSpan.addEventListener('click', (e) => {
+    e.stopPropagation()
+  })
+
+  // 框内修改时实时更新关联（支持中文输入法防抖）
+  let isSpanComposing = false
+  textSpan.addEventListener('compositionstart', () => {
+    isSpanComposing = true
+    isUserTyping = true
+  })
+  textSpan.addEventListener('compositionend', () => {
+    isSpanComposing = false
     isUserTyping = true
     const currentIdx = Number(chip.getAttribute('data-img-idx'))
     if (state.composer.images[currentIdx]) {
@@ -118,8 +147,24 @@ function createChipNode(imgIdx, keyword = '') {
     nextTick(() => { isUserTyping = false })
   })
 
-  // 框内按回车/Tab 跳出框外；按退格且无内容时自动解绑删除
+  textSpan.addEventListener('input', () => {
+    if (isSpanComposing) return
+    isUserTyping = true
+    const currentIdx = Number(chip.getAttribute('data-img-idx'))
+    if (state.composer.images[currentIdx]) {
+      state.composer.images[currentIdx].note = textSpan.textContent.trim()
+    }
+    state.composer.text = serializeEditor()
+    nextTick(() => { isUserTyping = false })
+  })
+
+  // 框内按回车/Tab 跳出框外；按退格且无内容时自动解绑删除；Ctrl+Enter 直接保存
   textSpan.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      emit('keydown-enter', e)
+      return
+    }
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault()
       textSpan.blur()
@@ -151,6 +196,9 @@ function createChipNode(imgIdx, keyword = '') {
   closeBtn.className = 'kw-close'
   closeBtn.textContent = '×'
   closeBtn.title = t('editor.deleteBinding')
+  closeBtn.addEventListener('mousedown', (e) => {
+    e.stopPropagation()
+  })
   closeBtn.addEventListener('click', (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -167,10 +215,22 @@ function createChipNode(imgIdx, keyword = '') {
     if (img) openImagePreview(img, currentIdx, state.composer.images)
   })
 
-  // 点击卡片任意非删除区域，直接聚焦至关键词编辑区
+  // 点击卡片任意非删除/非角标区域（如边框或留白），阻止默认并将光标聚焦至框内文本末尾
+  chip.addEventListener('mousedown', (e) => {
+    if (e.target === closeBtn || e.target === badge) return
+    if (e.target !== textSpan) {
+      e.preventDefault()
+      e.stopPropagation()
+      focusText(true)
+    }
+  })
+
   chip.addEventListener('click', (e) => {
     if (e.target === closeBtn || e.target === badge) return
-    textSpan.focus()
+    e.stopPropagation()
+    if (e.target !== textSpan) {
+      focusText(true)
+    }
   })
 
   return chip
@@ -233,7 +293,7 @@ function refreshBadges() {
   chips.forEach((chip, i) => {
     chip.setAttribute('data-img-idx', String(i))
     const badge = chip.querySelector('.kw-badge')
-    if (badge) badge.textContent = `图${i + 1}`
+    if (badge) badge.textContent = currentLocale.value === 'en' ? `Img ${i + 1}` : `图${i + 1}`
     const textEl = chip.querySelector('.kw-text')
     if (state.composer.images[i] && textEl && !textEl.textContent.trim()) {
       textEl.textContent = state.composer.images[i].note || ''
@@ -426,9 +486,17 @@ function onInput() {
 }
 
 function focusEditor(e) {
-  if (e && e.target === editorRef.value) return
+  if (e && editorRef.value && editorRef.value.contains(e.target)) return
   if (editorRef.value) {
     editorRef.value.focus()
+    const sel = window.getSelection()
+    if (sel) {
+      const r = document.createRange()
+      r.selectNodeContents(editorRef.value)
+      r.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(r)
+    }
   }
 }
 

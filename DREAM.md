@@ -72,6 +72,7 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 - [x] **⭐ Protected Favorites magazine**: permanent repository for snippets & instructions, image deletion protection, distraction-free view
 - [x] **Safe prompt editing mode**: confirmation modal prevents accidental overwrites, in-place editing with `[Editing]` badge
 - [x] **Autonomous multi-agent relay engine**: non-stop autonomous loop rule, mutex write locks with 3-5s wait-monitoring, dynamic new prompts discovery, and 1-click startup generator for Claude Code / Antigravity / General CLI agents
+- [x] **Streamlined single-row tactical layout & zero-friction chip re-editing (v1.9.7)**: eliminated clumsy toolbar wrapping by elevating relay actions to magazine bar, and perfected secondary in-place keyword editing with cursor jump prevention & IME composition protection
 
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
@@ -148,6 +149,7 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **⭐ 常用收藏弹夹与图片防删保护**：独立副本收藏机制、图片文件级防删保护、纯净知识库视图
 - [x] **提示词安全防覆盖编辑**：点击二次弹窗确认、原位编辑 `[✏️编辑中]` 标识、安全更新不丢历史
 - [x] **多 Agent 全自动接力闭环引擎**：无人值守自主循环、互斥写锁监控等待循环（3~5秒重读）、动态新词感知与一键生成专属接力启动指令（适配 Claude Code / Antigravity agy / 通用 Agent）
+- [x] **流线型单行战术排版与框内关键词零摩擦重编（v1.9.7）**：接力启动归位顶层弹夹控制区彻底告别换行凌乱，彻底解决图片关键词框二次编辑光标跳动与失焦问题，支持 IME 防抖与 `Ctrl+Enter` 原地快速提交
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 

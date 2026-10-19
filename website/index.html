@@ -1026,8 +1026,8 @@ footer a:hover{color:var(--cyan)}
 <header class="hero"><div class="wrap">
   <div class="version-pill">
     <span class="pulse-dot"></span>
-    <span lang="zh">PromptMag v<span id="verTagPill">1.9.6</span> · 桌面提示词弹夹与多模态自动化套件</span>
-    <span lang="en">PromptMag v<span id="verTagPillEn">1.9.6</span> · Desktop Prompt Magazine &amp; Multimodal Relay</span>
+    <span lang="zh">PromptMag v<span id="verTagPill">1.9.7</span> · 桌面提示词弹夹与多模态自动化套件</span>
+    <span lang="en">PromptMag v<span id="verTagPillEn">1.9.7</span> · Desktop Prompt Magazine &amp; Multimodal Relay</span>
   </div>
 
   <h1 class="hero-title">
@@ -1534,8 +1534,8 @@ footer a:hover{color:var(--cyan)}
   <div class="cta-group" style="margin-bottom:0;">
     <a class="btn-primary" id="footerDownloadBtn" href="https://github.com/HaiLanDuJun/PromptMag/releases/latest" target="_blank" rel="noopener">
       <span>⬇</span>
-      <span lang="zh">获取最新安装包 (v<span class="foot-ver">1.9.6</span>)</span>
-      <span lang="en">Get Latest Release (v<span class="foot-ver">1.9.6</span>)</span>
+      <span lang="zh">获取最新安装包 (v<span class="foot-ver">1.9.7</span>)</span>
+      <span lang="en">Get Latest Release (v<span class="foot-ver">1.9.7</span>)</span>
     </a>
     <a class="btn-secondary" href="https://github.com/HaiLanDuJun/PromptMag" target="_blank" rel="noopener">
       <span>⭐</span>
@@ -1934,7 +1934,7 @@ function addTermLine(type, text) {
 fetch('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest')
   .then(r => { if (!r.ok) throw 0; return r.json(); })
   .then(d => {
-    const tag = (d.tag_name || '1.9.6').replace(/^v/i, '');
+    const tag = (d.tag_name || '1.9.7').replace(/^v/i, '');
     const p1 = document.getElementById('verTagPill');
     const p2 = document.getElementById('verTagPillEn');
     if (p1) p1.textContent = tag;

@@ -269,6 +269,17 @@ function displayTitle(item) {
 
       <!-- 右侧固定控制区（外置固定，绝对不被遮挡、不随列表滚动） -->
       <div class="flex items-center gap-1 shrink-0 pl-1 border-l border-slate-800/80">
+        <!-- 生成接力启动指令（当前项目弹夹专属，外置于弹夹控制栏，逻辑统一且不挤占队列排版） -->
+        <button
+          v-if="activeMagazine && activeMagazine.id !== 'favorites'"
+          class="px-2 py-1 rounded-lg border border-amber-400/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 text-[10.5px] font-medium flex items-center gap-1 shrink-0 cursor-pointer transition-all shadow-sm"
+          :title="t('magazines.relayStartupTitle')"
+          @click="onOpenRelayStartup(activeMagazine.id)"
+        >
+          <span>⚡</span>
+          <span>{{ t('magazines.relayStartup') }}</span>
+        </button>
+
         <!-- 新建弹夹按键（常驻固定显示，不再被挤出或遮挡） -->
         <button
           class="px-2 py-1 rounded-lg border border-dashed border-sky-400/40 hover:border-sky-400 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-sky-200 text-[10.5px] font-medium flex items-center gap-1 shrink-0 cursor-pointer transition-all shadow-sm"
@@ -309,8 +320,8 @@ function displayTitle(item) {
       </div>
     </div>
 
-    <!-- 过滤器与快捷控制栏（去重合并：收藏弹夹为专属模板库，不显示待用/已用/出弹模式） -->
-    <div class="flex items-center justify-between gap-1.5 my-1.5 px-0.5 select-none shrink-0">
+    <!-- 过滤器与快捷控制栏（严守单行排版，杜绝折行产生第二行） -->
+    <div class="flex items-center justify-between gap-1.5 my-1.5 px-0.5 select-none shrink-0 flex-nowrap">
       <!-- 1. 若为收藏弹夹：简洁展示收藏提示词数量，隐藏出弹模式与待用/已用切换 -->
       <div v-if="activeMagazine && activeMagazine.id === 'favorites'" class="flex items-center gap-1.5">
         <span class="px-2.5 py-0.8 rounded-full text-[10.5px] font-medium bg-amber-500/15 border border-amber-400/40 text-amber-200 flex items-center gap-1 shadow-[0_0_6px_rgba(245,158,11,0.15)]">
@@ -319,24 +330,24 @@ function displayTitle(item) {
         </span>
       </div>
 
-      <!-- 2. 若为普通项目弹夹：正常提供全部 / 待用 / 收藏过滤 + 出弹模式切换 -->
-      <div v-else class="flex items-center gap-1 flex-wrap">
+      <!-- 2. 若为普通项目弹夹：正常提供全部 / 待用 / 收藏过滤 + 出弹模式切换（单行排布无换行） -->
+      <div v-else class="flex items-center gap-1 flex-nowrap min-w-0">
         <button
-          class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer"
+          class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer shrink-0"
           :class="filterTab === 'all' ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
           @click="filterTab = 'all'"
         >
           {{ t('queue.all') }} ({{ state.queue.length }})
         </button>
         <button
-          class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer"
+          class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer shrink-0"
           :class="filterTab === 'pending' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
           @click="filterTab = 'pending'"
         >
           {{ t('common.pending') }} ({{ pendingCount }})
         </button>
         <button
-          class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all flex items-center gap-0.5 cursor-pointer"
+          class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all flex items-center gap-0.5 cursor-pointer shrink-0"
           :class="filterTab === 'favorite' ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
           @click="filterTab = 'favorite'"
         >
@@ -346,7 +357,7 @@ function displayTitle(item) {
 
         <!-- 出弹模式快速切换徽标 -->
         <button
-          class="ml-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold transition-all border flex items-center gap-1 cursor-pointer select-none"
+          class="ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold transition-all border flex items-center gap-1 cursor-pointer select-none shrink-0"
           :class="popModeBadgeClass"
           :title="popModeTooltip"
           @click="cyclePopMode"
@@ -356,22 +367,11 @@ function displayTitle(item) {
         </button>
       </div>
 
-      <!-- 右侧控制组：生成接力启动指令（普通弹夹）/ 全部重置为待用 / 清空 -->
+      <!-- 右侧控制组：全部重置为待用 / 清空（单行收敛） -->
       <div class="flex items-center gap-1.5 shrink-0">
-        <!-- 生成接力启动指令（移到队列控制栏右侧，空间充裕且逻辑归位） -->
-        <button
-          v-if="activeMagazine && activeMagazine.id !== 'favorites'"
-          class="px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-          :title="t('magazines.relayStartupTitle')"
-          @click="onOpenRelayStartup(activeMagazine.id)"
-        >
-          <span>⚡</span>
-          <span>{{ t('magazines.relayStartup') }}</span>
-        </button>
-
         <button
           v-if="hasDoneItems && (!activeMagazine || activeMagazine.id !== 'favorites')"
-          class="text-[10px] text-emerald-400/80 hover:text-emerald-300 transition-colors cursor-pointer px-1 py-0.5 rounded hover:bg-emerald-500/10"
+          class="text-[10px] text-emerald-400/80 hover:text-emerald-300 transition-colors cursor-pointer px-1 py-0.5 rounded hover:bg-emerald-500/10 shrink-0"
           :title="t('queue.resetAllPendingTitle')"
           @click="onResetAll"
         >
@@ -380,7 +380,7 @@ function displayTitle(item) {
 
         <button
           v-if="state.queue.length"
-          class="text-[10px] text-sky-400/80 hover:text-sky-300 transition-colors cursor-pointer px-1 py-0.5 rounded hover:bg-sky-500/10"
+          class="text-[10px] text-sky-400/80 hover:text-sky-300 transition-colors cursor-pointer px-1 py-0.5 rounded hover:bg-sky-500/10 shrink-0"
           :title="t('queue.clearTitle')"
           @click="onClearAll"
         >
