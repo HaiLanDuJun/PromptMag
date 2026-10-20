@@ -62,6 +62,15 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 - **光标处内联贴图与提示词编译器**：
   - `[图N]` 锚点 + 本地绝对路径；删除、拖拽重排后自动改号；
   - 复制时自动展开为包含精准多图映射说明的结构化 Prompt，模型无法认错图。
+- **设置面板四大分类重构与 Git 仓库社区**：
+  - 将设置重构为「默认设置」、「快捷键」、「存储管理」、「版本与更新（含 Git 仓库）」四大专属 Tab，告别冗长滚动；
+  - 内置 GitHub 仓库一键 Star、Releases 历史与 Issues 建议反馈直达链接。
+- **快速换弹快捷键全场景支持与自定义**：
+  - 新增用户自定义快速切换弹夹快捷键（默认 `Ctrl+Tab` / `Ctrl+M`，支持任意组合键录制）；
+  - 在快捷面板、完整录入区以及任务图片列表中全局随时响应，支持 `Ctrl+Shift+Tab` 反向轮转与 `Ctrl+1~9` 数字键直达。
+- **应用内版本号展示与 GitHub Releases 自动检测更新**：
+  - 设置面板直观展示当前版本号（如 v1.9.10），支持启动自动静默比对与一键手动检测；
+  - 发现新版本弹出专属说明窗口，支持「立即更新」、「忽略此版本」与「稍后提醒」灵活掌控。
 - **悬浮形态与无冲突人体工学快捷键**：
   - 圆球 `capsule` / 快捷输入 `quick` / 完整 `full` 三种形态；
   - 悬停即开、失焦靠近边缘自动缩进（仅露约 20px）、置顶自愈；
@@ -224,6 +233,15 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
 - **Inline Image Pinning**: `[Img N]` anchors + local absolute paths; auto-renumbering on delete / drag-reorder
 - **Storyboard Cards & Lightbox**: double-click thumbnail or keyword badge to zoom into full-resolution preview
 - **Prompt Compiler**: inline path expansion + precise bottom mapping table
+- **Categorized 4-Tab Settings Deck & GitHub Community**:
+  - Restructured preferences into 4 dedicated tabs (Default, Hotkeys, Storage, Version/GitHub) for a cleaner, non-scrolling UI;
+  - Built-in GitHub Star, Releases history, and Issues feedback direct shortcuts.
+- **Global Customizable Magazine Cycling**:
+  - Customizable `hotkeyCycleMag` (default `Ctrl+Tab` / `Ctrl+M`, supports custom recording);
+  - Works globally across QuickPanel, full editor, and the prompt/image queue list; supports `Ctrl+Shift+Tab` for reverse cycling and `Ctrl+1~9` for direct jumping.
+- **In-App Version Display & GitHub Releases Auto-Updater**:
+  - Settings panel clearly displays current version (v1.9.10) with automatic and manual update checks;
+  - Release notes update modal with flexible choices: Update Now, Ignore this Version, or Remind Me Later.
 - **Floating Form Factors & Hotkeys**: frameless dark orb with glowing core, always-on-top, 40%–100% opacity, customizable conflict-free global hotkeys
 
 ### Compile Example
