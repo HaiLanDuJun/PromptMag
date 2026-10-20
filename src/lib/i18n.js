@@ -201,6 +201,17 @@ export const messages = {
       saveTargetSpecific: '指定固定弹夹',
       saveTargetSpecificDesc: '始终直接存入下方指定的默认弹夹',
       defaultMagSelect: '指定默认弹夹：',
+      versionTitle: '版本与更新',
+      currentVersion: '当前版本',
+      latestVersion: '最新版本',
+      checkingUpdate: '正在检查…',
+      checkUpdate: '检查更新',
+      upToDate: '已是最新版本',
+      hasNewVersion: '发现新版本',
+      updateNow: '立即更新',
+      ignoreVersion: '忽略此版本',
+      ignoredVersionLabel: '已忽略此版本',
+      unignore: '取消忽略',
       githubSectionTitle: 'GitHub 开源项目',
       githubDesc: '如果 PromptMag 对您的日常开发与多Agent接力有所帮助，请前往 GitHub 点一颗 ⭐ Star 支持我们！',
       githubStarBtn: '⭐ 前往 GitHub 点赞 (Star)',
@@ -295,6 +306,20 @@ export const messages = {
       editingStarted: '已回填到上方输入框，修改完成后点击「保存修改」即可更新',
       editCancelled: '已取消编辑，原提示词内容未变更',
       promptUpdated: '提示词已更新！'
+    },
+    updateModal: {
+      title: '发现新版本 PromptMag {version}',
+      badgeCurrent: '当前版本',
+      badgeNew: '最新版本',
+      releaseNotes: '更新内容说明：',
+      btnUpdate: '🚀 立即前往下载更新',
+      btnIgnore: '忽略此版本',
+      btnRemindLater: '稍后提醒',
+      ignoredToast: '已忽略 v{version}，后续不再主动弹窗提醒',
+      unignoredToast: '已取消对 v{version} 的忽略',
+      checkingToast: '正在检查更新…',
+      upToDateToast: 'PromptMag 已是最新版本 (v{version})',
+      checkFailedToast: '检查更新失败，请检查网络连接'
     }
   },
   en: {
@@ -495,6 +520,17 @@ export const messages = {
       saveTargetSpecific: 'Fixed Default Magazine',
       saveTargetSpecificDesc: 'Always save to the designated default magazine below',
       defaultMagSelect: 'Designated Default Magazine:',
+      versionTitle: 'Version & Updates',
+      currentVersion: 'Current Version',
+      latestVersion: 'Latest Version',
+      checkingUpdate: 'Checking…',
+      checkUpdate: 'Check for Updates',
+      upToDate: 'Up to date',
+      hasNewVersion: 'New version available',
+      updateNow: 'Update Now',
+      ignoreVersion: 'Ignore this version',
+      ignoredVersionLabel: 'Version ignored',
+      unignore: 'Unignore',
       githubSectionTitle: 'GitHub Open Source',
       githubDesc: 'If PromptMag helps your workflow & multi-agent relay, please give us a ⭐ Star on GitHub!',
       githubStarBtn: '⭐ Star PromptMag on GitHub',
@@ -589,6 +625,20 @@ export const messages = {
       editingStarted: 'Backfilled to editor. Click Save Changes when done.',
       editCancelled: 'Edit cancelled. Original prompt kept unchanged.',
       promptUpdated: 'Prompt updated successfully!'
+    },
+    updateModal: {
+      title: 'New Version Available: PromptMag {version}',
+      badgeCurrent: 'Current',
+      badgeNew: 'Latest',
+      releaseNotes: 'Release Notes:',
+      btnUpdate: '🚀 Update & Download Now',
+      btnIgnore: 'Ignore this version',
+      btnRemindLater: 'Remind me later',
+      ignoredToast: 'v{version} ignored. You will not be prompted again.',
+      unignoredToast: 'Unignored v{version}',
+      checkingToast: 'Checking for updates…',
+      upToDateToast: 'PromptMag is up to date (v{version})',
+      checkFailedToast: 'Update check failed. Please check network connection'
     }
   }
 }

@@ -66,6 +66,7 @@ const api = {
   openPath: (p) => ipcRenderer.send('pm:open-path', p),
   showItemInFolder: (p) => ipcRenderer.send('pm:show-item-in-folder', p),
   openExternal: (url) => ipcRenderer.send('pm:open-external', url),
+  checkUpdate: () => ipcRenderer.invoke('pm:check-update'),
 
   /* 主进程 -> 渲染进程 事件 */
   onFocusComposer: (cb) => {

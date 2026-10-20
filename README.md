@@ -8,12 +8,12 @@ CLI 提示词弹夹。为 Claude Code / Codex / AGY 等 CLI 编码 Agent 设计�
 
 ## 中文
 
-### 下载（v1.9.8，Windows x64，开箱即用）
+### 下载（v1.9.9，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.8.exe`](/installer/PromptMag-Portable-1.9.8.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.8.exe`](/installer/PromptMag-Setup-1.9.8.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.9.exe`](/installer/PromptMag-Portable-1.9.9.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.9.exe`](/installer/PromptMag-Setup-1.9.9.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -113,8 +113,8 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 ```
 
 - 该命令会自动清除旧构建、执行 `vite build`、通过 `electron-builder` 产出绿色版与安装版，并由 `scripts/sync-installer.cjs` 自动清理旧版本并将最新版复制到 `installer/`。
-- `installer/PromptMag-Portable-1.9.8.exe`：单文件免安装绿色版，双击即用
-- `installer/PromptMag-Setup-1.9.8.exe`：安装向导版，可自选安装目录与桌面快捷方式
+- `installer/PromptMag-Portable-1.9.9.exe`：单文件免安装绿色版，双击即用
+- `installer/PromptMag-Setup-1.9.9.exe`：安装向导版，可自选安装目录与桌面快捷方式
 - 用户配置与队列数据默认保存在 `~/.prompt-mag/`，替换或更新 exe 均不影响既有数据。
 
 ### 架构
@@ -172,10 +172,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 ## English
 
-### Download (v1.9.8, Windows x64)
+### Download (v1.9.9, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.8.exe`](/installer/PromptMag-Portable-1.9.8.exe) — no install needed, portable mode
-- Installer: [`installer/PromptMag-Setup-1.9.8.exe`](/installer/PromptMag-Setup-1.9.8.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.9.exe`](/installer/PromptMag-Portable-1.9.9.exe) — no install needed, portable mode
+- Installer: [`installer/PromptMag-Setup-1.9.9.exe`](/installer/PromptMag-Setup-1.9.9.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases). Default hotkey to summon the window: `Alt+Q`.
 
@@ -266,8 +266,8 @@ The dev server listens on `5199` (override with `PM_DEV_PORT`) instead of 5173. 
 npm run update:exe    # produces two executables under installer/
 ```
 
-- `installer/PromptMag-Portable-1.9.8.exe`: single-file, no installation, double-click to run
-- `installer/PromptMag-Setup-1.9.8.exe`: installer wizard with a choosable install directory
+- `installer/PromptMag-Portable-1.9.9.exe`: single-file, no installation, double-click to run
+- `installer/PromptMag-Setup-1.9.9.exe`: installer wizard with a choosable install directory
 - User data lives in `~/.prompt-mag/` and survives exe replacement.
 
 ### Architecture

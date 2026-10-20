@@ -66,6 +66,15 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
+  version: '1.9.9',
+  updateStatus: {
+    checking: false,
+    checked: false,
+    hasUpdate: false,
+    info: null,
+    error: null
+  },
+  isUpdateModalOpen: false,
   toast: '',
   paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '' },
   settings: {
@@ -73,7 +82,8 @@ export const state = reactive({
     hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T',
     locale: 'zh', popMode: 'shotgun', autoCleanup: 'off',
     saveTargetMode: 'active', // 'active' (当前活动弹夹) | 'ask' (每次弹窗选择) | 'specific' (指定固定弹夹)
-    defaultMagazineId: 'default'
+    defaultMagazineId: 'default',
+    ignoredVersion: ''
   },
   magazines: [],
   activeMagazineId: 'default',
@@ -200,6 +210,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
+  state.version = res.version || '1.9.9'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -209,6 +220,7 @@ export async function initStore() {
       popMode: 'shotgun',
       saveTargetMode: 'active',
       defaultMagazineId: 'default',
+    ignoredVersion: '',
       autoCleanup: 'off',
       magazineAutoCleanup: {}
     },
@@ -1252,6 +1264,150 @@ export function removeSnippet(id) {
 export function getFavoritesList() {
   const favMag = state.magazines.find((m) => m.id === 'favorites')
   return favMag ? favMag.queue : state.snippets
+}
+
+/* ---------------- 版本更新检测 ---------------- */
+/**
+ * 语义化版本号比较 (例如 '1.9.9' vs '1.9.9')
+ * 返回 1 (v1 > v2), -1 (v1 < v2), 0 (v1 == v2)
+ */
+export function compareVersions(v1, v2) {
+  if (!v1 && !v2) return 0
+  if (!v1) return -1
+  if (!v2) return 1
+  const clean = (v) => String(v).trim().replace(/^[^\d]*/, '')
+  const parts1 = clean(v1).split(/[.-]/).map((n) => parseInt(n, 10) || 0)
+  const parts2 = clean(v2).split(/[.-]/).map((n) => parseInt(n, 10) || 0)
+  const len = Math.max(parts1.length, parts2.length)
+  for (let i = 0; i < len; i++) {
+    const p1 = parts1[i] !== undefined ? parts1[i] : 0
+    const p2 = parts2[i] !== undefined ? parts2[i] : 0
+    if (p1 > p2) return 1
+    if (p1 < p2) return -1
+  }
+  return 0
+}
+
+/**
+ * 检查 GitHub Releases 最新版本
+ * @param {boolean} manual 是否为用户手动点击检查更新
+ */
+export async function checkForUpdates(manual = false) {
+  if (state.updateStatus.checking) return
+  state.updateStatus.checking = true
+  state.updateStatus.error = null
+
+  if (manual) {
+    toast(t('updateModal.checkingToast'))
+  }
+
+  try {
+    let res
+    if (window.pm && window.pm.checkUpdate) {
+      res = await window.pm.checkUpdate()
+    } else {
+      const r = await fetch('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest', {
+        headers: { 'Accept': 'application/vnd.github.v3+json' }
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const d = await r.json()
+      res = {
+        ok: true,
+        data: {
+          tagName: d.tag_name,
+          version: (d.tag_name || '').replace(/^v/i, ''),
+          name: d.name,
+          body: d.body,
+          htmlUrl: d.html_url,
+          publishedAt: d.published_at,
+          assets: (d.assets || []).map((a) => ({ name: a.name, downloadUrl: a.browser_download_url, size: a.size }))
+        }
+      }
+    }
+
+    if (!res || !res.ok || !res.data) {
+      throw new Error(res?.error || 'Failed to fetch release info')
+    }
+
+    const latest = res.data
+    const current = state.version || '1.9.9'
+    const isNewer = compareVersions(latest.version, current) > 0
+
+    state.updateStatus.checked = true
+    state.updateStatus.hasUpdate = isNewer
+    state.updateStatus.info = latest
+
+    if (isNewer) {
+      const isIgnored = state.settings.ignoredVersion && state.settings.ignoredVersion === latest.version
+      if (manual || !isIgnored) {
+        state.isUpdateModalOpen = true
+        if (state.settings.mode === 'capsule') {
+          setMode('full')
+        }
+      }
+    } else {
+      if (manual) {
+        toast(t('updateModal.upToDateToast', { version: current }))
+      }
+    }
+  } catch (err) {
+    console.error('[PromptMag] Check update failed:', err)
+    state.updateStatus.error = err && err.message ? err.message : String(err)
+    if (manual) {
+      toast(t('updateModal.checkFailedToast'))
+    }
+  } finally {
+    state.updateStatus.checking = false
+  }
+}
+
+/**
+ * 忽略当前新版本（不再弹窗提醒）
+ */
+export function ignoreUpdateVersion(ver) {
+  const versionToIgnore = ver || state.updateStatus.info?.version
+  if (versionToIgnore) {
+    state.settings.ignoredVersion = versionToIgnore
+    toast(t('updateModal.ignoredToast', { version: versionToIgnore }))
+  }
+  state.isUpdateModalOpen = false
+}
+
+/**
+ * 取消忽略版本更新
+ */
+export function unignoreUpdateVersion() {
+  const oldIgnored = state.settings.ignoredVersion
+  state.settings.ignoredVersion = ''
+  if (oldIgnored) {
+    toast(t('updateModal.unignoredToast', { version: oldIgnored }))
+  }
+  if (state.updateStatus.hasUpdate) {
+    state.isUpdateModalOpen = true
+  }
+}
+
+/**
+ * 打开外部更新链接或安装包下载
+ */
+export function openUpdateUrl(url) {
+  const targetUrl = url || state.updateStatus.info?.htmlUrl || 'https://github.com/HaiLanDuJun/PromptMag/releases/latest'
+  if (window.pm && window.pm.openExternal) {
+    window.pm.openExternal(targetUrl)
+  } else {
+    window.open(targetUrl, '_blank')
+  }
+}
+
+export function openUpdateModal() {
+  state.isUpdateModalOpen = true
+  if (state.settings.mode === 'capsule') {
+    setMode('full')
+  }
+}
+
+export function closeUpdateModal() {
+  state.isUpdateModalOpen = false
 }
 
 export { t, currentLocale } from './i18n.js'

@@ -2067,6 +2067,58 @@ function registerIpc() {
   ipcMain.on('pm:show-item-in-folder', (_e, p) => {
     if (p) shell.showItemInFolder(p)
   })
+  /* 检查 GitHub Releases 版本更新 */
+  ipcMain.handle('pm:check-update', async () => {
+    try {
+      const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 8000)
+      let res
+      try {
+        res = await fetchFn('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest', {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'PromptMag-Desktop',
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+
+      if (!res.ok) {
+        return { ok: false, error: `GitHub API HTTP ${res.status}: ${res.statusText}` }
+      }
+
+      const release = await res.json()
+      const tagName = release.tag_name || ''
+      const version = tagName.replace(/^v/i, '').trim()
+      const assets = Array.isArray(release.assets)
+        ? release.assets.map((a) => ({
+            name: a.name,
+            downloadUrl: a.browser_download_url,
+            size: a.size
+          }))
+        : []
+
+      return {
+        ok: true,
+        data: {
+          tagName,
+          version,
+          name: release.name || tagName,
+          body: release.body || '',
+          htmlUrl: release.html_url || `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
+          publishedAt: release.published_at || '',
+          assets
+        }
+      }
+    } catch (err) {
+      log('check-update error:', err && err.message)
+      return { ok: false, error: err && err.message ? err.message : String(err) }
+    }
+  })
+
   ipcMain.on('pm:open-external', (_e, url) => {
     if (url && typeof url === 'string') {
       shell.openExternal(url).catch((err) => {

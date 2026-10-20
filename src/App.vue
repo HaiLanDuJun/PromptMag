@@ -9,7 +9,8 @@ import SnippetPicker from './components/SnippetPicker.vue'
 import ImagePreviewModal from './components/ImagePreviewModal.vue'
 import MagazinePickerModal from './components/MagazinePickerModal.vue'
 import RelayStartupModal from './components/RelayStartupModal.vue'
-import { state, initStore, bindExternalEvents, setMode, bindModeSync, t } from './lib/store'
+import UpdateModal from './components/UpdateModal.vue'
+import { state, initStore, bindExternalEvents, setMode, bindModeSync, checkForUpdates, t } from './lib/store'
 
 const isSnippetPicker = ref(window.location.hash === '#snippet-picker')
 const pendingCount = computed(() => state.queue.filter((t) => !t.done).length)
@@ -40,11 +41,11 @@ function hoverOpenQuick() {
 let isPickerOpen = false
 
 function scheduleCollapse() {
-  if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen) return
+  if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen) return
   if (!hasEntered || pointerDown) return
   clearTimeout(collapseTimer)
   collapseTimer = setTimeout(() => {
-    if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen) return
+    if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen) return
     if (pointerDown) return
     if (Date.now() - lastExpandAt < 220) return   // 极短缓冲期防抖，告别漫长等待
     if (document.hasFocus()) return               // 正在输入，不收起
@@ -67,7 +68,7 @@ function onShellLeave() {
   if (mode.value !== 'capsule') scheduleCollapse()
 }
 function onWinBlur() {
-  if (state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen) return
+  if (state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen) return
   if (mode.value !== 'capsule') scheduleCollapse()
 }
 function onWinFocus() {
@@ -93,6 +94,9 @@ onMounted(async () => {
     return
   }
   await initStore()
+  setTimeout(() => {
+    checkForUpdates(false)
+  }, 1500)
   bindExternalEvents()
   bindModeSync((m) => { state.settings.mode = m })
   window.addEventListener('blur', onWinBlur)
@@ -151,5 +155,7 @@ onBeforeUnmount(() => {
     <MagazinePickerModal v-if="state.isMagazinePickerOpen" />
     <!-- Agent接力启动提示词生成弹窗 -->
     <RelayStartupModal v-if="state.isRelayStartupModalOpen" />
+    <!-- 版本更新提醒弹窗 -->
+    <UpdateModal v-if="state.isUpdateModalOpen" />
   </div>
 </template>

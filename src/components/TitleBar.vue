@@ -9,7 +9,8 @@ import {
   state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir,
   setHotkeys, changeLocale, setPopMode, setAutoCleanupSetting, cleanupUnfavorited,
   getMagazineAutoCleanup, setMagazineAutoCleanup,
-  setSaveTargetMode, t, currentLocale
+  setSaveTargetMode, checkForUpdates, openUpdateModal,
+  ignoreUpdateVersion, unignoreUpdateVersion, openUpdateUrl, t, currentLocale
 } from '../lib/store'
 import HotkeyInput from './HotkeyInput.vue'
 
@@ -103,7 +104,7 @@ function toggleLang() {
 
       <!-- 设置 -->
       <button
-        class="icon-btn"
+        class="icon-btn relative"
         :class="{ active: showSettings }"
         :title="t('titleBar.settings')"
         @click.stop="showSettings = !showSettings"
@@ -112,6 +113,10 @@ function toggleLang() {
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
+        <span
+          v-if="state.updateStatus.hasUpdate && state.settings.ignoredVersion !== state.updateStatus.info?.version"
+          class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-sky-400 ring-2 ring-slate-900 animate-pulse"
+        />
       </button>
 
       <!-- 迷你胶囊输入 -->
@@ -378,6 +383,91 @@ function toggleLang() {
       <div class="flex gap-2 mt-2">
         <button class="btn flex-1" @click="onChooseDir">{{ t('settings.changeDir') }}</button>
         <button class="btn" @click="openDataDir">{{ t('settings.openDir') }}</button>
+      </div>
+
+      <!-- 版本信息与更新检测 -->
+      <div class="settings-label mt-3">{{ t('settings.versionTitle') }}</div>
+      <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-xs mb-3">
+        <!-- 当前版本号与检查按钮 -->
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-1.5">
+            <span class="text-sky-400 font-semibold text-[11.5px]">PromptMag</span>
+            <span class="font-mono text-[10px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 border border-sky-400/30">
+              v{{ state.version }}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 px-1.5 py-0.5 rounded border border-sky-500/30 hover:border-sky-400/60 bg-sky-500/10 cursor-pointer disabled:opacity-50 transition-all"
+            :disabled="state.updateStatus.checking"
+            @click="checkForUpdates(true)"
+          >
+            <span v-if="state.updateStatus.checking" class="animate-spin text-[9px]">⌛</span>
+            <span>{{ state.updateStatus.checking ? t('settings.checkingUpdate') : t('settings.checkUpdate') }}</span>
+          </button>
+        </div>
+
+        <!-- 发现新版本 -->
+        <div
+          v-if="state.updateStatus.hasUpdate && state.updateStatus.info"
+          class="p-2 rounded-lg bg-sky-500/10 border border-sky-400/40 text-[11px] flex flex-col gap-1.5"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1 font-semibold text-sky-300">
+              <span>🚀</span>
+              <span>{{ t('settings.hasNewVersion') }}</span>
+              <span class="font-mono text-sky-200 underline">v{{ state.updateStatus.info.version }}</span>
+            </div>
+            <span
+              v-if="state.settings.ignoredVersion === state.updateStatus.info.version"
+              class="text-[9px] text-amber-300 font-medium px-1 py-0.2 rounded bg-amber-500/20 border border-amber-400/30"
+            >
+              {{ t('settings.ignoredVersionLabel') }}
+            </span>
+          </div>
+
+          <div v-if="state.updateStatus.info.name" class="text-[10px] text-slate-300 truncate" :title="state.updateStatus.info.name">
+            {{ state.updateStatus.info.name }}
+          </div>
+
+          <!-- 操作按钮组 -->
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <button
+              type="button"
+              class="btn btn-primary flex-1 !py-1 text-[10.5px] font-medium cursor-pointer"
+              @click="openUpdateModal"
+            >
+              {{ t('settings.updateNow') }}
+            </button>
+
+            <button
+              v-if="state.settings.ignoredVersion === state.updateStatus.info.version"
+              type="button"
+              class="btn flex-1 !py-1 text-[10.5px] text-amber-300 hover:text-amber-200 cursor-pointer"
+              @click="unignoreUpdateVersion"
+            >
+              {{ t('settings.unignore') }}
+            </button>
+            <button
+              v-else
+              type="button"
+              class="btn flex-1 !py-1 text-[10.5px] text-slate-400 hover:text-slate-200 cursor-pointer"
+              @click="ignoreUpdateVersion(state.updateStatus.info.version)"
+            >
+              {{ t('settings.ignoreVersion') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 已是最新版本 -->
+        <div
+          v-else-if="state.updateStatus.checked"
+          class="flex items-center gap-1 text-[10.5px] text-emerald-400 pt-0.5 font-medium"
+        >
+          <span>✓</span>
+          <span>{{ t('settings.upToDate') }}</span>
+        </div>
       </div>
 
       <!-- GitHub 开源支持与求 Star 卡片 -->
