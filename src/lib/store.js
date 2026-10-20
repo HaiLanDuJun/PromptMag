@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.9',
+  version: '1.9.10',
   updateStatus: {
     checking: false,
     checked: false,
@@ -77,9 +77,10 @@ export const state = reactive({
   isUpdateModalOpen: false,
   toast: '',
   paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '' },
+  isHotkeyRecording: false,
   settings: {
     alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
-    hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T',
+    hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T', hotkeyCycleMag: 'Ctrl+Tab',
     locale: 'zh', popMode: 'shotgun', autoCleanup: 'off',
     saveTargetMode: 'active', // 'active' (当前活动弹夹) | 'ask' (每次弹窗选择) | 'specific' (指定固定弹夹)
     defaultMagazineId: 'default',
@@ -210,7 +211,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.9'
+  state.version = res.version || '1.9.10'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -574,15 +575,26 @@ function bindHotkeyEvents() {
       toast(t('toast.copiedSnippet'))
     })
   }
+
+  /* 快捷键：全局快速切换弹夹 */
+  if (window.pm && window.pm.onCycleMagazine) {
+    window.pm.onCycleMagazine((event, payload) => {
+      const reverse = payload?.reverse || false
+      cycleMagazine(reverse ? -1 : 1)
+      const cur = getActiveMagazine()
+      if (cur) toast(t('toast.magazineSwitched', { name: cur.name }))
+    })
+  }
 }
 
 export function setHotkeys(patch = {}) {
-  const keys = ['toggle', 'pop', 'snippets', 'collect']
+  const keys = ['toggle', 'pop', 'snippets', 'collect', 'cycleMag']
   const mapKey = {
     toggle: 'hotkeyToggle',
     pop: 'hotkeyPop',
     snippets: 'hotkeySnippets',
-    collect: 'hotkeyCollect'
+    collect: 'hotkeyCollect',
+    cycleMag: 'hotkeyCycleMag'
   }
 
   // 1. 单快捷键约束：每个功能快捷键只能设置一个，也可以为空（置空后彻底禁用该快捷键）
@@ -609,7 +621,8 @@ export function setHotkeys(patch = {}) {
     toggle: state.settings.hotkeyToggle || '',
     pop: state.settings.hotkeyPop || '',
     collect: state.settings.hotkeyCollect || '',
-    snippets: state.settings.hotkeySnippets || ''
+    snippets: state.settings.hotkeySnippets || '',
+    cycleMag: state.settings.hotkeyCycleMag || ''
   })
 }
 
@@ -1330,7 +1343,7 @@ export async function checkForUpdates(manual = false) {
     }
 
     const latest = res.data
-    const current = state.version || '1.9.9'
+    const current = state.version || '1.9.10'
     const isNewer = compareVersions(latest.version, current) > 0
 
     state.updateStatus.checked = true
@@ -1411,3 +1424,29 @@ export function closeUpdateModal() {
 }
 
 export { t, currentLocale } from './i18n.js'
+
+
+/** 匹配键盘事件与 Accelerator 字符串（如 'Ctrl+Tab', 'Ctrl+M', 'Alt+M'） */
+export function matchAccelerator(e, acc) {
+  if (!acc || typeof acc !== 'string') return false
+  const parts = acc.split('+').map((p) => p.trim())
+  const key = parts[parts.length - 1]
+  const hasCtrl = parts.includes('Ctrl')
+  const hasAlt = parts.includes('Alt')
+  const hasShift = parts.includes('Shift')
+  const hasMeta = parts.includes('Meta') || parts.includes('Cmd')
+
+  if (!!(e.ctrlKey || e.metaKey) !== (hasCtrl || hasMeta)) return false
+  if (!!e.altKey !== hasAlt) return false
+  if (!!e.shiftKey !== hasShift) return false
+
+  if (/^[A-Za-z]$/.test(key)) {
+    return (e.key && e.key.toUpperCase() === key.toUpperCase()) || (e.code === ('Key' + key.toUpperCase()))
+  }
+  if (/^\d$/.test(key)) {
+    return e.key === key || e.code === ('Digit' + key)
+  }
+  if (key === 'Tab') return e.key === 'Tab' || e.code === 'Tab'
+  if (key === 'Space') return e.key === ' ' || e.code === 'Space'
+  return e.key && e.key.toLowerCase() === key.toLowerCase()
+}

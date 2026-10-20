@@ -10,7 +10,7 @@ import ImagePreviewModal from './components/ImagePreviewModal.vue'
 import MagazinePickerModal from './components/MagazinePickerModal.vue'
 import RelayStartupModal from './components/RelayStartupModal.vue'
 import UpdateModal from './components/UpdateModal.vue'
-import { state, initStore, bindExternalEvents, setMode, bindModeSync, checkForUpdates, t } from './lib/store'
+import { state, initStore, bindExternalEvents, setMode, bindModeSync, checkForUpdates, cycleMagazine, setActiveMagazine, matchAccelerator, toast, t } from './lib/store'
 
 const isSnippetPicker = ref(window.location.hash === '#snippet-picker')
 const pendingCount = computed(() => state.queue.filter((t) => !t.done).length)
@@ -47,11 +47,11 @@ function scheduleCollapse() {
   collapseTimer = setTimeout(() => {
     if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen) return
     if (pointerDown) return
-    if (Date.now() - lastExpandAt < 220) return   // 极短缓冲期防抖，告别漫长等待
+    if (Date.now() - lastExpandAt < 800) return   // 展开防抖缓冲（800ms），杜绝快捷键呼出瞬间被误判自缩
     if (document.hasFocus()) return               // 正在输入，不收起
     if (mode.value === 'full') return             // 完整窗口需手动收起
     setMode('capsule')
-  }, 180)
+  }, 220)
 }
 
 function onShellEnter(e) {
@@ -69,7 +69,8 @@ function onShellLeave() {
 }
 function onWinBlur() {
   if (state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen) return
-  if (mode.value !== 'capsule') scheduleCollapse()
+  if (Date.now() - lastExpandAt < 800) return
+  if (mode.value !== 'capsule' && hasEntered) scheduleCollapse()
 }
 function onWinFocus() {
   clearTimeout(collapseTimer)
@@ -88,6 +89,49 @@ function onHashChange() {
   isSnippetPicker.value = window.location.hash === '#snippet-picker'
 }
 
+/* ---------- 全局快捷键：快速换弹夹 (支持在快捷面板、录入区以及图片任务列表中随时切换) ---------- */
+function onGlobalKeydown(e) {
+  if (state.isHotkeyRecording || state.isMagazinePickerOpen || state.isRelayStartupModalOpen) return
+
+  const configured = state.settings.hotkeyCycleMag || 'Ctrl+Tab'
+
+  const isMatch = matchAccelerator(e, configured) ||
+    (!state.settings.hotkeyCycleMag && (
+      (e.ctrlKey && e.key === 'Tab') ||
+      (e.ctrlKey && (e.key === 'm' || e.key === 'M')) ||
+      (e.altKey && (e.key === 'm' || e.key === 'M'))
+    ))
+
+  const isReverseMatch = (e.shiftKey && matchAccelerator({ ...e, shiftKey: false }, configured)) ||
+    (e.ctrlKey && e.shiftKey && e.key === 'Tab')
+
+  if (isMatch || isReverseMatch) {
+    e.preventDefault()
+    e.stopPropagation()
+    const direction = (isReverseMatch || e.shiftKey) ? -1 : 1
+    const nextMag = cycleMagazine(direction)
+    if (nextMag) {
+      const pending = (nextMag.queue || []).filter((t) => !t.done).length
+      toast(`🔫 ${nextMag.name} (${pending})`)
+    }
+    return
+  }
+
+  // Ctrl+1 ~ Ctrl+9 数字直达对应弹夹
+  if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key >= '1' && e.key <= '9') {
+    const idx = parseInt(e.key, 10) - 1
+    if (idx >= 0 && idx < state.magazines.length) {
+      e.preventDefault()
+      e.stopPropagation()
+      const targetMag = state.magazines[idx]
+      setActiveMagazine(targetMag.id)
+      const pending = (targetMag.queue || []).filter((t) => !t.done).length
+      toast(`🔫 ${targetMag.name} (${pending})`)
+      return
+    }
+  }
+}
+
 onMounted(async () => {
   window.addEventListener('hashchange', onHashChange)
   if (isSnippetPicker.value) {
@@ -103,6 +147,7 @@ onMounted(async () => {
   window.addEventListener('focus', onWinFocus)
   window.addEventListener('mousedown', onPointerDown, true)
   window.addEventListener('mouseup', onPointerUp, true)
+  window.addEventListener('keydown', onGlobalKeydown, true)
   if (window.pm && window.pm.onSnippetPickerOpened) {
     window.pm.onSnippetPickerOpened(() => {
       isPickerOpen = true
@@ -114,6 +159,13 @@ onMounted(async () => {
       isPickerOpen = false
     })
   }
+  if (window.pm && window.pm.onFocusComposer) {
+    window.pm.onFocusComposer(() => {
+      lastExpandAt = Date.now()
+      clearTimeout(collapseTimer)
+      hasEntered = false // 重置鼠标进入状态，热键呼出不由鼠标悬停逻辑控制自缩
+    })
+  }
 })
 
 onBeforeUnmount(() => {
@@ -122,6 +174,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', onWinFocus)
   window.removeEventListener('mousedown', onPointerDown, true)
   window.removeEventListener('mouseup', onPointerUp, true)
+  window.removeEventListener('keydown', onGlobalKeydown, true)
   clearTimeout(collapseTimer)
   clearTimeout(hoverTimer)
 })

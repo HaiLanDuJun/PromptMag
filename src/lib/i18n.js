@@ -148,6 +148,12 @@ export const messages = {
     },
     settings: {
       title: '应用设置',
+      tabs: {
+        default: '默认设置',
+        hotkeys: '快捷键',
+        storage: '存储管理',
+        version: '版本与更新'
+      },
       language: '界面与提示词语言 / Language',
       langZh: '简体中文 (默认)',
       langEn: 'English',
@@ -171,6 +177,10 @@ export const messages = {
       hotkeySnippetsDesc: '呼出专属收藏弹夹提示词独立弹窗，选择后直接粘贴到光标处',
       hotkeyCollectLabel: '收录到收藏弹夹',
       hotkeyCollectDesc: '把当前在外部应用中选中的文字一键收录进收藏弹夹',
+      hotkeyCycleMagLabel: '快速切换弹夹',
+      hotkeyCycleMagDesc: '在快捷输入框或任务列表中快速轮换弹夹（默认 Ctrl+Tab / Ctrl+M，支持 Shift 反向，Ctrl+1~9 数字直达）',
+      hotkeyScopeTip: '💡 在快捷面板、完整录入区以及任务图片列表中，均支持随时按该快捷键快速换弹',
+      hotkeyCycleMagHelp: '换弹快捷键说明：按 Ctrl+Tab 快速切换下一个弹夹；Ctrl+Shift+Tab 反向切换至上一弹夹；Ctrl+1 ~ Ctrl+9 可直达对应序号弹夹。支持点击输入框自定义为任意组合键（如 Ctrl+M、Alt+M 等）。',
       hotkeyNone: '未设置 (点击录制)',
       recordingHint: '按下组合键… (Esc 取消)',
       clearHotkeyTitle: '清空快捷键',
@@ -217,7 +227,11 @@ export const messages = {
       githubStarBtn: '⭐ 前往 GitHub 点赞 (Star)',
       dataDirTitle: '数据存放目录',
       changeDir: '更改目录（迁移重启）',
-      openDir: '打开'
+      openDir: '打开目录',
+      tasksFilePath: '任务流通管道文件 (next_tasks.md)',
+      openTasksBtn: '打开管道文件',
+      githubReleases: 'Releases 发布历史',
+      githubIssues: '建议与问题反馈 (Issues)'
     },
     magazines: {
       title: '项目弹夹',
@@ -467,6 +481,12 @@ export const messages = {
     },
     settings: {
       title: 'Preferences',
+      tabs: {
+        default: 'General',
+        hotkeys: 'Hotkeys',
+        storage: 'Storage',
+        version: 'Version & Updates'
+      },
       language: 'Language / 界面语言',
       langZh: '简体中文 (Default)',
       langEn: 'English',
@@ -490,6 +510,10 @@ export const messages = {
       hotkeySnippetsDesc: 'Open Favorites Magazine prompt popup, select and paste to cursor',
       hotkeyCollectLabel: 'Collect to Favorites',
       hotkeyCollectDesc: 'Collect selected text from external apps into Favorites Magazine',
+      hotkeyCycleMagLabel: 'Cycle Magazine',
+      hotkeyCycleMagDesc: 'Quickly cycle magazines in quick panel or prompt list (default Ctrl+Tab / Ctrl+M, Shift for reverse, Ctrl+1~9 for direct)',
+      hotkeyScopeTip: '💡 Works inside quick panel, prompt composer, and prompt/image list at any time',
+      hotkeyCycleMagHelp: 'Magazine hotkey tip: Press Ctrl+Tab to cycle to the next magazine; press Ctrl+Shift+Tab to cycle backwards; Ctrl+1 ~ Ctrl+9 jumps directly to magazine 1 ~ 9. Click input to record any custom combo (e.g. Ctrl+M, Alt+M).',
       hotkeyNone: 'None (Click to record)',
       recordingHint: 'Press key combo... (Esc to cancel)',
       clearHotkeyTitle: 'Clear shortcut',
@@ -536,7 +560,11 @@ export const messages = {
       githubStarBtn: '⭐ Star PromptMag on GitHub',
       dataDirTitle: 'Data Directory',
       changeDir: 'Change Directory (Restart)',
-      openDir: 'Open'
+      openDir: 'Open Directory',
+      tasksFilePath: 'Task Pipeline File (next_tasks.md)',
+      openTasksBtn: 'Open Pipeline File',
+      githubReleases: 'Releases',
+      githubIssues: 'Issues & Feedback'
     },
     magazines: {
       title: 'Project Magazines',

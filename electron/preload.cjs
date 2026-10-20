@@ -95,6 +95,12 @@ const api = {
     ipcRenderer.on('pm:always-on-top', h)
     return () => ipcRenderer.removeListener('pm:always-on-top', h)
   },
+  /* 快捷键：切换下一个弹夹 */
+  onCycleMagazine: (cb) => {
+    const h = (_e, payload) => cb(payload || {})
+    ipcRenderer.on('pm:cycle-magazine', h)
+    return () => ipcRenderer.removeListener('pm:cycle-magazine', h)
+  },
   /* 全局快捷键：弹出最旧未用提示词 */
   onHotkeyPop: (cb) => {
     const h = (_e, payload) => cb(payload || {})

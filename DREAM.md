@@ -76,6 +76,9 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 - [x] **QuickPanel magazine indicators & keyboard switching (v1.9.8)**: real-time magazine status pill (color dot, title, pending count) with dropdown list; instant switching via `Ctrl+Tab`, `Ctrl+M`, `Ctrl+1~9` shortcuts right while typing; direct queue routing on save
 - [x] **Reliable foreground HWND tracking & hotkey pop pasting (v1.9.8)**: 64-bit native HWND matching with `lastExternalHwnd` fallbacks, eliminating self-paste swallowing and premature task-done flags; seamless thumbnail-chip lifecycle sync on image deletion
 
+- [x] **In-app version display & GitHub Releases auto-updater (v1.9.9)**: in-settings version badge with silent auto-check & manual refresh, release notes update modal, with instant install, ignore version, and remind me later options
+- [x] **Categorized Settings deck & customizable magazine cycling hotkey (v1.9.10)**: restructured Settings into 4 dedicated tabs (Default, Hotkeys, Storage, Version/GitHub), customizable `hotkeyCycleMag` with global capture across full window and prompt/image queue list, QuickPanel 1-click expander, and external window refocus stabilization
+
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
 - [ ] **Screenshot visual annotations & crop**: draw red boxes, crop, or highlight directly on thumbnail cards before firing
@@ -155,6 +158,7 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **快捷弹窗实时弹夹信息与全局快捷切换（v1.9.8）**：快捷录入窗顶部常驻弹夹状态徽章（色彩、名称、待用数），支持打字时免切出使用 `Ctrl+Tab`、`Ctrl+M`、`Ctrl+1~9` 极速切换弹夹，回车直接存入当前目标弹夹
 - [x] **前台句柄智能嗅探与热键弹出粘贴防吞（v1.9.8）**：彻底修复 64 位原生 HWND 判定失效导致的自吞粘贴与过早标记问题，引入外部历史句柄追踪与鼠标悬停双重保底；完善图片删除/清空与框内关联卡片生命周期联动
 - [x] **应用内版本号展示与 GitHub Releases 自动检测更新（v1.9.9）**：设置面板直观回显当前版本与更新状态，启动自动静默比对与手动一键检查，新版本发行说明弹窗提醒，支持「立即更新」、「忽略此版本（不再弹窗）」与「稍后提醒」自由掌控
+- [x] **设置面板四大分类重构与全场景快速换弹自定义（v1.9.10）**：将设置重构为「默认设置」、「快捷键」、「存储管理」、「版本与更新（含 Git 仓库）」四大专属 Tab 告别冗长滚动；支持用户自定义快速换弹快捷键（`hotkeyCycleMag`），且在图片列表队列中全局随时响应 `Ctrl+Tab` 极速换弹；快捷面板新增一键展开完整面板，并彻底解决编辑提交后快捷键首次弹出失效的焦点恢复问题
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 

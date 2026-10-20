@@ -659,7 +659,8 @@ input:focus, textarea:focus, button:focus { outline: none; }
   position: absolute;
   top: 40px;
   right: 10px;
-  width: 300px;
+  width: 360px;
+  max-width: calc(100vw - 20px);
   max-height: calc(100vh - 55px);
   overflow-y: auto;
   z-index: 41;

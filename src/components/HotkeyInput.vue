@@ -6,8 +6,8 @@
  *  - 支持 Backspace/Delete 清空，Esc 取消录制
  *  - 支持点击右侧 ✕ 按钮一键清空置空
  */
-import { computed, ref } from 'vue'
-import { t } from '../lib/store'
+import { computed, ref, watch } from 'vue'
+import { state, t } from '../lib/store'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -16,6 +16,10 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const recording = ref(false)
+
+watch(recording, (v) => {
+  state.isHotkeyRecording = !!v
+})
 
 const displayPlaceholder = computed(() => props.placeholder || t('settings.hotkeyNone'))
 

@@ -65,7 +65,8 @@ const HOTKEY_DEFAULTS = {
   toggle: 'Alt+Q',
   pop: 'Alt+V',
   snippets: 'Alt+X',
-  collect: 'Alt+T'
+  collect: 'Alt+T',
+  cycleMag: 'Ctrl+Tab'
 }
 let customHotkeys = { ...HOTKEY_DEFAULTS }
 let currentlyRegisteredHotkeys = new Set()
@@ -1177,6 +1178,16 @@ function setAlwaysOnTopState(flag) {
 function setMode(next) {
   if (!mainWindow || mainWindow.isDestroyed() || mode === next) return
   const prev = mode
+  // 从胶囊形态展开到面板时，记录当前外部前台窗口
+  if (prev === 'capsule' && next !== 'capsule') {
+    try {
+      const helperPath = getPasteHelperPath()
+      if (fs.existsSync(helperPath)) {
+        const curFg = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
+        updateLastExternalHwnd(curFg)
+      }
+    } catch { /* ignore */ }
+  }
   mode = next
   untuck()
   // 离开圆球先撤销裁剪，避免放大动画被圆形裁掉
@@ -1313,7 +1324,7 @@ function createWindow() {
   mainWindow.on('focus', () => { applyAlwaysOnTop(); untuck() })
   mainWindow.on('blur', () => {
     scheduleTuck()
-    setTimeout(() => {
+    const updateFg = () => {
       try {
         const helperPath = getPasteHelperPath()
         if (fs.existsSync(helperPath)) {
@@ -1321,7 +1332,9 @@ function createWindow() {
           updateLastExternalHwnd(curFg)
         }
       } catch { /* ignore */ }
-    }, 120)
+    }
+    updateFg()
+    setTimeout(updateFg, 100)
   })
 
   mainWindow.once('ready-to-show', () => {
@@ -1347,6 +1360,22 @@ function createWindow() {
 
 function toggleWindow() {
   if (!mainWindow) return
+  // 如果当前是胶囊形态，快捷键按下必须是呼出展开为快捷输入，绝不能误判为隐藏！
+  if (mode === 'capsule') {
+    try {
+      const helperPath = getPasteHelperPath()
+      if (fs.existsSync(helperPath)) {
+        const curFg = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
+        updateLastExternalHwnd(curFg)
+      }
+    } catch { /* ignore */ }
+    setMode('quick')
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindow.webContents.send('pm:focus-composer')
+    return
+  }
+
   if (mainWindow.isVisible() && mainWindow.isFocused()) {
     mainWindow.hide()
   } else {
@@ -1357,7 +1386,6 @@ function toggleWindow() {
         updateLastExternalHwnd(curFg)
       }
     } catch { /* ignore */ }
-    if (mode === 'capsule') setMode('quick') // 呼出时若是胶囊则展开为快捷输入
     mainWindow.show()
     mainWindow.focus()
     mainWindow.webContents.send('pm:focus-composer')
@@ -1377,6 +1405,11 @@ function sendToRenderer(channel, payload) {
 function onHotkeyPop() {
   const fgHwnd = getForegroundHwndSync()
   log('hotkey pop ->', customHotkeys.pop, 'fgHwnd:', fgHwnd)
+  // 如果当前前台还是 PromptMag 自身（比如刚在快捷面板/主窗口编辑完直接按快捷键弹出），
+  // 主动释放自身焦点，促使系统前台自然切换至外部目标窗口！
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()) {
+    mainWindow.blur()
+  }
   sendToRenderer('pm:hotkey-pop', { fgHwnd })
 }
 
@@ -1487,13 +1520,16 @@ function sendPasteKeys(targetHwnd = '0') {
     if (fs.existsSync(helperPath)) {
       try {
         let hwndStr = String(targetHwnd || '0').trim()
-        // 关键防护：绝不允许把 PromptMag 自身作为粘贴的目标窗口！
-        if (isPromptMagHwnd(hwndStr)) {
-          if (lastExternalHwnd && !isPromptMagHwnd(lastExternalHwnd)) {
+        // 关键防护：绝不允许把 PromptMag 自身作为粘贴的目标窗口；目标为0时也优先回退至历史外部窗口
+        if (isPromptMagHwnd(hwndStr) || hwndStr === '0') {
+          if (lastExternalHwnd && !isPromptMagHwnd(lastExternalHwnd) && lastExternalHwnd !== '0') {
             hwndStr = lastExternalHwnd
           } else {
             hwndStr = '0'
           }
+        }
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()) {
+          mainWindow.blur()
         }
         log('executing paste-helper with hwnd:', hwndStr)
         const p = spawn(helperPath, ['paste', hwndStr], { windowsHide: true, stdio: 'ignore' })
@@ -1695,7 +1731,8 @@ function readHotkeysFromData() {
     toggle: s.hotkeyToggle !== undefined ? String(s.hotkeyToggle).trim() : HOTKEY_DEFAULTS.toggle,
     pop: s.hotkeyPop !== undefined ? String(s.hotkeyPop).trim() : HOTKEY_DEFAULTS.pop,
     snippets: s.hotkeySnippets !== undefined ? String(s.hotkeySnippets).trim() : HOTKEY_DEFAULTS.snippets,
-    collect: s.hotkeyCollect !== undefined ? String(s.hotkeyCollect).trim() : HOTKEY_DEFAULTS.collect
+    collect: s.hotkeyCollect !== undefined ? String(s.hotkeyCollect).trim() : HOTKEY_DEFAULTS.collect,
+    cycleMag: s.hotkeyCycleMag !== undefined ? String(s.hotkeyCycleMag).trim() : HOTKEY_DEFAULTS.cycleMag
   }
   // 旧版本冲突键平滑迁移（微信冲突排查：Alt+C 会触发微信关闭窗口，Alt+S 会触发微信发消息）
   if (customHotkeys.snippets === 'Alt+C') customHotkeys.snippets = 'Alt+X'
@@ -1731,6 +1768,9 @@ function registerCustomHotkeys() {
   tryRegister('pop', customHotkeys.pop, onHotkeyPop)
   tryRegister('snippets', customHotkeys.snippets, onHotkeySnippets)
   tryRegister('collect', customHotkeys.collect, onHotkeyCollect)
+  tryRegister('cycleMag', customHotkeys.cycleMag, () => {
+    sendToRenderer('pm:cycle-magazine', { direction: 1 })
+  })
 
   const allOk = failedKeys.length === 0
   log('custom hotkeys ->', JSON.stringify(customHotkeys), 'allOk:', allOk, 'failed:', failedKeys)
@@ -1980,6 +2020,7 @@ function registerIpc() {
       if (h.pop !== undefined) customHotkeys.pop = String(h.pop).trim()
       if (h.snippets !== undefined) customHotkeys.snippets = String(h.snippets).trim()
       if (h.collect !== undefined) customHotkeys.collect = String(h.collect).trim()
+      if (h.cycleMag !== undefined) customHotkeys.cycleMag = String(h.cycleMag).trim()
     }
     const res = registerCustomHotkeys()
     updateTrayTooltip()
@@ -1991,7 +2032,8 @@ function registerIpc() {
         toggle: customHotkeys.toggle,
         pop: customHotkeys.pop,
         snippets: customHotkeys.snippets,
-        collect: customHotkeys.collect
+        collect: customHotkeys.collect,
+        cycleMag: customHotkeys.cycleMag
       })
     }
   })

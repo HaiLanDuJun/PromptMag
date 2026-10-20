@@ -134,16 +134,23 @@ public class PasteHelper {
                     uint curThread = GetCurrentThreadId();
                     uint targetThread = GetWindowThreadProcessId(target, out dummyPid2);
 
-                    if (fgThread != 0 && fgThread != targetThread) {
+                    // 模拟 Alt 键释放，打破 Windows 系统的 SetForegroundWindow 前台锁定限制
+                    keybd_event(VK_MENU, 0, 0, UIntPtr.Zero);
+                    keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                    if (fgThread != 0 && fgThread != curThread) {
+                        AttachThreadInput(curThread, fgThread, true);
+                    }
+                    if (targetThread != 0 && targetThread != curThread) {
                         AttachThreadInput(curThread, targetThread, true);
-                        AttachThreadInput(fgThread, targetThread, true);
-                        BringWindowToTop(target);
-                        SetForegroundWindow(target);
-                        AttachThreadInput(fgThread, targetThread, false);
+                    }
+                    BringWindowToTop(target);
+                    SetForegroundWindow(target);
+                    if (fgThread != 0 && fgThread != curThread) {
+                        AttachThreadInput(curThread, fgThread, false);
+                    }
+                    if (targetThread != 0 && targetThread != curThread) {
                         AttachThreadInput(curThread, targetThread, false);
-                    } else {
-                        BringWindowToTop(target);
-                        SetForegroundWindow(target);
                     }
                 } catch {
                     // ignore
@@ -203,16 +210,23 @@ public class PasteHelper {
                     uint curThread = GetCurrentThreadId();
                     uint targetThread = GetWindowThreadProcessId(target, out dummyPid2);
 
-                    if (fgThread != 0 && fgThread != targetThread) {
+                    // 模拟 Alt 键释放，打破 Windows 系统的 SetForegroundWindow 前台锁定限制
+                    keybd_event(VK_MENU, 0, 0, UIntPtr.Zero);
+                    keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                    if (fgThread != 0 && fgThread != curThread) {
+                        AttachThreadInput(curThread, fgThread, true);
+                    }
+                    if (targetThread != 0 && targetThread != curThread) {
                         AttachThreadInput(curThread, targetThread, true);
-                        AttachThreadInput(fgThread, targetThread, true);
-                        BringWindowToTop(target);
-                        SetForegroundWindow(target);
-                        AttachThreadInput(fgThread, targetThread, false);
+                    }
+                    BringWindowToTop(target);
+                    SetForegroundWindow(target);
+                    if (fgThread != 0 && fgThread != curThread) {
+                        AttachThreadInput(curThread, fgThread, false);
+                    }
+                    if (targetThread != 0 && targetThread != curThread) {
                         AttachThreadInput(curThread, targetThread, false);
-                    } else {
-                        BringWindowToTop(target);
-                        SetForegroundWindow(target);
                     }
                 } catch {
                     // ignore
