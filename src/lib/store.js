@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.15',
+  version: '1.9.16',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
@@ -217,7 +217,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.15'
+  state.version = res.version || '1.9.16'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -1381,7 +1381,7 @@ export async function checkForUpdates(manual = false) {
     }
 
     const latest = res.data
-    const current = state.version || '1.9.15'
+    const current = state.version || '1.9.16'
     const isNewer = compareVersions(latest.version, current) > 0
 
     state.updateStatus.checked = true

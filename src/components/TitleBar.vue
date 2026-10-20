@@ -5,13 +5,14 @@
  *  - 右侧：置顶、透明度、语言切换、设置、迷你、收起、关闭
  *  - 设置面板：分为【默认设置】、【快捷键】、【存储管理】、【版本与更新（含Git仓库）】4个专属 Tab
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir,
   setHotkeys, changeLocale, setPopMode, setAutoCleanupSetting, cleanupUnfavorited,
   getMagazineAutoCleanup, setMagazineAutoCleanup,
   setSaveTargetMode, setWindowScaleMode, setHideTaskbar, checkForUpdates, openUpdateModal,
-  ignoreUpdateVersion, unignoreUpdateVersion, openUpdateUrl, t, currentLocale
+  ignoreUpdateVersion, unignoreUpdateVersion, openUpdateUrl, t, currentLocale,
+  setMode, toast
 } from '../lib/store'
 import HotkeyInput from './HotkeyInput.vue'
 

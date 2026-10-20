@@ -89,6 +89,8 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 
 - [x] **Silent hotkey pop in floating mode (v1.9.15)**: suppressed intrusive empty/all-done toast notifications and eliminated auto-expansion to quick panel when popping prompts in floating window (capsule / quick) states
 
+- [x] **TitleBar & Settings gear render restoration (v1.9.16)**: fixed runtime setup reference error in TitleBar component, restoring full top bar with settings gear, pin, opacity, and window control buttons
+
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
 - [ ] **Screenshot visual annotations & crop**: draw red boxes, crop, or highlight directly on thumbnail cards before firing
@@ -179,6 +181,8 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **窗口缩放基准配置生效与贴边/失焦自动缩放为悬浮窗修复（v1.9.14）**：彻底解决设置「默认缩放为悬浮窗」后贴边与失焦依旧按原大窗口缩进的问题；选择后贴边或离开自动缩放为精致悬浮窗/悬浮球，关闭设置自动回缩，杜绝 520px 原窗口长黑条遮挡
 
 - [x] **悬浮窗状态静默出弹与免弹窗提示优化（v1.9.15）**：在悬浮窗状态（悬浮球或快捷面板）下按出弹热键且弹夹已耗尽或为空时，不再强制展开面板也不再弹出提示 Toast，实现完全静默防打扰体验
+
+- [x] **顶栏标题栏与设置按钮恢复修复（v1.9.16）**：修复 TitleBar 组件 setup 缺失导入导致的挂载异常，完整恢复顶部标题栏、设置齿轮 ⚙️、置顶钉子、透明度滑块及窗口控制按钮
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 
