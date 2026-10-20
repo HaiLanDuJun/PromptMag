@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.14',
+  version: '1.9.15',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
@@ -217,7 +217,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.14'
+  state.version = res.version || '1.9.15'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -525,13 +525,13 @@ function bindHotkeyEvents() {
     const fgHwnd = payload && payload.fgHwnd ? payload.fgHwnd : '0'
     const pending = state.queue.filter((t) => !t.done)
     if (!pending.length) {
-      if (state.settings.mode === 'capsule') {
-        setMode('quick')
-      }
-      if (state.queue.length > 0) {
-        toast(t('toast.magAllDone'))
-      } else {
-        toast(t('toast.magEmpty'))
+      // 悬浮窗状态下（capsule 悬浮球或 quick 悬浮面板），不用显示提示，也不用专门展开显示提示
+      if (state.settings.mode === 'full') {
+        if (state.queue.length > 0) {
+          toast(t('toast.magAllDone'))
+        } else {
+          toast(t('toast.magEmpty'))
+        }
       }
       return
     }
@@ -1381,7 +1381,7 @@ export async function checkForUpdates(manual = false) {
     }
 
     const latest = res.data
-    const current = state.version || '1.9.14'
+    const current = state.version || '1.9.15'
     const isNewer = compareVersions(latest.version, current) > 0
 
     state.updateStatus.checked = true
