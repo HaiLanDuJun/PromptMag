@@ -74,10 +74,26 @@ function hasNaturalOrdinal(text, lang = 'zh') {
 }
 
 /** 生成底部精确索引映射块 */
-export function buildMappingBlock(images, lang = null) {
+export function buildMappingBlock(images, lang = null, opts = {}) {
   if (!images.length) return ''
   const l = lang || currentLocale.value || 'zh'
   const isEn = l === 'en'
+  const forPop = !!(opts && (opts.forPop || opts.singleLine))
+
+  if (forPop) {
+    if (isEn) {
+      const maps = images.map((img, i) => {
+        const note = (img.note || '').trim()
+        return '[Img ' + (i + 1) + '] Path: ' + quote(img.path) + (note ? ' (Note: ' + note + ')' : '')
+      }).join(' ; ')
+      return ' | 📎 Attached Image Mappings: ' + maps
+    }
+    const maps = images.map((img, i) => {
+      const note = (img.note || '').trim()
+      return '【' + imgLabel(i + 1, 'zh') + '】路径: ' + quote(img.path) + (note ? ' (说明: ' + note + ')' : '')
+    }).join(' ; ')
+    return ' | 📎 附加上下文图片精确映射：' + maps
+  }
 
   if (isEn) {
     const lines = images.map((img, i) => {
@@ -107,9 +123,27 @@ export function buildMappingBlock(images, lang = null) {
 }
 
 /** 纯图片批注模式 -> 分步指令列表 */
-export function buildStepInstructions(images, lang = null) {
+export function buildStepInstructions(images, lang = null, opts = {}) {
   const l = lang || currentLocale.value || 'zh'
   const isEn = l === 'en'
+  const forPop = !!(opts && (opts.forPop || opts.singleLine))
+
+  if (forPop) {
+    if (isEn) {
+      const steps = images.map((img, i) => {
+        const note = (img.note || '').trim()
+        return (i + 1) + '. [Image ' + (i + 1) + '] Local path: ' + quote(img.path) +
+          (note ? ' | Action: ' + note : '')
+      }).join(' ; ')
+      return 'Please strictly follow numbered image order and execute each step: ' + steps
+    }
+    const steps = images.map((img, i) => {
+      const note = (img.note || '').trim()
+      return (i + 1) + '. 【' + imgLabel(i + 1, 'zh') + '】本地路径: ' + quote(img.path) +
+        (note ? ' | 请执行: ' + note : '')
+    }).join(' ; ')
+    return '请严格按照图片编号顺序，逐张完成对应处理：' + steps
+  }
 
   if (isEn) {
     const steps = images.map((img, i) => {
@@ -146,8 +180,15 @@ export function inferTaskType(text) {
 export function buildRelayHook(tasksPath, lang = null, meta = {}) {
   const l = lang || currentLocale.value || 'zh'
   const isEn = l === 'en'
+  const forPop = !!(meta && (meta.forPop || meta.singleLine))
   const magTag = meta && meta.magazineName ? ` [${meta.magazineName}]` : ''
   const magZh = meta && meta.magazineName ? `（针对「${meta.magazineName}」项目任务）` : ''
+
+  if (forPop) {
+    return isEn
+      ? ` | [PromptMag Relay${magTag}] After completing above prompt, immediately read relay tasks: "${tasksPath}" and advance next task.`
+      : ` | 【PromptMag接力${magZh}】完成上述当前指令后，请立即读取本地接力任务队列文件: "${tasksPath}" 继续接力推进。`
+  }
 
   if (isEn) {
     return [
@@ -312,6 +353,7 @@ export function compilePrompt(task, opts = {}) {
   const lang = opts.locale || currentLocale.value || 'zh'
   const tasksPath = opts.tasksPath || ''
   const relay = !!opts.relay
+  const forPop = !!(opts.forPop || opts.singleLine)
   const images = validImages(task)
   let body = String((task && task.text) || '').trim()
   body = expandInlineTokens(body, images, lang)
@@ -321,21 +363,34 @@ export function compilePrompt(task, opts = {}) {
 
   // 3. 纯图片批注模式：正文没有实质内容（或仅剩图片标记），全靠卡片批注驱动
   if (images.length && leftover.length === 0 && hasNotes) {
-    body = buildStepInstructions(images, lang)
+    body = buildStepInstructions(images, lang, opts)
   }
 
   // 自然语言兼容提示
   let ordinalHint = ''
   if (images.length && hasNaturalOrdinal(body, lang)) {
     ordinalHint = lang === 'en'
-      ? '\n\n(Note: Any natural ordinal references such as "1st image / Img N" in the text refer strictly to the exact image mappings below. Please match local files by number.)'
-      : '\n\n（注：正文中提到的「第N张图 / 图N」均指下方图片精确映射表中的图N，请严格按编号读取对应本地文件。）'
+      ? (forPop ? ' (Note: Image ordinals refer to mappings)' : '\n\n(Note: Any natural ordinal references such as "1st image / Img N" in the text refer strictly to the exact image mappings below. Please match local files by number.)')
+      : (forPop ? '（注：文中所提第N张图均指对应图片映射）' : '\n\n（注：正文中提到的「第N张图 / 图N」均指下方图片精确映射表中的图N，请严格按编号读取对应本地文件。）')
   }
 
-  const parts = [body + ordinalHint, buildMappingBlock(images, lang)].filter(Boolean)
-  let out = parts.join('\n')
+  if (forPop) {
+    body = body.replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim()
+  }
 
-  if (relay && tasksPath) out += buildRelayHook(tasksPath, lang, opts)
+  const mappingBlock = buildMappingBlock(images, lang, opts)
+  const parts = [body + ordinalHint, mappingBlock].filter(Boolean)
+  let out = forPop ? parts.join(' ') : parts.join('\n')
+
+  if (relay && tasksPath) {
+    const hook = buildRelayHook(tasksPath, lang, opts)
+    out = forPop ? (out + ' ' + hook) : (out + hook)
+  }
+
+  if (forPop) {
+    out = out.replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim()
+  }
+
   return out.trim()
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "prompt-mag",
-  "version": "1.9.17",
+  "version": "1.9.18",
   "private": true,
   "description": "PromptMag - 桌面提示词弹夹：多图强关联锚定、极速悬浮输入、全局快捷键光标粘贴与 CLI Agent 任务自动接力",
   "main": "electron/main.cjs",

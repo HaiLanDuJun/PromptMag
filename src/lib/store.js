@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.17',
+  version: '1.9.18',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
@@ -527,9 +527,14 @@ export function changeLocale(lang) {
 }
 
 /* ---------------- 全局快捷键：弹出提示词 / 收录选中 / 插入常用词 ---------------- */
+let isPoppingPrompt = false
+
 function bindHotkeyEvents() {
   /* 快捷键 1：根据出弹模式复制弹夹里未使用的提示词，标记为已使用（done），并自动粘贴到前台窗口光标处 */
   window.pm.onHotkeyPop(async (payload) => {
+    if (isPoppingPrompt) return
+    isPoppingPrompt = true
+
     const fgHwnd = payload && payload.fgHwnd ? payload.fgHwnd : '0'
     const pending = state.queue.filter((t) => !t.done)
     if (!pending.length) {
@@ -541,6 +546,7 @@ function bindHotkeyEvents() {
           toast(t('toast.magEmpty'))
         }
       }
+      isPoppingPrompt = false
       return
     }
 
@@ -559,7 +565,8 @@ function bindHotkeyEvents() {
     }
 
     try {
-      await copyCompiled(task)
+      // 关键：出弹必须启用 forPop: true，将换行拍平并单行输出，防止在终端/CLI中因换行触发多次请求！
+      await copyCompiled(task, { forPop: true })
       // 关键：通知主进程将剪贴板内容直接粘贴到前台窗口光标处！
       if (window.pm && window.pm.pasteToForeground) {
         await window.pm.pasteToForeground(fgHwnd)
@@ -568,8 +575,18 @@ function bindHotkeyEvents() {
       const remaining = state.queue.filter((t) => !t.done).length
       const modeKey = mode === 'shotgun' ? 'settings.popModeShotgun' : mode === 'revolver' ? 'settings.popModeRevolver' : 'settings.popModePistol'
       toast(t('toast.poppedPrompt', { mode: t(modeKey), n: remaining }))
+
+      // 若当前弹夹配置了“使用后立即清理”，出弹后立即触发清理并同步更新界面
+      const cleanupRule = getMagazineAutoCleanup(state.activeMagazineId)
+      if (cleanupRule === 'done_only' || cleanupRule === 'used') {
+        cleanupUnfavorited('used', state.activeMagazineId).catch(() => {})
+      }
     } catch (e) {
       toast(t('toast.popFailed'))
+    } finally {
+      setTimeout(() => {
+        isPoppingPrompt = false
+      }, 600)
     }
   })
 
@@ -743,9 +760,12 @@ export function bindExternalEvents() {
   })
 
   if (window.pm.onQueueUpdated) {
-    window.pm.onQueueUpdated(({ queue }) => {
+    window.pm.onQueueUpdated(({ queue, magazines }) => {
       if (Array.isArray(queue)) {
         state.queue = queue
+      }
+      if (Array.isArray(magazines)) {
+        state.magazines = magazines
       }
     })
   }
@@ -1207,7 +1227,7 @@ export async function clearAllQueue() {
   }
 }
 
-export async function copyCompiled(task, { pop = false, magazineId = null } = {}) {
+export async function copyCompiled(task, { pop = false, forPop = false, magazineId = null } = {}) {
   const mag = magazineId ? state.magazines.find((m) => m.id === magazineId) : getActiveMagazine()
   const magId = mag ? mag.id : state.activeMagazineId
   const magName = mag ? mag.name : ''
@@ -1220,7 +1240,8 @@ export async function copyCompiled(task, { pop = false, magazineId = null } = {}
     relay: state.settings.relay,
     locale: state.settings.locale,
     magazineId: magId,
-    magazineName: magName
+    magazineName: magName,
+    forPop: !!forPop
   })
   await window.pm.copyText(text)
   if (pop) removeTask(task.id)

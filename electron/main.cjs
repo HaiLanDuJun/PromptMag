@@ -1436,8 +1436,16 @@ function sendToRenderer(channel, payload) {
   }
 }
 
+let lastHotkeyPopTime = 0
+
 /** 快捷键 1：弹出提示词（按出弹模式：霰弹枪/左轮/手枪，复制、标记使用并直接粘贴到光标处） */
 function onHotkeyPop() {
+  const now = Date.now()
+  if (now - lastHotkeyPopTime < 600) {
+    log('hotkey pop debounced, ignoring duplicate trigger')
+    return
+  }
+  lastHotkeyPopTime = now
   const fgHwnd = getForegroundHwndSync()
   log('hotkey pop ->', customHotkeys.pop, 'fgHwnd:', fgHwnd)
   // 如果当前前台还是 PromptMag 自身（比如刚在快捷面板/主窗口编辑完直接按快捷键弹出），
