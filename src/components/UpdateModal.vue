@@ -3,19 +3,20 @@
  * 版本更新提醒弹窗（UpdateModal）
  * 提醒用户有新版本可用：
  *  - 显示当前版本号与最新版本号
- *  - 展示更新日志/发行说明
- *  - 用户可选择立即更新（前往下载）
+ *  - Markdown 富文本渲染更新日志与发行说明
+ *  - 点击立即更新跳转到官网 https://promptmag.dev/
  *  - 用户可选择忽略此版本（不再主动弹窗提醒）
  *  - 用户可选择稍后提醒
  */
 import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { marked } from 'marked'
 import {
-  state, closeUpdateModal, ignoreUpdateVersion, openUpdateUrl, t
+  state, closeUpdateModal, ignoreUpdateVersion, openUpdateUrl, openReleaseNotesUrl, t
 } from '../lib/store'
 
 const updateInfo = computed(() => state.updateStatus.info || {})
-const currentVersion = computed(() => state.version || '1.9.8')
-const latestVersion = computed(() => updateInfo.value.version || '1.9.9')
+const currentVersion = computed(() => state.version || '1.9.12')
+const latestVersion = computed(() => updateInfo.value.version || '1.9.12')
 
 const formattedDate = computed(() => {
   if (!updateInfo.value.publishedAt) return ''
@@ -30,6 +31,28 @@ const formattedDate = computed(() => {
     return ''
   }
 })
+
+const renderedBody = computed(() => {
+  const raw = updateInfo.value.body
+  if (!raw) return '<p class="text-slate-500 italic">No release notes provided.</p>'
+  try {
+    return marked.parse(raw, { breaks: true, gfm: true })
+  } catch (e) {
+    return raw
+  }
+})
+
+function onMarkdownClick(e) {
+  const a = e.target.closest('a')
+  if (a && a.href) {
+    e.preventDefault()
+    if (window.pm && window.pm.openExternal) {
+      window.pm.openExternal(a.href)
+    } else {
+      window.open(a.href, '_blank')
+    }
+  }
+}
 
 function onKeyDown(e) {
   if (e.key === 'Escape') {
@@ -68,7 +91,7 @@ onBeforeUnmount(() => {
           </span>
         </div>
         <button
-          class="text-slate-400 hover:text-rose-400 transition-colors p-1"
+          class="text-slate-400 hover:text-rose-400 transition-colors p-1 cursor-pointer"
           :title="t('updateModal.btnRemindLater')"
           @click="closeUpdateModal"
         >
@@ -101,20 +124,22 @@ onBeforeUnmount(() => {
         <span v-if="formattedDate" class="text-slate-500 text-[10px] shrink-0 font-mono">{{ formattedDate }}</span>
       </div>
 
-      <!-- 更新日志说明 -->
+      <!-- 更新日志说明 (支持 Markdown 丰富排版渲染) -->
       <div class="flex flex-col gap-1 min-h-0 flex-1">
         <div class="text-[10px] text-slate-400 font-medium flex items-center justify-between">
           <span>{{ t('updateModal.releaseNotes') }}</span>
           <button
             class="text-[9.5px] text-sky-400 hover:text-sky-300 underline cursor-pointer"
-            @click="openUpdateUrl()"
+            @click="openReleaseNotesUrl()"
           >
             GitHub Release ↗
           </button>
         </div>
-        <div class="flex-1 overflow-y-auto max-h-48 p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] text-slate-300 leading-relaxed font-sans whitespace-pre-wrap select-text">
-          {{ updateInfo.body || 'No release notes provided.' }}
-        </div>
+        <div
+          class="markdown-content flex-1 overflow-y-auto max-h-56 p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 select-text"
+          v-html="renderedBody"
+          @click="onMarkdownClick"
+        />
       </div>
 
       <!-- 底部操作按钮 -->
@@ -139,11 +164,11 @@ onBeforeUnmount(() => {
             {{ t('updateModal.btnRemindLater') }}
           </button>
 
-          <!-- 立即更新 -->
+          <!-- 立即更新 (前往官网 https://promptmag.dev/ 下载) -->
           <button
             type="button"
             class="btn btn-primary !py-1.5 !px-3.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(56,189,248,0.35)]"
-            @click="openUpdateUrl()"
+            @click="openUpdateUrl('https://promptmag.dev/')"
           >
             <span>🚀</span>
             <span>{{ t('updateModal.btnUpdate') }}</span>

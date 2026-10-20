@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.11',
+  version: '1.9.12',
   updateStatus: {
     checking: false,
     checked: false,
@@ -213,7 +213,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.11'
+  state.version = res.version || '1.9.12'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -1371,7 +1371,7 @@ export async function checkForUpdates(manual = false) {
     }
 
     const latest = res.data
-    const current = state.version || '1.9.11'
+    const current = state.version || '1.9.12'
     const isNewer = compareVersions(latest.version, current) > 0
 
     state.updateStatus.checked = true
@@ -1431,13 +1431,30 @@ export function unignoreUpdateVersion() {
 /**
  * 打开外部更新链接或安装包下载
  */
+/**
+ * 打开外部更新链接或安装包下载（默认跳转官网 https://promptmag.dev/）
+ */
 export function openUpdateUrl(url) {
+  const targetUrl = url || 'https://promptmag.dev/'
+  if (window.pm && window.pm.openExternal) {
+    window.pm.openExternal(targetUrl)
+  } else {
+    window.open(targetUrl, '_blank')
+  }
+}
+
+/**
+ * 打开 GitHub Release 发行版详情页面
+ */
+export function openReleaseNotesUrl(url) {
   const targetUrl = url || state.updateStatus.info?.htmlUrl || 'https://github.com/HaiLanDuJun/PromptMag/releases/latest'
   if (window.pm && window.pm.openExternal) {
     window.pm.openExternal(targetUrl)
   } else {
     window.open(targetUrl, '_blank')
   }
+
+
 }
 
 export function openUpdateModal() {

@@ -81,6 +81,8 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 
 - [x] **Default floating dock mode, taskbar icon toggle & storage cleanup polish (v1.9.11)**: default floating window launch with desktop taskbar icon suppression, customizable window scaling standard (floating dock vs original full deck), pre-filled default hotkeys, and excluded favorites from storage auto-cleanup
 
+- [x] **Markdown release notes rendering & official site update redirection (v1.9.12)**: in-app release notes now render complete rich Markdown (headings, lists, code badges), and clicking "Update Now" redirects directly to official site https://promptmag.dev/ for instant downloads
+
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
 - [ ] **Screenshot visual annotations & crop**: draw red boxes, crop, or highlight directly on thumbnail cards before firing
@@ -163,6 +165,8 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **设置面板四大分类重构与全场景快速换弹自定义（v1.9.10）**：将设置重构为「默认设置」、「快捷键」、「存储管理」、「版本与更新（含 Git 仓库）」四大专属 Tab 告别冗长滚动；支持用户自定义快速换弹快捷键（`hotkeyCycleMag`），且在图片列表队列中全局随时响应 `Ctrl+Tab` 极速换弹；快捷面板新增一键展开完整面板，并彻底解决编辑提交后快捷键首次弹出失效的焦点恢复问题
 
 - [x] **默认悬浮窗启动、桌面栏图标隐藏与缩放基准配置（v1.9.11）**：默认以紧凑悬浮窗开启并在桌面任务栏隐藏图标；支持设置窗口缩放基准（默认缩放为悬浮窗 vs 原窗口缩放）；默认快捷键自动预填防空；存储管理自动清理彻底排除收藏夹
+
+- [x] **更新日志 Markdown 排版渲染与官网跳转下载（v1.9.12）**：更新提醒弹窗支持完整 Markdown 富文本渲染（标题、列表、加粗、代码块完美排版）；点击「立即前往下载更新」一键跳转至官网 https://promptmag.dev/ 极速下载
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 
