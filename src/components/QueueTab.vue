@@ -546,8 +546,8 @@ function displayTitle(item) {
         <p class="text-[11px] text-slate-300 leading-relaxed">
           {{ t('queue.editConfirmNotice') }}
         </p>
-        <div v-if="taskToEdit" class="p-2 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-sky-200 truncate font-mono">
-          {{ displayTitle(taskToEdit) }}
+        <div v-if="taskToEdit" class="p-2 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-sky-200 whitespace-pre-wrap break-words max-h-36 overflow-y-auto font-mono">
+          {{ taskToEdit.text || displayTitle(taskToEdit) }}
         </div>
         <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
           <button class="btn !py-1 !px-3 text-xs" @click="cancelEditConfirm">{{ t('common.cancel') }}</button>

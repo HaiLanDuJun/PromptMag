@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.18',
+  version: '1.9.19',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,

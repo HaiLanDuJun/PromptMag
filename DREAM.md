@@ -93,6 +93,7 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 
 - [x] **In-app seamless auto-update with user confirmation (v1.9.17)**: enabled native in-app package downloading with animated glowing progress bar, speed/size metrics, and user confirmation before downloading and restarting, completely eliminating external browser redirects
 - [x] **Single-line pop guarantee & CLI multi-request elimination (v1.9.18)**: completely flattened multiline prompt text into clean single-line strings during pop, preventing terminal emulators (Antigravity CLI, PowerShell, Gemini CLI, Claude Code) from interpreting newlines as separate Enter triggers; added 600ms hotkey debounce and concurrency mutex
+- [x] **Internal line break preservation & QuickPanel enter semantics unification (v1.9.19)**: ensured full multi-line newline integrity inside the software (editor, queue storage, task inspection), unified QuickPanel to use `Enter` for normal newline and `Ctrl+Enter` for saving
 
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
@@ -189,6 +190,7 @@ May this little floating window catch every flash of brilliance you have — and
 
 - [x] **应用内原生自动升级与用户确认流程（v1.9.17）**：彻底摆脱跳转外部浏览器，支持在应用内直接流式下载更新包，配备发光进度条、网速与大小指示；下载前与重启前严格需用户主动确认，升级更平滑无感
 - [x] **出弹单行保证与终端换行防多次请求（v1.9.18）**：彻底平铺压缩出弹提示词内的所有换行符为单行指令，根除终端/CLI（Antigravity、PowerShell、Gemini CLI、Claude Code）将换行解析为多次回车而触发多次请求的问题；增加 600ms 出弹热键防抖与并发互斥锁，并在出弹后与已用清理即时联动
+- [x] **软件内部正常换行与快捷面板交互统一（v1.9.19）**：全面保障软件内部（录入框、弹夹数据持久化、列表查看与编辑）原始多行换行排版完整性，单行仅在外部终端出弹时作用；统一悬浮窗快捷面板（QuickPanel）交互为 `Enter` 正常换行、`Ctrl+Enter` 保存入库
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 

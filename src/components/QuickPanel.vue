@@ -144,9 +144,11 @@ async function pasteText() {
 
 /* ---------- 保存入库 ---------- */
 function onEnter(e) {
-  if (e.shiftKey) return // Shift+Enter 正常换行
-  e.preventDefault()
-  save()
+  // 支持软件内部正常换行：Ctrl+Enter 或 Cmd+Enter 保存入库；单独 Enter 正常换行
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault()
+    save()
+  }
 }
 
 function save() {
@@ -331,7 +333,7 @@ function save() {
       <!-- 保存入库 (Enter) -->
       <button
         class="btn btn-primary !py-1 px-4 flex items-center gap-1"
-        :title="`${t('quickPanel.saveBtn')} (${currentMagName}) · Enter`"
+        :title="`${t('quickPanel.saveBtn')} (${currentMagName}) · Ctrl+Enter`"
         @click="save"
       >
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">

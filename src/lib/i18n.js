@@ -123,7 +123,7 @@ export const messages = {
     },
     quickPanel: {
       title: 'PromptMag · 快捷输入',
-      placeholder: '输入关键词，回车保存…',
+      placeholder: '输入提示词，Ctrl+Enter 保存，Enter 换行…',
       pinned: '已置顶',
       clickPin: '点击置顶',
       expandFull: '展开为完整面板',
@@ -481,7 +481,7 @@ export const messages = {
     },
     quickPanel: {
       title: 'PromptMag · Quick Input',
-      placeholder: 'Type keywords, Enter to save…',
+      placeholder: 'Type prompt, Ctrl+Enter to save, Enter for newline…',
       pinned: 'Pinned on top',
       clickPin: 'Click to pin on top',
       expandFull: 'Expand to full panel',
