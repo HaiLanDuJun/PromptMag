@@ -41,15 +41,21 @@ function hoverOpenQuick() {
 let isPickerOpen = false
 
 function scheduleCollapse() {
-  if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen) return
+  if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen || state.isSettingsOpen) return
   if (!hasEntered || pointerDown) return
   clearTimeout(collapseTimer)
   collapseTimer = setTimeout(() => {
-    if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen) return
+    if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen || state.isSettingsOpen) return
     if (pointerDown) return
     if (Date.now() - lastExpandAt < 800) return   // 展开防抖缓冲（800ms），杜绝快捷键呼出瞬间被误判自缩
     if (document.hasFocus()) return               // 正在输入，不收起
-    if (mode.value === 'full') return             // 完整窗口需手动收起
+    if (mode.value === 'full') {
+      // 只有在用户设置「默认缩放为悬浮窗」且设置面板未开启时，离开或失焦才平滑缩放为悬浮球
+      if (state.settings.windowScaleMode !== 'full' && !state.isSettingsOpen) {
+        setMode('capsule')
+      }
+      return
+    }
     setMode('capsule')
   }, 220)
 }
@@ -68,8 +74,14 @@ function onShellLeave() {
   if (mode.value !== 'capsule') scheduleCollapse()
 }
 function onWinBlur() {
-  if (state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen) return
+  if (state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen || state.isSettingsOpen) return
   if (Date.now() - lastExpandAt < 800) return
+  if (mode.value === 'full') {
+    if (state.settings.windowScaleMode !== 'full' && !state.isSettingsOpen) {
+      scheduleCollapse()
+    }
+    return
+  }
   if (mode.value !== 'capsule' && hasEntered) scheduleCollapse()
 }
 function onWinFocus() {

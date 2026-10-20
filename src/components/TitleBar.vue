@@ -18,6 +18,23 @@ import HotkeyInput from './HotkeyInput.vue'
 defineEmits(['collapse', 'mini'])
 
 const showSettings = ref(false)
+
+watch(showSettings, (val) => {
+  state.isSettingsOpen = val
+  if (!val && state.settings.windowScaleMode !== 'full' && state.settings.mode === 'full') {
+    // 关闭设置时，若用户已选定「默认缩放为悬浮窗」，则窗口自动缩放回悬浮窗形态！
+    setMode('quick')
+  }
+})
+
+function onSelectScaleMode(m) {
+  setWindowScaleMode(m)
+  if (m === 'quick') {
+    toast(t('settings.windowScaleQuickToast'))
+  } else {
+    toast(t('settings.windowScaleFullToast'))
+  }
+}
 const activeSettingsTab = ref('default') // 'default' | 'hotkeys' | 'storage' | 'version'
 const selectedCleanupMagId = ref(state.activeMagazineId || 'default')
 const cleanupMagazines = computed(() => {
@@ -232,7 +249,7 @@ function toggleLang() {
                 ? 'bg-sky-500/20 border-sky-400 text-sky-200 shadow-[0_0_8px_rgba(56,189,248,0.25)] font-semibold'
                 : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'"
               :title="t('settings.windowScaleQuickDesc')"
-              @click="setWindowScaleMode('quick')"
+              @click="onSelectScaleMode('quick')"
             >
               <span class="text-sm mb-0.5">🪟</span>
               <span class="text-[10.5px] leading-tight">{{ t('settings.windowScaleQuick') }}</span>
@@ -247,7 +264,7 @@ function toggleLang() {
                 ? 'bg-purple-500/20 border-purple-400 text-purple-200 shadow-[0_0_8px_rgba(168,85,247,0.25)] font-semibold'
                 : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'"
               :title="t('settings.windowScaleFullDesc')"
-              @click="setWindowScaleMode('full')"
+              @click="onSelectScaleMode('full')"
             >
               <span class="text-sm mb-0.5">🖥️</span>
               <span class="text-[10.5px] leading-tight">{{ t('settings.windowScaleFull') }}</span>

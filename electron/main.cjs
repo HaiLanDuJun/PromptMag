@@ -1080,6 +1080,19 @@ function tuck() {
   if (over) return
   const { edge, dist, wa } = nearestEdge(b)
   if (dist > EDGE_THRESHOLD) return
+
+  const saved = readJsonSafe(P.dataFile) || {}
+  const s = saved.settings || {}
+  const defaultScaleMode = s.windowScaleMode === 'full' ? 'full' : 'quick'
+
+  // 如果配置了「默认缩放为悬浮窗」，当完整工作台靠边缩放时，自动缩放为悬浮窗（capsule 胶囊形态）
+  // 杜绝 520px 巨大原窗口直接缩进边缘造成黑长条遮挡！
+  if (mode === 'full' && defaultScaleMode !== 'full') {
+    log('tuck: converting full mode to capsule per windowScaleMode setting')
+    setMode('capsule')
+    return
+  }
+
   tuckHome = { ...b }
   // 只露出一条边（圆球约 20px，大窗口最多 26px），尽量 0 侵入
   const visible = Math.min(26, Math.round(Math.min(b.width, b.height) * 0.36))
@@ -1246,10 +1259,12 @@ function createWindow() {
     height: Math.max(FULL_MIN.height, Number(ws.height) || FULL_DEFAULT.height)
   }
   const defaultScaleMode = settings.windowScaleMode === 'full' ? 'full' : 'quick'
-  mode = ['capsule', 'quick', 'full'].includes(settings.mode) ? settings.mode : defaultScaleMode
-  mode = ['capsule', 'quick', 'full'].includes(ws.mode) ? ws.mode : mode
-  // 默认悬浮窗开启状态：若之前无显式记录则使用 defaultScaleMode (quick)
-  if (!ws.mode && !settings.mode) mode = defaultScaleMode
+  if (defaultScaleMode === 'full') {
+    mode = ['capsule', 'quick', 'full'].includes(ws.mode) ? ws.mode : 'full'
+  } else {
+    // 默认缩放为悬浮窗：启动形态默认为悬浮窗 (quick) 或悬浮球 (capsule)，杜绝直接启动为原大窗口
+    mode = (ws.mode === 'capsule' || ws.mode === 'quick') ? ws.mode : 'quick'
+  }
   alwaysOnTop = settings.alwaysOnTop !== false
 
   const sizeOf = (m) => (m === 'capsule' ? { ...BALL } : m === 'quick' ? { ...QUICK } : { ...fullSize })
@@ -1374,6 +1389,9 @@ function createWindow() {
 
 function toggleWindow() {
   if (!mainWindow) return
+  const saved = readJsonSafe(P.dataFile) || {}
+  const s = saved.settings || {}
+  const defaultScaleMode = s.windowScaleMode === 'full' ? 'full' : 'quick'
   // 如果当前是胶囊形态，快捷键按下必须是呼出展开为快捷输入，绝不能误判为隐藏！
   if (mode === 'capsule') {
     try {
@@ -1400,6 +1418,9 @@ function toggleWindow() {
         updateLastExternalHwnd(curFg)
       }
     } catch { /* ignore */ }
+    if (defaultScaleMode === 'quick' && mode === 'full') {
+      setMode('quick')
+    }
     mainWindow.show()
     mainWindow.focus()
     mainWindow.webContents.send('pm:focus-composer')
@@ -1909,7 +1930,15 @@ function registerIpc() {
 
   ipcMain.on('pm:set-mode', (_e, m) => setMode(m === 'quick' ? 'quick' : m === 'capsule' ? 'capsule' : 'full'))
   ipcMain.on('pm:set-window-scale-mode', (_e, m) => {
-    log('window scale mode changed ->', m)
+    const scaleMode = m === 'full' ? 'full' : 'quick'
+    log('window scale mode changed ->', scaleMode)
+    try {
+      const d = readJsonSafe(P.dataFile) || {}
+      d.settings = Object.assign({}, d.settings || {}, { windowScaleMode: scaleMode })
+      writeJsonAtomic(P.dataFile, d)
+    } catch (e) {
+      log('save windowScaleMode failed:', e && e.message)
+    }
   })
   ipcMain.on('pm:set-hide-taskbar', (_e, hide) => {
     if (mainWindow && !mainWindow.isDestroyed()) {

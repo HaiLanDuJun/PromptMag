@@ -85,6 +85,8 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 
 - [x] **Capsule orb toast overlay & visual clipping fix (v1.9.13)**: eliminated erroneous toast messages clipping and text bleeding into 56px floating orb, auto-clearing toast state upon collapse to preserve clean glass sphere aesthetics
 
+- [x] **Window scale mode baseline & edge auto-collapse fix (v1.9.14)**: fully resolved "Default to Floating Window" setting not applying to full window tucking, automatically scaling full window to floating capsule/panel upon edge tuck or blur instead of docking a 520px full window strip
+
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
 - [ ] **Screenshot visual annotations & crop**: draw red boxes, crop, or highlight directly on thumbnail cards before firing
@@ -171,6 +173,8 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **更新日志 Markdown 排版渲染与官网跳转下载（v1.9.12）**：更新提醒弹窗支持完整 Markdown 富文本渲染（标题、列表、加粗、代码块完美排版）；点击「立即前往下载更新」一键跳转至官网 https://promptmag.dev/ 极速下载
 
 - [x] **悬浮球 Toast 提示文字遮挡截断修复（v1.9.13）**：彻底修复收起为 56px 悬浮球图标时全局 Toast 提示文本在球体内文字错位截断遮挡的显示问题，收起时自动清除残留 Toast 保持纯净通透徽标
+
+- [x] **窗口缩放基准配置生效与贴边/失焦自动缩放为悬浮窗修复（v1.9.14）**：彻底解决设置「默认缩放为悬浮窗」后贴边与失焦依旧按原大窗口缩进的问题；选择后贴边或离开自动缩放为精致悬浮窗/悬浮球，关闭设置自动回缩，杜绝 520px 原窗口长黑条遮挡
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 
