@@ -49,6 +49,11 @@ body {
 }
 
 /* 收起形态：悬浮图标 / 圆球（纯净无外溢阴影，杜绝透明窗口四角灰色方框） */
+.shell.mode-capsule .toast,
+.shell.mode-capsule .modal-mask {
+  display: none !important;
+}
+
 .shell.mode-capsule {
   border-radius: 999px;
   background: linear-gradient(145deg, rgba(24, 46, 78, 0.96) 0%, rgba(11, 22, 40, 0.98) 100%);

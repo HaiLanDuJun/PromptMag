@@ -83,6 +83,8 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 
 - [x] **Markdown release notes rendering & official site update redirection (v1.9.12)**: in-app release notes now render complete rich Markdown (headings, lists, code badges), and clicking "Update Now" redirects directly to official site https://promptmag.dev/ for instant downloads
 
+- [x] **Capsule orb toast overlay & visual clipping fix (v1.9.13)**: eliminated erroneous toast messages clipping and text bleeding into 56px floating orb, auto-clearing toast state upon collapse to preserve clean glass sphere aesthetics
+
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
 - [ ] **Screenshot visual annotations & crop**: draw red boxes, crop, or highlight directly on thumbnail cards before firing
@@ -167,6 +169,8 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **默认悬浮窗启动、桌面栏图标隐藏与缩放基准配置（v1.9.11）**：默认以紧凑悬浮窗开启并在桌面任务栏隐藏图标；支持设置窗口缩放基准（默认缩放为悬浮窗 vs 原窗口缩放）；默认快捷键自动预填防空；存储管理自动清理彻底排除收藏夹
 
 - [x] **更新日志 Markdown 排版渲染与官网跳转下载（v1.9.12）**：更新提醒弹窗支持完整 Markdown 富文本渲染（标题、列表、加粗、代码块完美排版）；点击「立即前往下载更新」一键跳转至官网 https://promptmag.dev/ 极速下载
+
+- [x] **悬浮球 Toast 提示文字遮挡截断修复（v1.9.13）**：彻底修复收起为 56px 悬浮球图标时全局 Toast 提示文本在球体内文字错位截断遮挡的显示问题，收起时自动清除残留 Toast 保持纯净通透徽标
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 

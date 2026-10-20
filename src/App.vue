@@ -201,14 +201,14 @@ onBeforeUnmount(() => {
       </div>
     </Transition>
 
-    <div v-if="state.toast" class="toast">{{ state.toast }}</div>
+    <div v-if="state.toast && mode !== 'capsule'" class="toast">{{ state.toast }}</div>
     <!-- 双击放大图片全屏查看弹窗 -->
-    <ImagePreviewModal v-if="state.preview" />
+    <ImagePreviewModal v-if="state.preview && mode !== 'capsule'" />
     <!-- 目标弹夹选择弹窗 -->
-    <MagazinePickerModal v-if="state.isMagazinePickerOpen" />
+    <MagazinePickerModal v-if="state.isMagazinePickerOpen && mode !== 'capsule'" />
     <!-- Agent接力启动提示词生成弹窗 -->
-    <RelayStartupModal v-if="state.isRelayStartupModalOpen" />
+    <RelayStartupModal v-if="state.isRelayStartupModalOpen && mode !== 'capsule'" />
     <!-- 版本更新提醒弹窗 -->
-    <UpdateModal v-if="state.isUpdateModalOpen" />
+    <UpdateModal v-if="state.isUpdateModalOpen && mode !== 'capsule'" />
   </div>
 </template>

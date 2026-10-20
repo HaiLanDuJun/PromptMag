@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.12',
+  version: '1.9.13',
   updateStatus: {
     checking: false,
     checked: false,
@@ -123,6 +123,9 @@ export function closeImagePreview() {
 /* ---------------- Toast ---------------- */
 let toastTimer = null
 export function toast(msg) {
+  if (state.settings.mode === 'capsule') {
+    return
+  }
   state.toast = msg
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { state.toast = '' }, 1500)
@@ -213,7 +216,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.12'
+  state.version = res.version || '1.9.13'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -521,6 +524,9 @@ function bindHotkeyEvents() {
     const fgHwnd = payload && payload.fgHwnd ? payload.fgHwnd : '0'
     const pending = state.queue.filter((t) => !t.done)
     if (!pending.length) {
+      if (state.settings.mode === 'capsule') {
+        setMode('quick')
+      }
       if (state.queue.length > 0) {
         toast(t('toast.magAllDone'))
       } else {
@@ -1235,6 +1241,9 @@ let lastModeAt = 0
  */
 export function setMode(m) {
   const mode = MODES.includes(m) ? m : 'full'
+  if (mode === 'capsule') {
+    state.toast = ''
+  }
   if (state.settings.mode === mode) return
   if (Date.now() - lastModeAt < 400) return
   lastModeAt = Date.now()
@@ -1371,7 +1380,7 @@ export async function checkForUpdates(manual = false) {
     }
 
     const latest = res.data
-    const current = state.version || '1.9.12'
+    const current = state.version || '1.9.13'
     const isNewer = compareVersions(latest.version, current) > 0
 
     state.updateStatus.checked = true
