@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.10',
+  version: '1.9.11',
   updateStatus: {
     checking: false,
     checked: false,
@@ -84,7 +84,9 @@ export const state = reactive({
     locale: 'zh', popMode: 'shotgun', autoCleanup: 'off',
     saveTargetMode: 'active', // 'active' (当前活动弹夹) | 'ask' (每次弹窗选择) | 'specific' (指定固定弹夹)
     defaultMagazineId: 'default',
-    ignoredVersion: ''
+    ignoredVersion: '',
+    windowScaleMode: 'quick',
+    hideTaskbar: true
   },
   magazines: [],
   activeMagazineId: 'default',
@@ -211,7 +213,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.10'
+  state.version = res.version || '1.9.11'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -229,6 +231,15 @@ export async function initStore() {
   )
   // 旧快捷键自动迁移与容错（Alt+C 会触发微信关闭窗口，Alt+S 会触发微信发消息）
   if (state.settings.hotkeySnippets === 'Alt+C') state.settings.hotkeySnippets = 'Alt+X'
+  // 保证默认快捷键预先填写，不出现空未设置
+  if (!state.settings.hotkeyToggle) state.settings.hotkeyToggle = 'Alt+Q'
+  if (!state.settings.hotkeyPop) state.settings.hotkeyPop = 'Alt+V'
+  if (!state.settings.hotkeySnippets) state.settings.hotkeySnippets = 'Alt+X'
+  if (!state.settings.hotkeyCollect) state.settings.hotkeyCollect = 'Alt+T'
+  if (!state.settings.hotkeyCycleMag) state.settings.hotkeyCycleMag = 'Ctrl+Tab'
+  if (!state.settings.windowScaleMode) state.settings.windowScaleMode = 'quick'
+  if (state.settings.hideTaskbar === undefined) state.settings.hideTaskbar = true
+
   if (state.settings.hotkeyCollect === 'Alt+S') state.settings.hotkeyCollect = 'Alt+T'
   if (state.settings.hotkeyToggle === undefined || state.settings.hotkeyToggle === null) state.settings.hotkeyToggle = 'Alt+Q'
   if (!['capsule', 'quick', 'full'].includes(state.settings.mode)) state.settings.mode = 'full'
@@ -414,6 +425,23 @@ export function deleteMagazine(id) {
 export function setSaveTargetMode(m, defaultMagId = null) {
   state.settings.saveTargetMode = ['active', 'ask', 'specific'].includes(m) ? m : 'active'
   if (defaultMagId) state.settings.defaultMagazineId = defaultMagId
+}
+
+
+export function setWindowScaleMode(m) {
+  state.settings.windowScaleMode = m === 'full' ? 'full' : 'quick'
+  saveStateDebounced()
+  if (window.pm && window.pm.setWindowScaleMode) {
+    window.pm.setWindowScaleMode(state.settings.windowScaleMode)
+  }
+}
+
+export function setHideTaskbar(hide) {
+  state.settings.hideTaskbar = !!hide
+  saveStateDebounced()
+  if (window.pm && window.pm.setHideTaskbar) {
+    window.pm.setHideTaskbar(state.settings.hideTaskbar)
+  }
 }
 
 /* ---------------- 弹窗控制器 ---------------- */
@@ -1343,7 +1371,7 @@ export async function checkForUpdates(manual = false) {
     }
 
     const latest = res.data
-    const current = state.version || '1.9.10'
+    const current = state.version || '1.9.11'
     const isNewer = compareVersions(latest.version, current) > 0
 
     state.updateStatus.checked = true

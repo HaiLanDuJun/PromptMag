@@ -10,7 +10,7 @@ import {
   state, setAlwaysOnTop, setOpacity, setRelay, chooseDataDir,
   setHotkeys, changeLocale, setPopMode, setAutoCleanupSetting, cleanupUnfavorited,
   getMagazineAutoCleanup, setMagazineAutoCleanup,
-  setSaveTargetMode, checkForUpdates, openUpdateModal,
+  setSaveTargetMode, setWindowScaleMode, setHideTaskbar, checkForUpdates, openUpdateModal,
   ignoreUpdateVersion, unignoreUpdateVersion, openUpdateUrl, t, currentLocale
 } from '../lib/store'
 import HotkeyInput from './HotkeyInput.vue'
@@ -20,8 +20,11 @@ defineEmits(['collapse', 'mini'])
 const showSettings = ref(false)
 const activeSettingsTab = ref('default') // 'default' | 'hotkeys' | 'storage' | 'version'
 const selectedCleanupMagId = ref(state.activeMagazineId || 'default')
+const cleanupMagazines = computed(() => {
+  return state.magazines.filter(m => m.id !== 'favorites')
+})
 const currentCleanupMag = computed(() => {
-  return state.magazines.find(m => m.id === selectedCleanupMagId.value) || state.magazines[0]
+  return cleanupMagazines.value.find(m => m.id === selectedCleanupMagId.value) || cleanupMagazines.value[0] || state.magazines[0]
 })
 const GITHUB_URL = 'https://github.com/HaiLanDuJun/PromptMag'
 
@@ -216,6 +219,62 @@ function toggleLang() {
           </div>
         </div>
 
+        <!-- 窗口缩放基准（默认形态） -->
+        <div>
+          <div class="settings-label">{{ t('settings.windowScaleModeTitle') }}</div>
+          <div class="text-[10px] text-slate-400 mb-1.5 leading-snug">{{ t('settings.windowScaleModeDesc') }}</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <!-- 默认缩放为悬浮窗 -->
+            <button
+              type="button"
+              class="flex flex-col items-center text-center p-2 rounded-lg border transition-all text-xs cursor-pointer select-none"
+              :class="state.settings.windowScaleMode !== 'full'
+                ? 'bg-sky-500/20 border-sky-400 text-sky-200 shadow-[0_0_8px_rgba(56,189,248,0.25)] font-semibold'
+                : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'"
+              :title="t('settings.windowScaleQuickDesc')"
+              @click="setWindowScaleMode('quick')"
+            >
+              <span class="text-sm mb-0.5">🪟</span>
+              <span class="text-[10.5px] leading-tight">{{ t('settings.windowScaleQuick') }}</span>
+              <span class="text-[8.5px] text-slate-400 mt-0.5 leading-tight opacity-75">{{ t('settings.windowScaleQuickShort') }}</span>
+            </button>
+
+            <!-- 原窗口缩放 -->
+            <button
+              type="button"
+              class="flex flex-col items-center text-center p-2 rounded-lg border transition-all text-xs cursor-pointer select-none"
+              :class="state.settings.windowScaleMode === 'full'
+                ? 'bg-purple-500/20 border-purple-400 text-purple-200 shadow-[0_0_8px_rgba(168,85,247,0.25)] font-semibold'
+                : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'"
+              :title="t('settings.windowScaleFullDesc')"
+              @click="setWindowScaleMode('full')"
+            >
+              <span class="text-sm mb-0.5">🖥️</span>
+              <span class="text-[10.5px] leading-tight">{{ t('settings.windowScaleFull') }}</span>
+              <span class="text-[8.5px] text-slate-400 mt-0.5 leading-tight opacity-75">{{ t('settings.windowScaleFullShort') }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 桌面栏（任务栏）图标显示 -->
+        <div>
+          <div class="settings-label">{{ t('settings.hideTaskbarTitle') }}</div>
+          <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+            <div class="flex flex-col pr-2">
+              <span class="text-[11px] text-slate-300">{{ t('settings.hideTaskbarDesc') }}</span>
+              <span class="text-[9px] text-slate-400 opacity-75 mt-0.5">{{ t('settings.hideTaskbarTip') }}</span>
+            </div>
+            <button
+              type="button"
+              class="btn !py-0.5 !px-2.5 shrink-0 text-xs"
+              :class="state.settings.hideTaskbar ? 'btn-primary' : ''"
+              @click="setHideTaskbar(!state.settings.hideTaskbar)"
+            >
+              {{ state.settings.hideTaskbar ? t('settings.hideTaskbarOn') : t('settings.hideTaskbarOff') }}
+            </button>
+          </div>
+        </div>
+
         <!-- 出弹模式选择器 (卡片三选一) -->
         <div>
           <div class="settings-label">{{ t('settings.popModeTitle') }}</div>
@@ -377,7 +436,7 @@ function toggleLang() {
             </span>
           </div>
           <HotkeyInput
-            :model-value="state.settings.hotkeyCycleMag"
+            :model-value="state.settings.hotkeyCycleMag || 'Ctrl+Tab'"
             @update:model-value="(v) => onHotkeyChange('cycleMag', v)"
           />
         </div>
@@ -423,7 +482,7 @@ function toggleLang() {
         <div class="border-t border-slate-800 pt-2.5">
           <div class="settings-label">{{ t('settings.autoCleanupTitle') }}</div>
 
-          <!-- 第一步：选择要配置的弹夹 -->
+          <!-- 第一步：选择要配置的弹夹（不显示收藏夹） -->
           <div class="text-[10px] text-slate-300 font-medium mb-1.5 flex items-center justify-between">
             <span>{{ t('settings.autoCleanupMagSelect') }}</span>
             <span v-if="currentCleanupMag" class="text-[9.5px] text-sky-400">
@@ -432,18 +491,16 @@ function toggleLang() {
           </div>
           <div class="flex items-center gap-1 overflow-x-auto pb-1 mb-2 select-none">
             <button
-              v-for="mag in state.magazines"
+              v-for="mag in cleanupMagazines"
               :key="mag.id"
               type="button"
               class="px-2 py-0.8 rounded-lg border text-[10px] font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
               :class="selectedCleanupMagId === mag.id
-                ? (mag.id === 'favorites' ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-[0_0_6px_rgba(245,158,11,0.2)]' : 'bg-sky-500/20 border-sky-400 text-sky-200 shadow-[0_0_6px_rgba(56,189,248,0.2)]')
+                ? 'bg-sky-500/20 border-sky-400 text-sky-200 shadow-[0_0_6px_rgba(56,189,248,0.2)]'
                 : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'"
               @click="selectedCleanupMagId = mag.id"
             >
-              <span v-if="mag.id === 'favorites'">⭐</span>
               <span
-                v-else
                 class="w-1.5 h-1.5 rounded-full shrink-0"
                 :style="{ backgroundColor: mag.color || '#38bdf8' }"
               />
@@ -451,20 +508,8 @@ function toggleLang() {
             </button>
           </div>
 
-          <!-- 第二步：若为收藏弹夹，展示永久免清理受保护提示 -->
-          <div
-            v-if="selectedCleanupMagId === 'favorites'"
-            class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-200 text-xs flex items-center gap-2 mb-2"
-          >
-            <span class="text-base shrink-0">⭐</span>
-            <div class="leading-relaxed">
-              <div class="font-semibold text-amber-300 text-[11px]">{{ t('settings.favoritesProtectedTitle') }}</div>
-              <div class="text-[10px] text-amber-200/80">{{ t('settings.favoritesProtectedNotice') }}</div>
-            </div>
-          </div>
-
-          <!-- 若为普通弹夹，选择对应弹夹是否自动清理与规则 -->
-          <div v-else>
+          <!-- 普通弹夹自动清理规则 -->
+          <div>
             <div class="text-[10px] text-slate-400 mb-1.5 leading-snug">
               {{ t('settings.autoCleanupMagDesc', { name: currentCleanupMag?.name || '' }) }}
             </div>
@@ -487,6 +532,12 @@ function toggleLang() {
               <span>🧹</span>
               <span>{{ t('settings.cleanUnfavoritedNow') }}</span>
             </button>
+          </div>
+
+          <!-- 收藏夹受保护提示 -->
+          <div class="text-[9.5px] text-amber-400/80 flex items-center gap-1 mt-1.5 select-none">
+            <span>⭐</span>
+            <span>{{ t('settings.favoritesProtectedNotice') }}</span>
           </div>
         </div>
       </div>

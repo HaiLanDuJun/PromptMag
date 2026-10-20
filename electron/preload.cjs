@@ -43,6 +43,8 @@ const api = {
   /* 形态：capsule(胶囊) / quick(快捷输入) / full(完整) */
   setMode: (m) => ipcRenderer.send('pm:set-mode', m),
   setQuickHeight: (h) => ipcRenderer.send('pm:set-quick-height', h),
+  setWindowScaleMode: (mode) => ipcRenderer.send('pm:set-window-scale-mode', mode),
+  setHideTaskbar: (hide) => ipcRenderer.send('pm:set-hide-taskbar', hide),
   pointerIn: () => ipcRenderer.send('pm:pointer-in'),
   pointerOut: () => ipcRenderer.send('pm:pointer-out'),
   getBounds: () => ipcRenderer.invoke('pm:get-bounds'),

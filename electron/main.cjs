@@ -1175,6 +1175,16 @@ function setAlwaysOnTopState(flag) {
 }
 
 /** 切换形态：capsule / quick / full */
+
+function updateTaskbarVisibility() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const saved = readJsonSafe(P.dataFile) || {}
+  const s = saved.settings || {}
+  const hideTaskbar = s.hideTaskbar !== undefined ? !!s.hideTaskbar : true
+  const shouldSkip = hideTaskbar || mode === 'quick' || mode === 'capsule'
+  mainWindow.setSkipTaskbar(shouldSkip)
+}
+
 function setMode(next) {
   if (!mainWindow || mainWindow.isDestroyed() || mode === next) return
   const prev = mode
@@ -1221,6 +1231,7 @@ function setMode(next) {
     })
   }
   mainWindow.webContents.send('pm:mode-changed', mode)
+  updateTaskbarVisibility()
   // untuck() 会清掉缩进定时器，收成胶囊后要重新排队（否则胶囊永远贴边不缩进）
   if (next === 'capsule') scheduleTuck()
   log('mode ->', mode)
@@ -1234,8 +1245,11 @@ function createWindow() {
     width: Math.max(FULL_MIN.width, Number(ws.width) || FULL_DEFAULT.width),
     height: Math.max(FULL_MIN.height, Number(ws.height) || FULL_DEFAULT.height)
   }
-  mode = ['capsule', 'quick', 'full'].includes(settings.mode) ? settings.mode : 'full'
+  const defaultScaleMode = settings.windowScaleMode === 'full' ? 'full' : 'quick'
+  mode = ['capsule', 'quick', 'full'].includes(settings.mode) ? settings.mode : defaultScaleMode
   mode = ['capsule', 'quick', 'full'].includes(ws.mode) ? ws.mode : mode
+  // 默认悬浮窗开启状态：若之前无显式记录则使用 defaultScaleMode (quick)
+  if (!ws.mode && !settings.mode) mode = defaultScaleMode
   alwaysOnTop = settings.alwaysOnTop !== false
 
   const sizeOf = (m) => (m === 'capsule' ? { ...BALL } : m === 'quick' ? { ...QUICK } : { ...fullSize })
@@ -1261,7 +1275,7 @@ function createWindow() {
     resizable: mode === 'full',
     maximizable: false,
     fullscreenable: false,
-    skipTaskbar: false,
+    skipTaskbar: (settings.hideTaskbar !== undefined ? !!settings.hideTaskbar : true) || mode === 'quick' || mode === 'capsule',
     alwaysOnTop,
     show: false,
     icon: makeTrayIcon(),
@@ -1732,7 +1746,7 @@ function readHotkeysFromData() {
     pop: s.hotkeyPop !== undefined ? String(s.hotkeyPop).trim() : HOTKEY_DEFAULTS.pop,
     snippets: s.hotkeySnippets !== undefined ? String(s.hotkeySnippets).trim() : HOTKEY_DEFAULTS.snippets,
     collect: s.hotkeyCollect !== undefined ? String(s.hotkeyCollect).trim() : HOTKEY_DEFAULTS.collect,
-    cycleMag: s.hotkeyCycleMag !== undefined ? String(s.hotkeyCycleMag).trim() : HOTKEY_DEFAULTS.cycleMag
+    cycleMag: s.hotkeyCycleMag ? String(s.hotkeyCycleMag).trim() : HOTKEY_DEFAULTS.cycleMag
   }
   // 旧版本冲突键平滑迁移（微信冲突排查：Alt+C 会触发微信关闭窗口，Alt+S 会触发微信发消息）
   if (customHotkeys.snippets === 'Alt+C') customHotkeys.snippets = 'Alt+X'
@@ -1894,6 +1908,15 @@ function registerIpc() {
   })
 
   ipcMain.on('pm:set-mode', (_e, m) => setMode(m === 'quick' ? 'quick' : m === 'capsule' ? 'capsule' : 'full'))
+  ipcMain.on('pm:set-window-scale-mode', (_e, m) => {
+    log('window scale mode changed ->', m)
+  })
+  ipcMain.on('pm:set-hide-taskbar', (_e, hide) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const shouldSkip = !!hide || mode === 'quick' || mode === 'capsule'
+      mainWindow.setSkipTaskbar(shouldSkip)
+    }
+  })
   ipcMain.on('pm:set-quick-height', (_e, h) => {
     if (mode !== 'quick' || !mainWindow || mainWindow.isDestroyed() || animating) return
     const targetH = Math.max(56, Math.min(400, Math.round(Number(h) || 200)))
