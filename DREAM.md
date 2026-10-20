@@ -91,6 +91,8 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 
 - [x] **TitleBar & Settings gear render restoration (v1.9.16)**: fixed runtime setup reference error in TitleBar component, restoring full top bar with settings gear, pin, opacity, and window control buttons
 
+- [x] **In-app seamless auto-update with user confirmation (v1.9.17)**: enabled native in-app package downloading with animated glowing progress bar, speed/size metrics, and user confirmation before downloading and restarting, completely eliminating external browser redirects
+
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
 - [ ] **Screenshot visual annotations & crop**: draw red boxes, crop, or highlight directly on thumbnail cards before firing
@@ -183,6 +185,8 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **悬浮窗状态静默出弹与免弹窗提示优化（v1.9.15）**：在悬浮窗状态（悬浮球或快捷面板）下按出弹热键且弹夹已耗尽或为空时，不再强制展开面板也不再弹出提示 Toast，实现完全静默防打扰体验
 
 - [x] **顶栏标题栏与设置按钮恢复修复（v1.9.16）**：修复 TitleBar 组件 setup 缺失导入导致的挂载异常，完整恢复顶部标题栏、设置齿轮 ⚙️、置顶钉子、透明度滑块及窗口控制按钮
+
+- [x] **应用内原生自动升级与用户确认流程（v1.9.17）**：彻底摆脱跳转外部浏览器，支持在应用内直接流式下载更新包，配备发光进度条、网速与大小指示；下载前与重启前严格需用户主动确认，升级更平滑无感
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 

@@ -2214,10 +2214,204 @@ function registerIpc() {
   })
 
   ipcMain.on('pm:open-external', (_e, url) => {
-    if (url && typeof url === 'string') {
-      shell.openExternal(url).catch((err) => {
-        log('openExternal error:', err && err.message)
+      if (url && typeof url === 'string') {
+        shell.openExternal(url).catch((err) => {
+          log('openExternal error:', err && err.message)
+        })
+      }
+    })
+
+  let activeDownloadController = null
+
+  ipcMain.handle('pm:start-download-update', async (_e, payload) => {
+    try {
+      if (activeDownloadController) {
+        activeDownloadController.abort()
+        activeDownloadController = null
+      }
+
+      let targetUrl = payload && payload.assetUrl
+      let targetName = payload && payload.assetName
+
+      if (!targetUrl) {
+        const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
+        const checkRes = await fetchFn('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest', {
+          headers: { 'User-Agent': 'PromptMag-Desktop', 'Accept': 'application/vnd.github.v3+json' }
+        })
+        if (!checkRes.ok) throw new Error(`GitHub API HTTP ${checkRes.status}: ${checkRes.statusText}`)
+        const release = await checkRes.json()
+        const isPortable = !!process.env.PORTABLE_EXECUTABLE_FILE || process.execPath.toLowerCase().includes('portable')
+        const targetPattern = isPortable ? /Portable.*\.exe$/i : /Setup.*\.exe$/i
+        const matched = (release.assets || []).find((a) => targetPattern.test(a.name)) || (release.assets || [])[0]
+        if (!matched) throw new Error('新版本未找到适用的安装文件')
+        targetUrl = matched.browser_download_url
+        targetName = matched.name
+      }
+
+      if (!targetName) targetName = 'PromptMag-Update.exe'
+
+      const tempDir = app.getPath('temp')
+      const destPath = path.join(tempDir, targetName)
+
+      log('[AutoUpdate] 开始下载新版本:', targetName, 'from', targetUrl)
+      activeDownloadController = new AbortController()
+      const { signal } = activeDownloadController
+
+      const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
+      const resp = await fetchFn(targetUrl, {
+        signal,
+        headers: {
+          'User-Agent': 'PromptMag-Desktop-Updater'
+        }
       })
+
+      if (!resp.ok) {
+        throw new Error(`下载失败 (HTTP ${resp.status}): ${resp.statusText}`)
+      }
+
+      const totalBytes = Number(resp.headers.get('content-length')) || 0
+      let downloadedBytes = 0
+      let lastTime = Date.now()
+      let lastBytes = 0
+      let speedStr = ''
+
+      const fileStream = fs.createWriteStream(destPath)
+      const reader = resp.body.getReader()
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          fileStream.write(Buffer.from(value))
+          downloadedBytes += value.length
+
+          const now = Date.now()
+          if (now - lastTime >= 250) {
+            const deltaSec = (now - lastTime) / 1000
+            const bytesDiff = downloadedBytes - lastBytes
+            const speedBps = bytesDiff / deltaSec
+            if (speedBps > 1024 * 1024) {
+              speedStr = (speedBps / (1024 * 1024)).toFixed(1) + ' MB/s'
+            } else {
+              speedStr = (speedBps / 1024).toFixed(0) + ' KB/s'
+            }
+            lastTime = now
+            lastBytes = downloadedBytes
+
+            const percent = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : 0
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('pm:update-download-progress', {
+                percent,
+                downloadedBytes,
+                totalBytes,
+                speed: speedStr
+              })
+            }
+          }
+        }
+        fileStream.end()
+      } catch (readErr) {
+        fileStream.destroy()
+        try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath) } catch { /* ignore */ }
+        throw readErr
+      }
+
+      activeDownloadController = null
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('pm:update-download-progress', {
+          percent: 100,
+          downloadedBytes,
+          totalBytes,
+          speed: ''
+        })
+      }
+
+      log('[AutoUpdate] 下载完成:', destPath, '大小:', downloadedBytes)
+      return { ok: true, filePath: destPath, fileName: targetName }
+    } catch (err) {
+      activeDownloadController = null
+      if (err.name === 'AbortError') {
+        log('[AutoUpdate] 用户取消下载')
+        return { ok: false, cancelled: true }
+      }
+      log('[AutoUpdate] 下载出错:', err && err.message)
+      return { ok: false, error: err && err.message ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle('pm:cancel-download-update', () => {
+    if (activeDownloadController) {
+      activeDownloadController.abort()
+      activeDownloadController = null
+      return { ok: true }
+    }
+    return { ok: false }
+  })
+
+  ipcMain.handle('pm:install-update', async (_e, filePath) => {
+    try {
+      if (!filePath || !fs.existsSync(filePath)) {
+        throw new Error('更新安装包文件不存在，请重新下载')
+      }
+
+      log('[AutoUpdate] 准备启动安装并退出当前程序:', filePath)
+
+      try {
+        saveWindowState()
+      } catch { /* ignore */ }
+
+      const isSetup = filePath.toLowerCase().includes('setup')
+      const isPortableRunning = !!process.env.PORTABLE_EXECUTABLE_FILE
+      const currentExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath
+
+      if (isSetup) {
+        const child = spawn(filePath, [], {
+          detached: true,
+          stdio: 'ignore'
+        })
+        child.unref()
+        app.quit()
+        return { ok: true }
+      }
+
+      if (isPortableRunning) {
+        const tempBat = path.join(app.getPath('temp'), 'promptmag-portable-update.bat')
+        const targetExe = currentExe
+        const batContent = `@echo off
+chcp 65001 >nul
+timeout /t 1 /nobreak >nul
+:wait_loop
+tasklist | findstr /i "PromptMag" >nul
+if not errorlevel 1 (
+  timeout /t 1 /nobreak >nul
+  goto wait_loop
+)
+copy /y "${filePath.replace(/\\/g, '\\\\')}" "${targetExe.replace(/\\/g, '\\\\')}"
+start "" "${targetExe.replace(/\\/g, '\\\\')}"
+del "%~f0"
+`
+        fs.writeFileSync(tempBat, batContent, 'utf8')
+        const child = spawn('cmd.exe', ['/c', tempBat], {
+          detached: true,
+          windowsHide: true,
+          stdio: 'ignore'
+        })
+        child.unref()
+        app.quit()
+        return { ok: true }
+      }
+
+      const child = spawn(filePath, [], {
+        detached: true,
+        stdio: 'ignore'
+      })
+      child.unref()
+      app.quit()
+      return { ok: true }
+    } catch (err) {
+      log('[AutoUpdate] 执行安装失败:', err && err.message)
+      return { ok: false, error: err && err.message ? err.message : String(err) }
     }
   })
 }

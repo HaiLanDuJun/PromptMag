@@ -69,6 +69,14 @@ const api = {
   showItemInFolder: (p) => ipcRenderer.send('pm:show-item-in-folder', p),
   openExternal: (url) => ipcRenderer.send('pm:open-external', url),
   checkUpdate: () => ipcRenderer.invoke('pm:check-update'),
+  startDownloadUpdate: (payload) => ipcRenderer.invoke('pm:start-download-update', payload || {}),
+  cancelDownloadUpdate: () => ipcRenderer.invoke('pm:cancel-download-update'),
+  installUpdate: (filePath) => ipcRenderer.invoke('pm:install-update', filePath),
+  onUpdateDownloadProgress: (cb) => {
+    const h = (_e, data) => cb(data)
+    ipcRenderer.on('pm:update-download-progress', h)
+    return () => ipcRenderer.removeListener('pm:update-download-progress', h)
+  },
 
   /* 主进程 -> 渲染进程 事件 */
   onFocusComposer: (cb) => {

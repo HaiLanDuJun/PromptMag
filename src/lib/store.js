@@ -66,14 +66,22 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.16',
+  version: '1.9.17',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
     checked: false,
     hasUpdate: false,
     info: null,
-    error: null
+    error: null,
+    downloading: false,
+    downloadProgress: 0,
+    downloadedBytes: 0,
+    totalBytes: 0,
+    downloadSpeed: '',
+    downloadComplete: false,
+    downloadedFilePath: null,
+    downloadError: null
   },
   isUpdateModalOpen: false,
   toast: '',
@@ -217,7 +225,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.16'
+  state.version = res.version || '1.9.17'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -739,6 +747,15 @@ export function bindExternalEvents() {
       if (Array.isArray(queue)) {
         state.queue = queue
       }
+    })
+  }
+
+  if (window.pm && window.pm.onUpdateDownloadProgress) {
+    window.pm.onUpdateDownloadProgress((data) => {
+      state.updateStatus.downloadProgress = data.percent || 0
+      state.updateStatus.downloadedBytes = data.downloadedBytes || 0
+      state.updateStatus.totalBytes = data.totalBytes || 0
+      state.updateStatus.downloadSpeed = data.speed || ''
     })
   }
 }
@@ -1381,7 +1398,7 @@ export async function checkForUpdates(manual = false) {
     }
 
     const latest = res.data
-    const current = state.version || '1.9.16'
+    const current = state.version || '1.9.17'
     const isNewer = compareVersions(latest.version, current) > 0
 
     state.updateStatus.checked = true
@@ -1465,6 +1482,64 @@ export function openReleaseNotesUrl(url) {
   }
 
 
+}
+
+
+/**
+ * 启动应用内新版本下载（不跳转网页）
+ */
+export async function startInAppUpdate() {
+  if (state.updateStatus.downloading) return
+  state.updateStatus.downloading = true
+  state.updateStatus.downloadProgress = 0
+  state.updateStatus.downloadedBytes = 0
+  state.updateStatus.totalBytes = 0
+  state.updateStatus.downloadSpeed = ''
+  state.updateStatus.downloadComplete = false
+  state.updateStatus.downloadError = null
+
+  if (!window.pm || !window.pm.startDownloadUpdate) {
+    openUpdateUrl('https://promptmag.dev/')
+    state.updateStatus.downloading = false
+    return
+  }
+
+  const res = await window.pm.startDownloadUpdate()
+  if (res && res.ok) {
+    state.updateStatus.downloading = false
+    state.updateStatus.downloadComplete = true
+    state.updateStatus.downloadedFilePath = res.filePath
+  } else if (res && res.cancelled) {
+    state.updateStatus.downloading = false
+    state.updateStatus.downloadProgress = 0
+  } else {
+    state.updateStatus.downloading = false
+    state.updateStatus.downloadError = res?.error || '下载更新文件失败'
+  }
+}
+
+/**
+ * 取消应用内下载
+ */
+export function cancelInAppUpdate() {
+  if (window.pm && window.pm.cancelDownloadUpdate) {
+    window.pm.cancelDownloadUpdate()
+  }
+  state.updateStatus.downloading = false
+  state.updateStatus.downloadProgress = 0
+}
+
+/**
+ * 确认重启并安装新版本
+ */
+export async function confirmInstallUpdate() {
+  if (!state.updateStatus.downloadedFilePath) return
+  if (window.pm && window.pm.installUpdate) {
+    const res = await window.pm.installUpdate(state.updateStatus.downloadedFilePath)
+    if (!res?.ok && res?.error) {
+      toast('启动升级失败: ' + res.error)
+    }
+  }
 }
 
 export function openUpdateModal() {

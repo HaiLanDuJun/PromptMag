@@ -348,7 +348,17 @@ export const messages = {
       unignoredToast: '已取消对 v{version} 的忽略',
       checkingToast: '正在检查更新…',
       upToDateToast: 'PromptMag 已是最新版本 (v{version})',
-      checkFailedToast: '检查更新失败，请检查网络连接'
+      checkFailedToast: '检查更新失败，请检查网络连接',
+      btnAutoUpdate: '🚀 确认自动升级',
+      btnDownloading: '正在下载更新…',
+      btnCancelDownload: '取消下载',
+      downloadCompleteTitle: '新版本下载完成！',
+      downloadCompleteDesc: '安装包已准备就绪，是否立即重启应用完成升级？',
+      btnRestartNow: '⚡ 立即重启完成升级',
+      btnInstallLater: '稍后安装',
+      downloadFailed: '下载更新失败',
+      btnRetryDownload: '重试下载',
+      btnManualDownload: '前往官网手动下载 ↗'
     }
   },
   en: {
@@ -696,7 +706,17 @@ export const messages = {
       unignoredToast: 'Unignored v{version}',
       checkingToast: 'Checking for updates…',
       upToDateToast: 'PromptMag is up to date (v{version})',
-      checkFailedToast: 'Update check failed. Please check network connection'
+      checkFailedToast: 'Update check failed. Please check network connection',
+      btnAutoUpdate: '🚀 Confirm In-App Upgrade',
+      btnDownloading: 'Downloading update…',
+      btnCancelDownload: 'Cancel Download',
+      downloadCompleteTitle: 'Download Complete!',
+      downloadCompleteDesc: 'Update package is ready. Would you like to restart and apply update now?',
+      btnRestartNow: '⚡ Restart & Upgrade Now',
+      btnInstallLater: 'Install Later',
+      downloadFailed: 'Failed to download update',
+      btnRetryDownload: 'Retry Download',
+      btnManualDownload: 'Download manually from website ↗'
     }
   }
 }
