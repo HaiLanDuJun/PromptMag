@@ -90,7 +90,22 @@ const isDev = !app.isPackaged
 // Windows 上软件渲染会导致 transparent 透明窗口完全不可见（Electron 已知问题）。
 app.commandLine.appendSwitch('in-process-gpu')
 
-/* ---------------- 诊断日志（高精度北京时间 UTC+8） ---------------- */
+let appLocale = 'zh'
+
+function readLocaleFromData() {
+  try {
+    const d = readJsonSafe(P.dataFile) || {}
+    const s = d.settings || {}
+    if (s.locale === 'en' || s.locale === 'zh') {
+      appLocale = s.locale
+    }
+  } catch { /* ignore */ }
+}
+
+// 立即在启动时读取语言设置，以便首行日志即采用对应时区与语言
+readLocaleFromData()
+
+/* ---------------- 诊断日志（双时区与多语言自适应：中文=北京时间+中文，英文=美国时间+英文） ---------------- */
 const bjFormatter = new Intl.DateTimeFormat('zh-CN', {
   timeZone: 'Asia/Shanghai',
   year: 'numeric',
@@ -102,9 +117,22 @@ const bjFormatter = new Intl.DateTimeFormat('zh-CN', {
   hour12: false
 });
 
-function getBeijingTimeString(d = new Date()) {
+const usFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+});
+
+function getLogTimeString(d = new Date(), locale = appLocale) {
   try {
-    const parts = bjFormatter.formatToParts(d);
+    const isEn = locale === 'en';
+    const formatter = isEn ? usFormatter : bjFormatter;
+    const parts = formatter.formatToParts(d);
     let y = '0000', m = '00', day = '00', h = '00', min = '00', s = '00';
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];
@@ -116,11 +144,16 @@ function getBeijingTimeString(d = new Date()) {
       else if (p.type === 'second') s = p.value;
     }
     const ms = String(d.getMilliseconds()).padStart(3, '0');
-    return y + '-' + m + '-' + day + ' ' + h + ':' + min + ':' + s + '.' + ms;
+    const tzTag = isEn ? 'US/Eastern' : '北京时间';
+    return y + '-' + m + '-' + day + ' ' + h + ':' + min + ':' + s + '.' + ms + ' [' + tzTag + ']';
   } catch {
     const pad = (n, len = 2) => String(n).padStart(len, '0');
     return pad(d.getFullYear(), 4) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '.' + pad(d.getMilliseconds(), 3);
   }
+}
+
+function tLog(zh, en) {
+  return appLocale === 'en' ? en : zh
 }
 
 function formatLogArg(arg) {
@@ -151,7 +184,7 @@ function log(...args) {
       }
     } catch { /* ignore */ }
 
-    const timeStr = getBeijingTimeString()
+    const timeStr = getLogTimeString()
     const msg = args.map(formatLogArg).join(' ')
     fs.appendFileSync(P.logFile, `[${timeStr}] ${msg}\n`, 'utf8')
     if (isDev) {
@@ -161,13 +194,16 @@ function log(...args) {
 }
 
 log('================================================================================')
-log('=== PromptMag 应用程序启动 ===')
-log('[Init] 版本号:', app.getVersion(), '| 打包状态:', app.isPackaged)
-log('[Init] 系统平台:', process.platform, process.arch, os.release())
-log('[Init] Node 版本:', process.versions.node, '| Electron 版本:', process.versions.electron, '| Chrome 版本:', process.versions.chrome)
-log('[Init] 可执行文件路径:', process.execPath)
-log('[Init] 数据目录 (P.home):', P.home)
-log('[Init] 诊断日志 (P.logFile):', P.logFile)
+log(appLocale === 'en'
+  ? '=== PromptMag Application Started (Language: English · US Eastern Time) ==='
+  : '=== PromptMag 应用程序启动 (语言: 中文 · 北京时间 UTC+8) ==='
+)
+log(tLog('[Init] 版本号:', '[Init] Version:'), app.getVersion(), '|', tLog('打包状态:', 'Packaged:'), app.isPackaged)
+log(tLog('[Init] 系统平台:', '[Init] OS Platform:'), process.platform, process.arch, os.release())
+log(tLog('[Init] Node 版本:', '[Init] Node Version:'), process.versions.node, '|', tLog('Electron 版本:', 'Electron Version:'), process.versions.electron, '|', tLog('Chrome 版本:', 'Chrome Version:'), process.versions.chrome)
+log(tLog('[Init] 可执行文件路径:', '[Init] Executable Path:'), process.execPath)
+log(tLog('[Init] 数据目录 (P.home):', '[Init] Data Directory (P.home):'), P.home)
+log(tLog('[Init] 诊断日志 (P.logFile):', '[Init] Diagnostic Log (P.logFile):'), P.logFile)
 log('================================================================================')
 
 let mainWindow = null
@@ -1892,14 +1928,7 @@ function registerCustomHotkeys() {
   return { ok: allOk, failedKeys }
 }
 
-let appLocale = 'zh'
-
-/** 从 data.json 读取应用语言设置 */
-function readLocaleFromData() {
-  const d = readJsonSafe(P.dataFile) || {}
-  const s = d.settings || {}
-  appLocale = s.locale === 'en' ? 'en' : 'zh'
-}
+/** 从 data.json 读取应用语言设置 (已在顶部声明并初始化) */
 
 function updateTrayTooltip() {
   if (!tray || tray.isDestroyed()) return
@@ -1969,15 +1998,15 @@ function registerIpc() {
     try {
       ensureDirs()
       if (!fs.existsSync(P.logFile)) {
-        fs.writeFileSync(P.logFile, `[${getBeijingTimeString()}] === PromptMag Log Created ===\n`, 'utf8')
+        fs.writeFileSync(P.logFile, `[${getLogTimeString()}] === PromptMag Log Created ===\n`, 'utf8')
       }
-      log('[System] 用户请求打开运行日志文件:', P.logFile)
+      log(tLog('[System] 用户请求打开运行日志文件:', '[System] User requested to open diagnostic log file:'), P.logFile)
       shell.openPath(P.logFile).catch((err) => {
-        log('[System] openPath 打开日志失败，尝试定位文件:', err && err.message)
+        log(tLog('[System] openPath 打开日志失败，尝试定位文件:', '[System] openPath failed to open log file, falling back to showItemInFolder:'), err && err.message)
         shell.showItemInFolder(P.logFile)
       })
     } catch (err) {
-      log('[System] 打开日志文件异常:', err && err.message)
+      log(tLog('[System] 打开日志文件异常:', '[System] Exception while opening log file:'), err && err.message)
     }
   })
 
@@ -2247,7 +2276,10 @@ function registerIpc() {
   /* 语言切换 (zh / en) 同步托盘菜单与提示 */
   ipcMain.on('pm:set-locale', (_e, lang) => {
     appLocale = lang === 'en' ? 'en' : 'zh'
-    log('locale changed ->', appLocale)
+    log(appLocale === 'en'
+      ? '=== Language switched to English (US Eastern Time active) ==='
+      : '=== 语言已切换为中文 (北京时间已激活) ==='
+    )
     if (tray && !tray.isDestroyed()) {
       tray.setToolTip(appLocale === 'en' ? 'PromptMag · CLI Prompt Magazine (Alt+Q)' : 'PromptMag · CLI 提示词弹夹 (Alt+Q)')
       refreshTrayMenu()
@@ -2271,7 +2303,7 @@ function registerIpc() {
 
     // 通道 1: GitHub API (首选官方接口，超时 4.5 秒)
     try {
-      log('[AutoUpdate] 尝试更新通道 [1/3: GitHub API]...')
+      log(tLog('[AutoUpdate] 尝试更新通道 [1/3: GitHub API]...', '[AutoUpdate] Trying update channel [1/3: GitHub API]...'))
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 4500)
       let res
@@ -2302,7 +2334,7 @@ function registerIpc() {
           }))
         : []
 
-      log(`[AutoUpdate] 通道 [GitHub API] 检查成功 -> 最新版本: ${version} (${tagName})`)
+      log(tLog(`[AutoUpdate] 通道 [GitHub API] 检查成功 -> 最新版本: ${version} (${tagName})`, `[AutoUpdate] Channel [GitHub API] succeeded -> Latest: ${version} (${tagName})`))
       return {
         tagName,
         version,
@@ -2315,13 +2347,13 @@ function registerIpc() {
       }
     } catch (err) {
       const errMsg = err && err.message ? err.message : String(err)
-      log(`[AutoUpdate] 通道 [GitHub API] 失败 (${errMsg})，准备尝试 CDN 降级通道...`)
+      log(tLog(`[AutoUpdate] 通道 [GitHub API] 失败 (${errMsg})，准备尝试 CDN 降级通道...`, `[AutoUpdate] Channel [GitHub API] failed (${errMsg}), trying CDN fallback...`))
       errors.push(`GitHub API: ${errMsg}`)
     }
 
     // 通道 2: jsDelivr CDN version.json (国内秒开，无速率限制)
     try {
-      log('[AutoUpdate] 尝试更新通道 [2/3: jsDelivr CDN version.json]...')
+      log(tLog('[AutoUpdate] 尝试更新通道 [2/3: jsDelivr CDN version.json]...', '[AutoUpdate] Trying update channel [2/3: jsDelivr CDN version.json]...'))
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 5000)
       let res
@@ -2352,7 +2384,7 @@ function registerIpc() {
           }))
         : []
 
-      log(`[AutoUpdate] 通道 [jsDelivr CDN] 检查成功 -> 最新版本: ${version} (${tagName})`)
+      log(tLog(`[AutoUpdate] 通道 [jsDelivr CDN] 检查成功 -> 最新版本: ${version} (${tagName})`, `[AutoUpdate] Channel [jsDelivr CDN] succeeded -> Latest: ${version} (${tagName})`))
       return {
         tagName,
         version,
@@ -2365,13 +2397,13 @@ function registerIpc() {
       }
     } catch (err) {
       const errMsg = err && err.message ? err.message : String(err)
-      log(`[AutoUpdate] 通道 [jsDelivr CDN] 失败 (${errMsg})，准备尝试 Web 重定向通道...`)
+      log(tLog(`[AutoUpdate] 通道 [jsDelivr CDN] 失败 (${errMsg})，准备尝试 Web 重定向通道...`, `[AutoUpdate] Channel [jsDelivr CDN] failed (${errMsg}), trying Web redirect fallback...`))
       errors.push(`jsDelivr CDN: ${errMsg}`)
     }
 
     // 通道 3: GitHub 网页 302 重定向解析
     try {
-      log('[AutoUpdate] 尝试更新通道 [3/3: GitHub Web 302 重定向]...')
+      log(tLog('[AutoUpdate] 尝试更新通道 [3/3: GitHub Web 302 重定向]...', '[AutoUpdate] Trying update channel [3/3: GitHub Web 302 Redirect]...'))
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 5000)
       let res
@@ -2406,7 +2438,7 @@ function registerIpc() {
         }
       ]
 
-      log(`[AutoUpdate] 通道 [GitHub Web 重定向] 检查成功 -> 最新版本: ${version} (${tagName})`)
+      log(tLog(`[AutoUpdate] 通道 [GitHub Web 重定向] 检查成功 -> 最新版本: ${version} (${tagName})`, `[AutoUpdate] Channel [GitHub Web Redirect] succeeded -> Latest: ${version} (${tagName})`))
       return {
         tagName,
         version,
@@ -2419,7 +2451,7 @@ function registerIpc() {
       }
     } catch (err) {
       const errMsg = err && err.message ? err.message : String(err)
-      log(`[AutoUpdate] 通道 [GitHub Web 重定向] 失败 (${errMsg})`)
+      log(tLog(`[AutoUpdate] 通道 [GitHub Web 重定向] 失败 (${errMsg})`, `[AutoUpdate] Channel [GitHub Web Redirect] failed (${errMsg})`))
       errors.push(`GitHub Web: ${errMsg}`)
     }
 
@@ -2429,11 +2461,11 @@ function registerIpc() {
   /* 检查 GitHub Releases 版本更新 */
   ipcMain.handle('pm:check-update', async () => {
     try {
-      log('[AutoUpdate] 收到检查更新请求，当前运行版本:', app.getVersion())
+      log(tLog('[AutoUpdate] 收到检查更新请求，当前运行版本:', '[AutoUpdate] Check-update requested, running version:'), app.getVersion())
       const data = await getLatestReleaseMultiChannel()
       return { ok: true, data }
     } catch (err) {
-      log('[AutoUpdate] 检查更新失败:', err && err.message)
+      log(tLog('[AutoUpdate] 检查更新失败:', '[AutoUpdate] Check-update failed:'), err && err.message)
       return { ok: false, error: err && err.message ? err.message : String(err) }
     }
   })
@@ -2459,7 +2491,7 @@ function registerIpc() {
       let targetName = payload && payload.assetName
 
       if (!targetUrl) {
-        log('[AutoUpdate] 未传入 assetUrl，开始自动获取最新版本发布信息...')
+        log(tLog('[AutoUpdate] 未传入 assetUrl，开始自动获取最新版本发布信息...', '[AutoUpdate] No assetUrl, fetching latest release info...'))
         const release = await getLatestReleaseMultiChannel()
         const isPortable = !!process.env.PORTABLE_EXECUTABLE_FILE || process.execPath.toLowerCase().includes('portable')
         const targetPattern = isPortable ? /Portable.*\.exe$/i : /Setup.*\.exe$/i
@@ -2474,7 +2506,7 @@ function registerIpc() {
       const tempDir = app.getPath('temp')
       const destPath = path.join(tempDir, targetName)
 
-      log(`[AutoUpdate] 准备下载更新: 目标文件=${targetName}, 原始URL=${targetUrl}`)
+      log(tLog(`[AutoUpdate] 准备下载更新: 目标文件=${targetName}, 原始URL=${targetUrl}`, `[AutoUpdate] Preparing download: Target=${targetName}, URL=${targetUrl}`))
       activeDownloadController = new AbortController()
 
       // 构建下载源候选列表（国内高速加速镜像优先，官方源垫底）
@@ -2504,7 +2536,7 @@ function registerIpc() {
 
       for (const candidate of candidates) {
         if (activeDownloadController.signal.aborted) break
-        log(`[AutoUpdate] 尝试建立下载连接 -> [${candidate.name}]: ${candidate.url}`)
+        log(tLog(`[AutoUpdate] 尝试建立下载连接 -> [${candidate.name}]: ${candidate.url}`, `[AutoUpdate] Attempting download connection -> [${candidate.name}]: ${candidate.url}`))
         
         const connectController = new AbortController()
         const onAbort = () => connectController.abort()
@@ -2524,16 +2556,16 @@ function registerIpc() {
           if (resp.ok && resp.body) {
             connectedResp = resp
             usedCandidateName = candidate.name
-            log(`[AutoUpdate] [${candidate.name}] 连接成功 (HTTP ${resp.status})`)
+            log(tLog(`[AutoUpdate] [${candidate.name}] 连接成功 (HTTP ${resp.status})`, `[AutoUpdate] [${candidate.name}] Connected (HTTP ${resp.status})`))
             break
           } else {
-            log(`[AutoUpdate] [${candidate.name}] 响应状态异常: HTTP ${resp.status} ${resp.statusText}`)
+            log(tLog(`[AutoUpdate] [${candidate.name}] 响应状态异常: HTTP ${resp.status} ${resp.statusText}`, `[AutoUpdate] [${candidate.name}] Bad status: HTTP ${resp.status} ${resp.statusText}`))
           }
         } catch (connErr) {
           clearTimeout(connectTimer)
           activeDownloadController.signal.removeEventListener('abort', onAbort)
           if (activeDownloadController.signal.aborted) throw connErr
-          log(`[AutoUpdate] [${candidate.name}] 连接失败: ${connErr && connErr.message}`)
+          log(tLog(`[AutoUpdate] [${candidate.name}] 连接失败: ${connErr && connErr.message}`, `[AutoUpdate] [${candidate.name}] Connection failed: ${connErr && connErr.message}`))
         }
       }
 
@@ -2543,7 +2575,7 @@ function registerIpc() {
 
       const totalBytes = Number(connectedResp.headers.get('content-length')) || 0
       const totalMB = totalBytes > 0 ? (totalBytes / (1024 * 1024)).toFixed(2) : '未知'
-      log(`[AutoUpdate] 正在通过 [${usedCandidateName}] 下载更新数据，总大小: ${totalMB} MB`)
+      log(tLog(`[AutoUpdate] 正在通过 [${usedCandidateName}] 下载更新数据，总大小: ${totalMB} MB`, `[AutoUpdate] Downloading update data via [${usedCandidateName}], Total size: ${totalMB} MB`))
 
       let downloadedBytes = 0
       let lastTime = Date.now()
@@ -2581,7 +2613,7 @@ function registerIpc() {
             if (percent >= lastLoggedPercent + 10) {
               lastLoggedPercent = Math.floor(percent / 10) * 10
               const currentMB = (downloadedBytes / (1024 * 1024)).toFixed(2)
-              log(`[AutoUpdate] 下载进度: ${percent}% (${currentMB} MB / ${totalMB} MB), 速度: ${speedStr}`)
+              log(tLog(`[AutoUpdate] 下载进度: ${percent}% (${currentMB} MB / ${totalMB} MB), 速度: ${speedStr}`, `[AutoUpdate] Download progress: ${percent}% (${currentMB} MB / ${totalMB} MB), Speed: ${speedStr}`))
             }
 
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -2614,15 +2646,15 @@ function registerIpc() {
 
       const totalDurationSec = ((Date.now() - startTime) / 1000).toFixed(1)
       const avgSpeedMB = totalDurationSec > 0 ? (downloadedBytes / (1024 * 1024) / totalDurationSec).toFixed(1) + ' MB/s' : ''
-      log(`[AutoUpdate] 下载成功完成! 文件保存于: ${destPath}, 大小: ${(downloadedBytes / 1024 / 1024).toFixed(2)} MB, 耗时: ${totalDurationSec}s, 平均速度: ${avgSpeedMB}`)
+      log(tLog(`[AutoUpdate] 下载成功完成! 文件保存于: ${destPath}, 大小: ${(downloadedBytes / 1024 / 1024).toFixed(2)} MB, 耗时: ${totalDurationSec}s, 平均速度: ${avgSpeedMB}`, `[AutoUpdate] Download completed! Saved to: ${destPath}, Size: ${(downloadedBytes / 1024 / 1024).toFixed(2)} MB, Time: ${totalDurationSec}s, Avg Speed: ${avgSpeedMB}`))
       return { ok: true, filePath: destPath, fileName: targetName }
     } catch (err) {
       activeDownloadController = null
       if (err.name === 'AbortError') {
-        log('[AutoUpdate] 用户取消下载任务')
+        log(tLog('[AutoUpdate] 用户取消下载任务', '[AutoUpdate] User cancelled update download'))
         return { ok: false, cancelled: true }
       }
-      log('[AutoUpdate] 下载更新包异常失败:', err && err.message)
+      log(tLog('[AutoUpdate] 下载更新包异常失败:', '[AutoUpdate] Update download failed:'), err && err.message)
       return { ok: false, error: err && err.message ? err.message : String(err) }
     }
   })
@@ -2642,7 +2674,7 @@ function registerIpc() {
         throw new Error('更新安装包文件不存在，请重新下载')
       }
 
-      log('[AutoUpdate] 准备启动安装并退出当前程序:', filePath)
+      log(tLog('[AutoUpdate] 准备启动安装并退出当前程序:', '[AutoUpdate] Launching installer and exiting app:'), filePath)
 
       try {
         saveWindowState()
@@ -2697,7 +2729,7 @@ del "%~f0"
       app.quit()
       return { ok: true }
     } catch (err) {
-      log('[AutoUpdate] 执行安装失败:', err && err.message)
+      log(tLog('[AutoUpdate] 执行安装失败:', '[AutoUpdate] Failed to execute installer:'), err && err.message)
       return { ok: false, error: err && err.message ? err.message : String(err) }
     }
   })

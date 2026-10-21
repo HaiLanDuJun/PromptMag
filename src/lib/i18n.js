@@ -614,7 +614,7 @@ export const messages = {
       dataDirTitle: 'Data Directory',
       changeDir: 'Change Directory (Restart)',
       openDir: 'Open Directory',
-      logFilePath: 'Runtime Diagnostic Log (main.log · Beijing Time)',
+      logFilePath: 'Runtime Diagnostic Log (main.log · US Eastern Time)',
       openLog: 'View Runtime Log',
       openLogTip: 'Open local diagnostic runtime log file',
       tasksFilePath: 'Task Pipeline File (next_tasks.md)',

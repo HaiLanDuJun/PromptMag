@@ -68,9 +68,9 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
 - **快速换弹快捷键全场景支持与自定义**：
   - 新增用户自定义快速切换弹夹快捷键（默认 `Ctrl+Tab` / `Ctrl+M`，支持任意组合键录制）；
   - 在快捷面板、完整录入区以及任务图片列表中全局随时响应，支持 `Ctrl+Shift+Tab` 反向轮转与 `Ctrl+1~9` 数字键直达。
-- **多通道弹性更新检测与北京时间全链路诊断日志（v1.9.20）**：
-  - 支持 GitHub API、jsDelivr CDN 与网页重定向多通道智能降级检测，结合多镜像源测速竞速下载，解决国内弱网环境下更新失败与超时难题；
-  - 运行时诊断日志全面采用高精度北京时间（UTC+8）记录，支持 5MB 自动归档轮转，并在设置中心「存储管理」与「版本与更新」中提供一键查看运行日志入口。
+- **多通道弹性更新检测与双时区多语言诊断日志（v1.9.20）**：
+  - 支持 GitHub API、jsDelivr CDN 与网页重定向多通道智能降级检测，更新异常自动弹出镜像直链下载引导，彻底解决弱网超时；
+  - 运行时诊断日志全面自适应用户语言偏好（中文=北京时间 UTC+8 + 中文日志，英文=美国东部时间 + 英文日志），支持 5MB 自动归档轮转，并在设置中心提供一键打开日志。
 - **出弹单行保证与终端防多次请求优化（v1.9.20）**：
   - 针对终端与 CLI 工具（Antigravity、Gemini CLI、Claude Code、PowerShell、CMD 等），出弹时将换行符平铺压缩为单行格式，彻底解决多行日志或多段正文在终端被当成多次回车而触发多次请求的痛点，确保仅触发单次完整请求；
   - 引入 600ms 热键防抖与并发互斥锁，杜绝快捷键连击重复出弹；出弹后与「使用后立即清理」规则实时联动，界面队列与弹夹徽章全量响应式同步。
@@ -245,9 +245,9 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
 - **Global Customizable Magazine Cycling**:
   - Customizable `hotkeyCycleMag` (default `Ctrl+Tab` / `Ctrl+M`, supports custom recording);
   - Works globally across QuickPanel, full editor, and the prompt/image queue list; supports `Ctrl+Shift+Tab` for reverse cycling and `Ctrl+1~9` for direct jumping.
-- **Multi-channel Resilient Updater & Beijing Time Diagnostic Logging (v1.9.20)**:
-  - Multi-channel auto-fallback update checking (GitHub API, jsDelivr CDN, web redirect) and multi-source mirror acceleration for package downloading in restricted networks;
-  - Comprehensive runtime diagnostic logging with high-precision Beijing Time (UTC+8), automatic 5MB log rotation, and 1-click log viewing in Settings panel.
+- **Multi-channel Resilient Updater & Locale-Adaptive Diagnostic Logging (v1.9.20)**:
+  - Multi-channel auto-fallback update checking and mirror acceleration with auto direct download modal on network error;
+  - Comprehensive runtime diagnostic logging automatically adapting to user language (Chinese = Beijing Time UTC+8 + Chinese logs, English = US Eastern Time + English logs), 5MB log rotation, and 1-click log access in Settings.
 - **Single-Line Pop & Multi-Request Terminal Prevention (v1.9.20)**:
   - Automatically flattens newlines in popped prompts into clean single-line format for CLI/terminals (Antigravity, Gemini CLI, Claude Code, PowerShell, CMD), eliminating premature Enter triggers and ensuring only a single request is submitted;
   - Added 600ms hotkey debounce and concurrency locking to eliminate duplicate triggers; added real-time cleanup integration for `done_only` magazines and full-spectrum queue badge synchronization.
