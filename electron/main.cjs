@@ -2295,167 +2295,155 @@ function registerIpc() {
     if (p) shell.showItemInFolder(p)
   })
   /**
-   * 多通道获取最新版本信息（智能降级：GitHub API -> jsDelivr CDN -> GitHub Web 302 重定向）
+   * 多通道并发竞速检查最新版本（Fastly CDN / 国内加速镜像 / 官方 API 毫秒级竞速）
+   * 仅检查是否存在最新版本，返回版本元数据供用户自主选择是否升级
    */
   async function getLatestReleaseMultiChannel() {
     const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
+
+    const sources = [
+      {
+        name: 'Fastly CDN (国内加速)',
+        type: 'versionJson',
+        url: `https://fastly.jsdelivr.net/gh/HaiLanDuJun/PromptMag@main/version.json?t=${Date.now()}`
+      },
+      {
+        name: 'ghfast.top 镜像',
+        type: 'versionJson',
+        url: `https://ghfast.top/https://raw.githubusercontent.com/HaiLanDuJun/PromptMag/main/version.json?t=${Date.now()}`
+      },
+      {
+        name: 'ghproxy.net 镜像',
+        type: 'versionJson',
+        url: `https://ghproxy.net/https://raw.githubusercontent.com/HaiLanDuJun/PromptMag/main/version.json?t=${Date.now()}`
+      },
+      {
+        name: 'GitHub API (官方)',
+        type: 'githubApi',
+        url: 'https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest'
+      }
+    ]
+
+    log(tLog('[AutoUpdate] 启动多通道并发竞速检测最新版本...', '[AutoUpdate] Starting concurrent racing check for latest release...'))
+
     const errors = []
-
-    // 通道 1: GitHub API (首选官方接口，超时 4.5 秒)
-    try {
-      log(tLog('[AutoUpdate] 尝试更新通道 [1/3: GitHub API]...', '[AutoUpdate] Trying update channel [1/3: GitHub API]...'))
+    const fetchPromises = sources.map(async (s) => {
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 4500)
-      let res
+      const timer = setTimeout(() => controller.abort(), 6000)
       try {
-        res = await fetchFn('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest', {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'PromptMag-Desktop',
-            'Accept': 'application/vnd.github.v3+json'
-          }
-        })
-      } finally {
-        clearTimeout(timer)
-      }
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-      }
-
-      const release = await res.json()
-      const tagName = release.tag_name || ''
-      const version = tagName.replace(/^v/i, '').trim()
-      const assets = Array.isArray(release.assets)
-        ? release.assets.map((a) => ({
-            name: a.name,
-            downloadUrl: a.browser_download_url,
-            size: a.size
-          }))
-        : []
-
-      log(tLog(`[AutoUpdate] 通道 [GitHub API] 检查成功 -> 最新版本: ${version} (${tagName})`, `[AutoUpdate] Channel [GitHub API] succeeded -> Latest: ${version} (${tagName})`))
-      return {
-        tagName,
-        version,
-        name: release.name || tagName,
-        body: release.body || '',
-        htmlUrl: release.html_url || `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
-        publishedAt: release.published_at || '',
-        assets,
-        channel: 'GitHub API'
-      }
-    } catch (err) {
-      const errMsg = err && err.message ? err.message : String(err)
-      log(tLog(`[AutoUpdate] 通道 [GitHub API] 失败 (${errMsg})，准备尝试 CDN 降级通道...`, `[AutoUpdate] Channel [GitHub API] failed (${errMsg}), trying CDN fallback...`))
-      errors.push(`GitHub API: ${errMsg}`)
-    }
-
-    // 通道 2: jsDelivr CDN version.json (国内秒开，无速率限制)
-    try {
-      log(tLog('[AutoUpdate] 尝试更新通道 [2/3: jsDelivr CDN version.json]...', '[AutoUpdate] Trying update channel [2/3: jsDelivr CDN version.json]...'))
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 5000)
-      let res
-      try {
-        res = await fetchFn(`https://cdn.jsdelivr.net/gh/HaiLanDuJun/PromptMag@main/version.json?t=${Date.now()}`, {
+        const res = await fetchFn(s.url, {
           signal: controller.signal,
           headers: {
             'User-Agent': 'PromptMag-Desktop',
             'Accept': 'application/json'
           }
         })
-      } finally {
         clearTimeout(timer)
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        const data = await res.json()
+
+        if (s.type === 'versionJson') {
+          const tagName = data.tagName || `v${data.version}`
+          const version = (data.version || tagName.replace(/^v/i, '')).trim()
+          const assets = Array.isArray(data.assets)
+            ? data.assets.map((a) => ({
+                name: a.name,
+                downloadUrl: a.downloadUrl,
+                size: a.size || 0
+              }))
+            : []
+          return {
+            channel: s.name,
+            tagName,
+            version,
+            name: data.name || `PromptMag ${tagName}`,
+            body: data.body || '',
+            htmlUrl: data.htmlUrl || `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
+            publishedAt: data.publishedAt || '',
+            assets
+          }
+        } else {
+          const tagName = data.tag_name || ''
+          const version = tagName.replace(/^v/i, '').trim()
+          const assets = Array.isArray(data.assets)
+            ? data.assets.map((a) => ({
+                name: a.name,
+                downloadUrl: a.browser_download_url,
+                size: a.size
+              }))
+            : []
+          return {
+            channel: s.name,
+            tagName,
+            version,
+            name: data.name || tagName,
+            body: data.body || '',
+            htmlUrl: data.html_url || `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
+            publishedAt: data.published_at || '',
+            assets
+          }
+        }
+      } catch (err) {
+        clearTimeout(timer)
+        const errMsg = err && err.message ? err.message : String(err)
+        errors.push(`${s.name}: ${errMsg}`)
+        throw err
       }
+    })
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-      }
-
-      const data = await res.json()
-      const tagName = data.tagName || `v${data.version}`
-      const version = (data.version || tagName.replace(/^v/i, '')).trim()
-      const assets = Array.isArray(data.assets)
-        ? data.assets.map((a) => ({
-            name: a.name,
-            downloadUrl: a.downloadUrl,
-            size: a.size || 0
-          }))
-        : []
-
-      log(tLog(`[AutoUpdate] 通道 [jsDelivr CDN] 检查成功 -> 最新版本: ${version} (${tagName})`, `[AutoUpdate] Channel [jsDelivr CDN] succeeded -> Latest: ${version} (${tagName})`))
-      return {
-        tagName,
-        version,
-        name: data.name || `PromptMag ${tagName}`,
-        body: data.body || '',
-        htmlUrl: data.htmlUrl || `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
-        publishedAt: data.publishedAt || '',
-        assets,
-        channel: 'jsDelivr CDN'
-      }
-    } catch (err) {
-      const errMsg = err && err.message ? err.message : String(err)
-      log(tLog(`[AutoUpdate] 通道 [jsDelivr CDN] 失败 (${errMsg})，准备尝试 Web 重定向通道...`, `[AutoUpdate] Channel [jsDelivr CDN] failed (${errMsg}), trying Web redirect fallback...`))
-      errors.push(`jsDelivr CDN: ${errMsg}`)
-    }
-
-    // 通道 3: GitHub 网页 302 重定向解析
     try {
-      log(tLog('[AutoUpdate] 尝试更新通道 [3/3: GitHub Web 302 重定向]...', '[AutoUpdate] Trying update channel [3/3: GitHub Web 302 Redirect]...'))
+      const winner = await Promise.any(fetchPromises)
+      log(tLog(
+        `[AutoUpdate] 版本检测成功 (优胜通道: [${winner.channel}]) -> 最新版本: ${winner.version} (${winner.tagName})`,
+        `[AutoUpdate] Check succeeded (Winning channel: [${winner.channel}]) -> Latest: ${winner.version} (${winner.tagName})`
+      ))
+      return winner
+    } catch (_allErr) {
+      log(tLog('[AutoUpdate] 首轮并发检查遇阻，准备启动兜底 Web 重定向通道...', '[AutoUpdate] Initial racing checks blocked, trying fallback Web redirect...'))
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 5000)
-      let res
+      const timer = setTimeout(() => controller.abort(), 6000)
       try {
-        res = await fetchFn('https://github.com/HaiLanDuJun/PromptMag/releases/latest', {
+        const res = await fetchFn('https://github.com/HaiLanDuJun/PromptMag/releases/latest', {
           signal: controller.signal,
           redirect: 'manual',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
           }
         })
-      } finally {
         clearTimeout(timer)
-      }
-
-      const loc = res.headers.get('location') || ''
-      const match = loc.match(/\/tag\/(v?([0-9]+\.[0-9]+\.[0-9]+.*))$/i)
-      if (!match) {
-        throw new Error(`无法从重定向地址解析版本: status=${res.status}, location=${loc}`)
-      }
-
-      const tagName = match[1]
-      const version = match[2]
-      const assets = [
-        {
-          name: `PromptMag-Portable-${version}.exe`,
-          downloadUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/download/${tagName}/PromptMag-Portable-${version}.exe`
-        },
-        {
-          name: `PromptMag-Setup-${version}.exe`,
-          downloadUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/download/${tagName}/PromptMag-Setup-${version}.exe`
+        const loc = res.headers.get('location') || ''
+        const match = loc.match(/\/tag\/(v?([0-9]+\.[0-9]+\.[0-9]+.*))$/i)
+        if (!match) throw new Error(`无法从重定向地址解析版本: status=${res.status}, location=${loc}`)
+        const tagName = match[1]
+        const version = match[2]
+        return {
+          channel: 'GitHub Web 302 重定向',
+          tagName,
+          version,
+          name: `PromptMag ${tagName}`,
+          body: '',
+          htmlUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
+          publishedAt: '',
+          assets: [
+            {
+              name: `PromptMag-Portable-${version}.exe`,
+              downloadUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/download/${tagName}/PromptMag-Portable-${version}.exe`
+            },
+            {
+              name: `PromptMag-Setup-${version}.exe`,
+              downloadUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/download/${tagName}/PromptMag-Setup-${version}.exe`
+            }
+          ]
         }
-      ]
-
-      log(tLog(`[AutoUpdate] 通道 [GitHub Web 重定向] 检查成功 -> 最新版本: ${version} (${tagName})`, `[AutoUpdate] Channel [GitHub Web Redirect] succeeded -> Latest: ${version} (${tagName})`))
-      return {
-        tagName,
-        version,
-        name: `PromptMag ${tagName}`,
-        body: `最新版本: ${tagName}`,
-        htmlUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
-        publishedAt: '',
-        assets,
-        channel: 'GitHub Web'
+      } catch (fallbackErr) {
+        clearTimeout(timer)
+        errors.push(`GitHub Web: ${fallbackErr && fallbackErr.message ? fallbackErr.message : fallbackErr}`)
+        throw new Error(tLog(
+          `所有更新通道均不可用: [${errors.join('; ')}]`,
+          `All update channels unavailable: [${errors.join('; ')}]`
+        ))
       }
-    } catch (err) {
-      const errMsg = err && err.message ? err.message : String(err)
-      log(tLog(`[AutoUpdate] 通道 [GitHub Web 重定向] 失败 (${errMsg})`, `[AutoUpdate] Channel [GitHub Web Redirect] failed (${errMsg})`))
-      errors.push(`GitHub Web: ${errMsg}`)
     }
-
-    throw new Error(`所有更新通道均不可用: [${errors.join('; ')}]`)
   }
 
   /* 检查 GitHub Releases 版本更新 */

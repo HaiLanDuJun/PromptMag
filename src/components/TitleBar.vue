@@ -656,10 +656,19 @@ function toggleLang() {
           <!-- 已是最新版本 -->
           <div
             v-else-if="state.updateStatus.checked"
-            class="flex items-center gap-1 text-[10.5px] text-emerald-400 pt-0.5 font-medium"
+            class="flex items-center justify-between pt-0.5"
           >
-            <span>✓</span>
-            <span>{{ t('settings.upToDate') }}</span>
+            <div class="flex items-center gap-1 text-[10.5px] text-emerald-400 font-medium">
+              <span>✓</span>
+              <span>{{ t('settings.upToDate') }} (v{{ state.version }})</span>
+            </div>
+            <button
+              type="button"
+              class="text-[9.5px] text-sky-400 hover:text-sky-300 underline cursor-pointer"
+              @click="openUpdateModal"
+            >
+              {{ t('settings.viewReleaseNotes') }}
+            </button>
           </div>
 
           <!-- 检测更新遇到网络错误卡片 -->

@@ -254,7 +254,8 @@ export const messages = {
       updateErrorDesc: '无法连接官方 API 获取版本元数据。您可以直接下载最新版安装包或前往官网：',
       directDownloadPortable: '直链下载绿色版',
       directDownloadSetup: '直链下载安装包',
-      retryCheck: '重试检测'
+      retryCheck: '重试检测',
+      viewReleaseNotes: '查看发布说明与下载 ↗'
     },
     magazines: {
       title: '项目弹夹',
@@ -620,7 +621,8 @@ export const messages = {
       tasksFilePath: 'Task Pipeline File (next_tasks.md)',
       openTasksBtn: 'Open Pipeline File',
       githubReleases: 'Releases',
-      githubIssues: 'Issues & Feedback'
+      githubIssues: 'Issues & Feedback',
+      viewReleaseNotes: 'Release Notes & Download ↗'
     },
     magazines: {
       title: 'Project Magazines',
