@@ -12,7 +12,7 @@ if (typeof window !== 'undefined' && !window.pm) {
   window.pm = {
     getInitData: async () => ({
       data: {},
-      paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '' },
+      paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '', logFile: '' },
       platform: 'browser'
     }),
     saveData: async () => ({ ok: true }),
@@ -85,7 +85,7 @@ export const state = reactive({
   },
   isUpdateModalOpen: false,
   toast: '',
-  paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '' },
+  paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '', logFile: '' },
   isHotkeyRecording: false,
   settings: {
     alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
@@ -225,7 +225,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.17'
+  state.version = res.version || '1.9.20'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {

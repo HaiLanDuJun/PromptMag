@@ -90,14 +90,60 @@ const isDev = !app.isPackaged
 // Windows 上软件渲染会导致 transparent 透明窗口完全不可见（Electron 已知问题）。
 app.commandLine.appendSwitch('in-process-gpu')
 
-/* ---------------- 诊断日志 ---------------- */
+/* ---------------- 诊断日志（高精度北京时间 UTC+8） ---------------- */
+function getBeijingTimeString(d = new Date()) {
+  const utc = d.getTime() + (d.getTimezoneOffset() * 60000)
+  const bj = new Date(utc + (8 * 3600000))
+  const pad = (n, len = 2) => String(n).padStart(len, '0')
+  return `${pad(bj.getFullYear(), 4)}-${pad(bj.getMonth() + 1)}-${pad(bj.getDate())} ${pad(bj.getHours())}:${pad(bj.getMinutes())}:${pad(bj.getSeconds())}.${pad(bj.getMilliseconds(), 3)}`
+}
+
+function formatLogArg(arg) {
+  if (arg === null) return 'null'
+  if (arg === undefined) return 'undefined'
+  if (arg instanceof Error) return arg.stack || `${arg.name}: ${arg.message}`
+  if (typeof arg === 'object') {
+    try {
+      return JSON.stringify(arg)
+    } catch {
+      return String(arg)
+    }
+  }
+  return String(arg)
+}
+
 function log(...args) {
   try {
     ensureDirs()
-    fs.appendFileSync(P.logFile, `[${new Date().toISOString()}] ${args.join(' ')}\n`, 'utf8')
+    try {
+      if (fs.existsSync(P.logFile)) {
+        const stat = fs.statSync(P.logFile)
+        if (stat.size > 5 * 1024 * 1024) {
+          const oldLogFile = path.join(P.home, 'main.log.old')
+          try { if (fs.existsSync(oldLogFile)) fs.unlinkSync(oldLogFile) } catch {}
+          fs.renameSync(P.logFile, oldLogFile)
+        }
+      }
+    } catch { /* ignore */ }
+
+    const timeStr = getBeijingTimeString()
+    const msg = args.map(formatLogArg).join(' ')
+    fs.appendFileSync(P.logFile, `[${timeStr}] ${msg}\n`, 'utf8')
+    if (isDev) {
+      console.log(`[${timeStr}]`, ...args)
+    }
   } catch { /* ignore */ }
 }
-log('=== app start ===', 'version:', app.getVersion(), 'packaged:', app.isPackaged, 'dataDir:', P.home)
+
+log('================================================================================')
+log('=== PromptMag 应用程序启动 ===')
+log('[Init] 版本号:', app.getVersion(), '| 打包状态:', app.isPackaged)
+log('[Init] 系统平台:', process.platform, process.arch, os.release())
+log('[Init] Node 版本:', process.versions.node, '| Electron 版本:', process.versions.electron, '| Chrome 版本:', process.versions.chrome)
+log('[Init] 可执行文件路径:', process.execPath)
+log('[Init] 数据目录 (P.home):', P.home)
+log('[Init] 诊断日志 (P.logFile):', P.logFile)
+log('================================================================================')
 
 let mainWindow = null
 let snippetWindow = null
@@ -170,6 +216,7 @@ let alwaysOnTop = true
 /* 工具函数                                                            */
 /* ------------------------------------------------------------------ */
 function ensureDirs() {
+  fs.mkdirSync(P.home, { recursive: true })
   fs.mkdirSync(P.images, { recursive: true })
   fs.mkdirSync(P.favorites, { recursive: true })
   fs.mkdirSync(P.favImages, { recursive: true })
@@ -1889,6 +1936,26 @@ function createTray() {
 /* IPC                                                                 */
 /* ------------------------------------------------------------------ */
 function registerIpc() {
+  ipcMain.on('pm:log', (_e, ...args) => {
+    log('[Renderer]', ...args)
+  })
+
+  ipcMain.on('pm:open-log-file', () => {
+    try {
+      ensureDirs()
+      if (!fs.existsSync(P.logFile)) {
+        fs.writeFileSync(P.logFile, `[${getBeijingTimeString()}] === PromptMag Log Created ===\n`, 'utf8')
+      }
+      log('[System] 用户请求打开运行日志文件:', P.logFile)
+      shell.openPath(P.logFile).catch((err) => {
+        log('[System] openPath 打开日志失败，尝试定位文件:', err && err.message)
+        shell.showItemInFolder(P.logFile)
+      })
+    } catch (err) {
+      log('[System] 打开日志文件异常:', err && err.message)
+    }
+  })
+
   ipcMain.handle('pm:get-init-data', () => ({
     data: readJsonSafe(P.dataFile) || {},
     paths: {
@@ -1896,7 +1963,8 @@ function registerIpc() {
       imagesDir: P.images,
       tasksFile: P.tasksFile,
       dataFile: P.dataFile,
-      magazinesDir: P.magazinesDir
+      magazinesDir: P.magazinesDir,
+      logFile: P.logFile
     },
     platform: process.platform,
     version: app.getVersion()
@@ -2169,12 +2237,18 @@ function registerIpc() {
   ipcMain.on('pm:show-item-in-folder', (_e, p) => {
     if (p) shell.showItemInFolder(p)
   })
-  /* 检查 GitHub Releases 版本更新 */
-  ipcMain.handle('pm:check-update', async () => {
+  /**
+   * 多通道获取最新版本信息（智能降级：GitHub API -> jsDelivr CDN -> GitHub Web 302 重定向）
+   */
+  async function getLatestReleaseMultiChannel() {
+    const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
+    const errors = []
+
+    // 通道 1: GitHub API (首选官方接口，超时 4.5 秒)
     try {
-      const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
+      log('[AutoUpdate] 尝试更新通道 [1/3: GitHub API]...')
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 8000)
+      const timer = setTimeout(() => controller.abort(), 4500)
       let res
       try {
         res = await fetchFn('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest', {
@@ -2189,7 +2263,7 @@ function registerIpc() {
       }
 
       if (!res.ok) {
-        return { ok: false, error: `GitHub API HTTP ${res.status}: ${res.statusText}` }
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
       }
 
       const release = await res.json()
@@ -2203,31 +2277,149 @@ function registerIpc() {
           }))
         : []
 
+      log(`[AutoUpdate] 通道 [GitHub API] 检查成功 -> 最新版本: ${version} (${tagName})`)
       return {
-        ok: true,
-        data: {
-          tagName,
-          version,
-          name: release.name || tagName,
-          body: release.body || '',
-          htmlUrl: release.html_url || `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
-          publishedAt: release.published_at || '',
-          assets
-        }
+        tagName,
+        version,
+        name: release.name || tagName,
+        body: release.body || '',
+        htmlUrl: release.html_url || `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
+        publishedAt: release.published_at || '',
+        assets,
+        channel: 'GitHub API'
       }
     } catch (err) {
-      log('check-update error:', err && err.message)
+      const errMsg = err && err.message ? err.message : String(err)
+      log(`[AutoUpdate] 通道 [GitHub API] 失败 (${errMsg})，准备尝试 CDN 降级通道...`)
+      errors.push(`GitHub API: ${errMsg}`)
+    }
+
+    // 通道 2: jsDelivr CDN version.json (国内秒开，无速率限制)
+    try {
+      log('[AutoUpdate] 尝试更新通道 [2/3: jsDelivr CDN version.json]...')
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 5000)
+      let res
+      try {
+        res = await fetchFn(`https://cdn.jsdelivr.net/gh/HaiLanDuJun/PromptMag@main/version.json?t=${Date.now()}`, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'PromptMag-Desktop',
+            'Accept': 'application/json'
+          }
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+      }
+
+      const data = await res.json()
+      const tagName = data.tagName || `v${data.version}`
+      const version = (data.version || tagName.replace(/^v/i, '')).trim()
+      const assets = Array.isArray(data.assets)
+        ? data.assets.map((a) => ({
+            name: a.name,
+            downloadUrl: a.downloadUrl,
+            size: a.size || 0
+          }))
+        : []
+
+      log(`[AutoUpdate] 通道 [jsDelivr CDN] 检查成功 -> 最新版本: ${version} (${tagName})`)
+      return {
+        tagName,
+        version,
+        name: data.name || `PromptMag ${tagName}`,
+        body: data.body || '',
+        htmlUrl: data.htmlUrl || `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
+        publishedAt: data.publishedAt || '',
+        assets,
+        channel: 'jsDelivr CDN'
+      }
+    } catch (err) {
+      const errMsg = err && err.message ? err.message : String(err)
+      log(`[AutoUpdate] 通道 [jsDelivr CDN] 失败 (${errMsg})，准备尝试 Web 重定向通道...`)
+      errors.push(`jsDelivr CDN: ${errMsg}`)
+    }
+
+    // 通道 3: GitHub 网页 302 重定向解析
+    try {
+      log('[AutoUpdate] 尝试更新通道 [3/3: GitHub Web 302 重定向]...')
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 5000)
+      let res
+      try {
+        res = await fetchFn('https://github.com/HaiLanDuJun/PromptMag/releases/latest', {
+          signal: controller.signal,
+          redirect: 'manual',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+
+      const loc = res.headers.get('location') || ''
+      const match = loc.match(/\/tag\/(v?([0-9]+\.[0-9]+\.[0-9]+.*))$/i)
+      if (!match) {
+        throw new Error(`无法从重定向地址解析版本: status=${res.status}, location=${loc}`)
+      }
+
+      const tagName = match[1]
+      const version = match[2]
+      const assets = [
+        {
+          name: `PromptMag-Portable-${version}.exe`,
+          downloadUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/download/${tagName}/PromptMag-Portable-${version}.exe`
+        },
+        {
+          name: `PromptMag-Setup-${version}.exe`,
+          downloadUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/download/${tagName}/PromptMag-Setup-${version}.exe`
+        }
+      ]
+
+      log(`[AutoUpdate] 通道 [GitHub Web 重定向] 检查成功 -> 最新版本: ${version} (${tagName})`)
+      return {
+        tagName,
+        version,
+        name: `PromptMag ${tagName}`,
+        body: `最新版本: ${tagName}`,
+        htmlUrl: `https://github.com/HaiLanDuJun/PromptMag/releases/tag/${tagName}`,
+        publishedAt: '',
+        assets,
+        channel: 'GitHub Web'
+      }
+    } catch (err) {
+      const errMsg = err && err.message ? err.message : String(err)
+      log(`[AutoUpdate] 通道 [GitHub Web 重定向] 失败 (${errMsg})`)
+      errors.push(`GitHub Web: ${errMsg}`)
+    }
+
+    throw new Error(`所有更新通道均不可用: [${errors.join('; ')}]`)
+  }
+
+  /* 检查 GitHub Releases 版本更新 */
+  ipcMain.handle('pm:check-update', async () => {
+    try {
+      log('[AutoUpdate] 收到检查更新请求，当前运行版本:', app.getVersion())
+      const data = await getLatestReleaseMultiChannel()
+      return { ok: true, data }
+    } catch (err) {
+      log('[AutoUpdate] 检查更新失败:', err && err.message)
       return { ok: false, error: err && err.message ? err.message : String(err) }
     }
   })
 
   ipcMain.on('pm:open-external', (_e, url) => {
-      if (url && typeof url === 'string') {
-        shell.openExternal(url).catch((err) => {
-          log('openExternal error:', err && err.message)
-        })
-      }
-    })
+    if (url && typeof url === 'string') {
+      shell.openExternal(url).catch((err) => {
+        log('openExternal error:', err && err.message)
+      })
+    }
+  })
 
   let activeDownloadController = null
 
@@ -2242,17 +2434,13 @@ function registerIpc() {
       let targetName = payload && payload.assetName
 
       if (!targetUrl) {
-        const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
-        const checkRes = await fetchFn('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest', {
-          headers: { 'User-Agent': 'PromptMag-Desktop', 'Accept': 'application/vnd.github.v3+json' }
-        })
-        if (!checkRes.ok) throw new Error(`GitHub API HTTP ${checkRes.status}: ${checkRes.statusText}`)
-        const release = await checkRes.json()
+        log('[AutoUpdate] 未传入 assetUrl，开始自动获取最新版本发布信息...')
+        const release = await getLatestReleaseMultiChannel()
         const isPortable = !!process.env.PORTABLE_EXECUTABLE_FILE || process.execPath.toLowerCase().includes('portable')
         const targetPattern = isPortable ? /Portable.*\.exe$/i : /Setup.*\.exe$/i
         const matched = (release.assets || []).find((a) => targetPattern.test(a.name)) || (release.assets || [])[0]
-        if (!matched) throw new Error('新版本未找到适用的安装文件')
-        targetUrl = matched.browser_download_url
+        if (!matched || !matched.downloadUrl) throw new Error('新版本未找到适用的安装文件或下载链接')
+        targetUrl = matched.downloadUrl
         targetName = matched.name
       }
 
@@ -2261,30 +2449,86 @@ function registerIpc() {
       const tempDir = app.getPath('temp')
       const destPath = path.join(tempDir, targetName)
 
-      log('[AutoUpdate] 开始下载新版本:', targetName, 'from', targetUrl)
+      log(`[AutoUpdate] 准备下载更新: 目标文件=${targetName}, 原始URL=${targetUrl}`)
       activeDownloadController = new AbortController()
-      const { signal } = activeDownloadController
 
-      const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
-      const resp = await fetchFn(targetUrl, {
-        signal,
-        headers: {
-          'User-Agent': 'PromptMag-Desktop-Updater'
-        }
+      // 构建下载源候选列表（国内高速加速镜像优先，官方源垫底）
+      const candidates = []
+      if (typeof targetUrl === 'string' && targetUrl.includes('github.com')) {
+        candidates.push({
+          name: 'ghproxy.net 镜像',
+          url: `https://ghproxy.net/${targetUrl}`
+        })
+        candidates.push({
+          name: 'ghfast.top 镜像',
+          url: `https://ghfast.top/${targetUrl}`
+        })
+        candidates.push({
+          name: 'gh-proxy.com 镜像',
+          url: `https://gh-proxy.com/${targetUrl}`
+        })
+      }
+      candidates.push({
+        name: 'GitHub 官方源',
+        url: targetUrl
       })
 
-      if (!resp.ok) {
-        throw new Error(`下载失败 (HTTP ${resp.status}): ${resp.statusText}`)
+      const fetchFn = (typeof net !== 'undefined' && net.fetch) ? net.fetch : globalThis.fetch
+      let connectedResp = null
+      let usedCandidateName = ''
+
+      for (const candidate of candidates) {
+        if (activeDownloadController.signal.aborted) break
+        log(`[AutoUpdate] 尝试建立下载连接 -> [${candidate.name}]: ${candidate.url}`)
+        
+        const connectController = new AbortController()
+        const onAbort = () => connectController.abort()
+        activeDownloadController.signal.addEventListener('abort', onAbort)
+        const connectTimer = setTimeout(() => connectController.abort(), 6000)
+
+        try {
+          const resp = await fetchFn(candidate.url, {
+            signal: connectController.signal,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) PromptMag-Desktop-Updater'
+            }
+          })
+          clearTimeout(connectTimer)
+          activeDownloadController.signal.removeEventListener('abort', onAbort)
+
+          if (resp.ok && resp.body) {
+            connectedResp = resp
+            usedCandidateName = candidate.name
+            log(`[AutoUpdate] [${candidate.name}] 连接成功 (HTTP ${resp.status})`)
+            break
+          } else {
+            log(`[AutoUpdate] [${candidate.name}] 响应状态异常: HTTP ${resp.status} ${resp.statusText}`)
+          }
+        } catch (connErr) {
+          clearTimeout(connectTimer)
+          activeDownloadController.signal.removeEventListener('abort', onAbort)
+          if (activeDownloadController.signal.aborted) throw connErr
+          log(`[AutoUpdate] [${candidate.name}] 连接失败: ${connErr && connErr.message}`)
+        }
       }
 
-      const totalBytes = Number(resp.headers.get('content-length')) || 0
+      if (!connectedResp) {
+        throw new Error('所有下载加速通道及官方源均无法连通，请检查网络或前往 Releases 网页手动下载')
+      }
+
+      const totalBytes = Number(connectedResp.headers.get('content-length')) || 0
+      const totalMB = totalBytes > 0 ? (totalBytes / (1024 * 1024)).toFixed(2) : '未知'
+      log(`[AutoUpdate] 正在通过 [${usedCandidateName}] 下载更新数据，总大小: ${totalMB} MB`)
+
       let downloadedBytes = 0
       let lastTime = Date.now()
+      let startTime = Date.now()
       let lastBytes = 0
       let speedStr = ''
+      let lastLoggedPercent = -10
 
       const fileStream = fs.createWriteStream(destPath)
-      const reader = resp.body.getReader()
+      const reader = connectedResp.body.getReader()
 
       try {
         while (true) {
@@ -2294,7 +2538,7 @@ function registerIpc() {
           downloadedBytes += value.length
 
           const now = Date.now()
-          if (now - lastTime >= 250) {
+          if (now - lastTime >= 200) {
             const deltaSec = (now - lastTime) / 1000
             const bytesDiff = downloadedBytes - lastBytes
             const speedBps = bytesDiff / deltaSec
@@ -2307,6 +2551,14 @@ function registerIpc() {
             lastBytes = downloadedBytes
 
             const percent = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : 0
+            
+            // 每跨越 10% 记录一次详细日志
+            if (percent >= lastLoggedPercent + 10) {
+              lastLoggedPercent = Math.floor(percent / 10) * 10
+              const currentMB = (downloadedBytes / (1024 * 1024)).toFixed(2)
+              log(`[AutoUpdate] 下载进度: ${percent}% (${currentMB} MB / ${totalMB} MB), 速度: ${speedStr}`)
+            }
+
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('pm:update-download-progress', {
                 percent,
@@ -2335,15 +2587,17 @@ function registerIpc() {
         })
       }
 
-      log('[AutoUpdate] 下载完成:', destPath, '大小:', downloadedBytes)
+      const totalDurationSec = ((Date.now() - startTime) / 1000).toFixed(1)
+      const avgSpeedMB = totalDurationSec > 0 ? (downloadedBytes / (1024 * 1024) / totalDurationSec).toFixed(1) + ' MB/s' : ''
+      log(`[AutoUpdate] 下载成功完成! 文件保存于: ${destPath}, 大小: ${(downloadedBytes / 1024 / 1024).toFixed(2)} MB, 耗时: ${totalDurationSec}s, 平均速度: ${avgSpeedMB}`)
       return { ok: true, filePath: destPath, fileName: targetName }
     } catch (err) {
       activeDownloadController = null
       if (err.name === 'AbortError') {
-        log('[AutoUpdate] 用户取消下载')
+        log('[AutoUpdate] 用户取消下载任务')
         return { ok: false, cancelled: true }
       }
-      log('[AutoUpdate] 下载出错:', err && err.message)
+      log('[AutoUpdate] 下载更新包异常失败:', err && err.message)
       return { ok: false, error: err && err.message ? err.message : String(err) }
     }
   })

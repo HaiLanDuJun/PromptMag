@@ -49,6 +49,13 @@ const GITHUB_URL = 'https://github.com/HaiLanDuJun/PromptMag'
 function hide() { window.pm.hideWindow() }
 function openTasks() { window.pm.openPath(state.paths.tasksFile) }
 function openDataDir() { window.pm.openPath(state.paths.homeDir) }
+function openLog() {
+  if (window.pm && window.pm.openLogFile) {
+    window.pm.openLogFile()
+  } else if (state.paths && state.paths.logFile) {
+    window.pm.openPath(state.paths.logFile)
+  }
+}
 
 function openExternalUrl(url) {
   if (window.pm && window.pm.openExternal) {
@@ -496,6 +503,15 @@ function toggleLang() {
           </div>
         </div>
 
+        <!-- 运行诊断日志 (main.log) -->
+        <div>
+          <div class="settings-label">{{ t('settings.logFilePath') }}</div>
+          <div class="settings-path select-all" :title="state.paths.logFile || ''">{{ state.paths.logFile || '' }}</div>
+          <div class="flex gap-2 mt-2">
+            <button class="btn w-full text-xs" @click="openLog" :title="t('settings.openLogTip')">{{ t('settings.openLog') }}</button>
+          </div>
+        </div>
+
         <!-- 未收藏提示词自动清理设置与手动清理 -->
         <div class="border-t border-slate-800 pt-2.5">
           <div class="settings-label">{{ t('settings.autoCleanupTitle') }}</div>
@@ -644,6 +660,20 @@ function toggleLang() {
           >
             <span>✓</span>
             <span>{{ t('settings.upToDate') }}</span>
+          </div>
+
+          <!-- 查看运行日志入口 -->
+          <div class="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between">
+            <span class="text-[10px] text-slate-400 truncate max-w-[210px]" :title="state.paths.logFile || ''">{{ t('settings.logFilePath') }}</span>
+            <button
+              type="button"
+              class="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 px-2 py-0.5 rounded border border-sky-500/30 hover:border-sky-400/60 bg-sky-500/10 cursor-pointer transition-all shrink-0"
+              @click="openLog"
+              :title="t('settings.openLogTip')"
+            >
+              <span>📄</span>
+              <span>{{ t('settings.openLog') }}</span>
+            </button>
           </div>
         </div>
 

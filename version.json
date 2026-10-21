@@ -1,0 +1,17 @@
+{
+  "version": "1.9.20",
+  "tagName": "v1.9.20",
+  "name": "PromptMag v1.9.20",
+  "publishedAt": "2026-10-20T18:00:00+08:00",
+  "body": "### PromptMag v1.9.20 更新说明\n\n1. 【网络与更新】彻底优化国内网络环境下的版本检测与更新包下载，提供多通道智能降级机制（官方 API / jsDelivr CDN / 镜像加速下载），解决网络错误与下载超时问题。\n2. 【诊断日志】全量日志改用高精度北京时间（UTC+8）记录，大幅丰富核心运行链路日志（启动参数、窗口形态演变、弹夹出弹、全局快捷键、自动清理周期、更新下载测速等）。\n3. 【设置面板】在设置中心「存储管理」与「版本与更新」中增加「查看运行日志」快捷入口，方便用户和开发者快速排查问题。",
+  "assets": [
+    {
+      "name": "PromptMag-Portable-1.9.20.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.20/PromptMag-Portable-1.9.20.exe"
+    },
+    {
+      "name": "PromptMag-Setup-1.9.20.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.20/PromptMag-Setup-1.9.20.exe"
+    }
+  ]
+}
