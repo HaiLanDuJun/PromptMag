@@ -91,11 +91,36 @@ const isDev = !app.isPackaged
 app.commandLine.appendSwitch('in-process-gpu')
 
 /* ---------------- 诊断日志（高精度北京时间 UTC+8） ---------------- */
+const bjFormatter = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+});
+
 function getBeijingTimeString(d = new Date()) {
-  const utc = d.getTime() + (d.getTimezoneOffset() * 60000)
-  const bj = new Date(utc + (8 * 3600000))
-  const pad = (n, len = 2) => String(n).padStart(len, '0')
-  return `${pad(bj.getFullYear(), 4)}-${pad(bj.getMonth() + 1)}-${pad(bj.getDate())} ${pad(bj.getHours())}:${pad(bj.getMinutes())}:${pad(bj.getSeconds())}.${pad(bj.getMilliseconds(), 3)}`
+  try {
+    const parts = bjFormatter.formatToParts(d);
+    let y = '0000', m = '00', day = '00', h = '00', min = '00', s = '00';
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (p.type === 'year') y = p.value;
+      else if (p.type === 'month') m = p.value;
+      else if (p.type === 'day') day = p.value;
+      else if (p.type === 'hour') h = p.value;
+      else if (p.type === 'minute') min = p.value;
+      else if (p.type === 'second') s = p.value;
+    }
+    const ms = String(d.getMilliseconds()).padStart(3, '0');
+    return y + '-' + m + '-' + day + ' ' + h + ':' + min + ':' + s + '.' + ms;
+  } catch {
+    const pad = (n, len = 2) => String(n).padStart(len, '0');
+    return pad(d.getFullYear(), 4) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '.' + pad(d.getMilliseconds(), 3);
+  }
 }
 
 function formatLogArg(arg) {

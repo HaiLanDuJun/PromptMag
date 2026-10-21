@@ -11,7 +11,7 @@ import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { marked } from 'marked'
 import {
   state, closeUpdateModal, ignoreUpdateVersion, openUpdateUrl, openReleaseNotesUrl,
-  startInAppUpdate, cancelInAppUpdate, confirmInstallUpdate, t
+  startInAppUpdate, cancelInAppUpdate, confirmInstallUpdate, directDownloadLatest, t
 } from '../lib/store'
 
 const updateInfo = computed(() => state.updateStatus.info || {})
@@ -107,6 +107,57 @@ onBeforeUnmount(() => {
           </svg>
         </button>
       </div>
+
+      <!-- ================= 检查更新异常兜底 (直接提供最新版下载) ================= -->
+      <div v-if="state.updateStatus.error && !updateInfo.version" class="flex flex-col gap-3 py-1">
+        <div class="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 flex flex-col gap-2">
+          <div class="flex items-center gap-2 text-rose-300 font-semibold text-xs">
+            <span>⚠️</span>
+            <span>{{ t('settings.updateErrorTitle') }}</span>
+          </div>
+          <p class="text-[11px] text-slate-300 leading-relaxed">
+            {{ t('updateModal.checkErrorTip') }}
+          </p>
+          <div class="grid grid-cols-2 gap-2 mt-1">
+            <button
+              type="button"
+              class="btn btn-primary !py-2 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(56,189,248,0.25)]"
+              @click="directDownloadLatest('portable')"
+            >
+              <span>⚡</span>
+              <span>{{ t('updateModal.directDownloadPortable') }}</span>
+            </button>
+            <button
+              type="button"
+              class="btn !py-2 text-xs text-sky-300 border-sky-500/40 hover:border-sky-400 flex items-center justify-center gap-1.5 cursor-pointer"
+              @click="directDownloadLatest('setup')"
+            >
+              <span>📦</span>
+              <span>{{ t('updateModal.directDownloadSetup') }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800">
+          <button
+            type="button"
+            class="text-slate-400 hover:text-slate-200 underline cursor-pointer"
+            @click="closeUpdateModal"
+          >
+            {{ t('updateModal.btnRemindLater') }}
+          </button>
+          <button
+            type="button"
+            class="text-sky-400 hover:text-sky-300 underline cursor-pointer"
+            @click="openUpdateUrl('https://promptmag.dev/')"
+          >
+            🌐 {{ t('updateModal.btnManualDownload') }}
+          </button>
+        </div>
+      </div>
+
+      <template v-else>
+
 
       <!-- 版本对照卡片 -->
       <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 text-xs">
@@ -218,20 +269,41 @@ onBeforeUnmount(() => {
           <span>⚠️</span>
           <span class="truncate">{{ state.updateStatus.downloadError }}</span>
         </div>
-        <div class="flex items-center justify-end gap-2">
+        <p class="text-[10.5px] text-slate-300 leading-snug">
+          {{ t('updateModal.downloadErrorTip') }}
+        </p>
+        <div class="grid grid-cols-2 gap-1.5 mt-0.5">
           <button
             type="button"
-            class="btn !py-1 !px-2.5 text-[11px] text-rose-300 hover:text-rose-100 hover:border-rose-400/60"
-            @click="startInAppUpdate"
+            class="btn btn-primary !py-1.5 text-[10.5px] font-semibold flex items-center justify-center gap-1 cursor-pointer"
+            @click="directDownloadLatest('portable')"
           >
-            {{ t('updateModal.btnRetryDownload') }}
+            <span>⚡</span>
+            <span>{{ t('updateModal.directDownloadPortable') }}</span>
           </button>
           <button
             type="button"
-            class="text-[10px] text-sky-400 hover:text-sky-300 underline cursor-pointer"
+            class="btn !py-1.5 text-[10.5px] text-sky-300 border-sky-500/40 hover:border-sky-400 flex items-center justify-center gap-1 cursor-pointer"
+            @click="directDownloadLatest('setup')"
+          >
+            <span>📦</span>
+            <span>{{ t('updateModal.directDownloadSetup') }}</span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px]">
+          <button
+            type="button"
+            class="text-slate-400 hover:text-slate-200 underline cursor-pointer"
+            @click="startInAppUpdate"
+          >
+            🔄 {{ t('updateModal.btnRetryDownload') }}
+          </button>
+          <button
+            type="button"
+            class="text-sky-400 hover:text-sky-300 underline cursor-pointer"
             @click="openUpdateUrl('https://promptmag.dev/')"
           >
-            {{ t('updateModal.btnManualDownload') }}
+            🌐 {{ t('updateModal.btnManualDownload') }}
           </button>
         </div>
       </div>
@@ -258,17 +330,29 @@ onBeforeUnmount(() => {
             {{ t('updateModal.btnRemindLater') }}
           </button>
 
-          <!-- 确认自动升级 (需用户确认，应用内直接高速下载，无需跳转网页) -->
+          <!-- 确认自动升级 (需用户确认，应用内直接流式下载，无需跳转网页) -->
           <button
             type="button"
-            class="btn btn-primary !py-1.5 !px-3.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(56,189,248,0.35)]"
+            class="btn btn-primary !py-1.5 !px-3 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(56,189,248,0.35)]"
             @click="startInAppUpdate"
           >
             <span>🚀</span>
             <span>{{ t('updateModal.btnAutoUpdate') }}</span>
           </button>
+
+          <!-- 直链高速直接下载 -->
+          <button
+            type="button"
+            class="btn !py-1.5 !px-2 text-xs text-sky-300 border-sky-500/40 hover:border-sky-400 flex items-center gap-1 cursor-pointer"
+            :title="t('updateModal.directDownloadFast')"
+            @click="directDownloadLatest('portable')"
+          >
+            <span>⚡</span>
+            <span>{{ t('updateModal.directDownloadFast') }}</span>
+          </button>
         </div>
       </div>
+      </template>
     </div>
   </div>
 </template>

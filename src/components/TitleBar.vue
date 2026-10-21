@@ -12,7 +12,7 @@ import {
   getMagazineAutoCleanup, setMagazineAutoCleanup,
   setSaveTargetMode, setWindowScaleMode, setHideTaskbar, checkForUpdates, openUpdateModal,
   ignoreUpdateVersion, unignoreUpdateVersion, openUpdateUrl, t, currentLocale,
-  setMode, toast
+  setMode, toast, directDownloadLatest
 } from '../lib/store'
 import HotkeyInput from './HotkeyInput.vue'
 
@@ -660,6 +660,49 @@ function toggleLang() {
           >
             <span>✓</span>
             <span>{{ t('settings.upToDate') }}</span>
+          </div>
+
+          <!-- 检测更新遇到网络错误卡片 -->
+          <div
+            v-else-if="state.updateStatus.error"
+            class="p-2.5 rounded-lg bg-rose-500/10 border border-rose-400/40 text-[11px] flex flex-col gap-1.5"
+          >
+            <div class="flex items-center justify-between text-rose-300 font-semibold">
+              <div class="flex items-center gap-1">
+                <span>⚠️</span>
+                <span>{{ t('settings.updateErrorTitle') }}</span>
+              </div>
+              <button
+                type="button"
+                class="text-[9.5px] text-sky-400 hover:text-sky-300 underline cursor-pointer"
+                @click="checkForUpdates(true)"
+              >
+                {{ t('settings.retryCheck') }}
+              </button>
+            </div>
+
+            <p class="text-[10px] text-slate-300 leading-snug">
+              {{ t('settings.updateErrorDesc') }}
+            </p>
+
+            <div class="grid grid-cols-2 gap-1.5 mt-0.5">
+              <button
+                type="button"
+                class="btn btn-primary !py-1 text-[10.5px] font-medium flex items-center justify-center gap-1 cursor-pointer"
+                @click="directDownloadLatest('portable')"
+              >
+                <span>⚡</span>
+                <span>{{ t('settings.directDownloadPortable') }}</span>
+              </button>
+              <button
+                type="button"
+                class="btn !py-1 text-[10.5px] text-sky-300 border-sky-500/40 hover:border-sky-400 flex items-center justify-center gap-1 cursor-pointer"
+                @click="directDownloadLatest('setup')"
+              >
+                <span>📦</span>
+                <span>{{ t('settings.directDownloadSetup') }}</span>
+              </button>
+            </div>
           </div>
 
           <!-- 查看运行日志入口 -->

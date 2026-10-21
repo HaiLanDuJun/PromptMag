@@ -249,7 +249,12 @@ export const messages = {
       tasksFilePath: '任务流通管道文件 (next_tasks.md)',
       openTasksBtn: '打开管道文件',
       githubReleases: 'Releases 发布历史',
-      githubIssues: '建议与问题反馈 (Issues)'
+      githubIssues: '建议与问题反馈 (Issues)',
+      updateErrorTitle: '检查更新遇到网络限制',
+      updateErrorDesc: '无法连接官方 API 获取版本元数据。您可以直接下载最新版安装包或前往官网：',
+      directDownloadPortable: '直链下载绿色版',
+      directDownloadSetup: '直链下载安装包',
+      retryCheck: '重试检测'
     },
     magazines: {
       title: '项目弹夹',
@@ -361,7 +366,12 @@ export const messages = {
       btnInstallLater: '稍后安装',
       downloadFailed: '下载更新失败',
       btnRetryDownload: '重试下载',
-      btnManualDownload: '前往官网手动下载 ↗'
+      btnManualDownload: '前往官网手动下载 ↗',
+      directDownloadFast: '⚡ 高速直链下载',
+      directDownloadPortable: '直链高速下载绿色版',
+      directDownloadSetup: '直链高速下载安装包',
+      downloadErrorTip: '应用内流式下载受到网络限制，您可以直接通过国内高速镜像下载最新安装包：',
+      checkErrorTip: '未能连通官方更新检测服务，您可以直接下载最新版安装包：'
     }
   },
   en: {
@@ -722,7 +732,12 @@ export const messages = {
       btnInstallLater: 'Install Later',
       downloadFailed: 'Failed to download update',
       btnRetryDownload: 'Retry Download',
-      btnManualDownload: 'Download manually from website ↗'
+      btnManualDownload: 'Download manually from website ↗',
+      directDownloadFast: '⚡ Direct Fast Download',
+      directDownloadPortable: 'Direct Fast Download Portable',
+      directDownloadSetup: 'Direct Fast Download Setup',
+      downloadErrorTip: 'In-app download was restricted by network. You can download directly via accelerated mirrors:',
+      checkErrorTip: 'Unable to connect to official update service. You can directly download the latest package:'
     }
   }
 }

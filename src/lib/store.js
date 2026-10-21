@@ -1574,6 +1574,24 @@ export function closeUpdateModal() {
   state.isUpdateModalOpen = false
 }
 
+/**
+ * 直接通过加速镜像下载最新版安装包 (跳过 API 阻断)
+ * @param {'portable' | 'setup'} type 
+ */
+export function directDownloadLatest(type = 'portable') {
+  const version = state.updateStatus.info?.version || '1.9.20'
+  const fileName = type === 'portable'
+    ? `PromptMag-Portable-${version}.exe`
+    : `PromptMag-Setup-${version}.exe`
+  const rawUrl = `https://github.com/HaiLanDuJun/PromptMag/releases/download/v${version}/${fileName}`
+  const fastUrl = `https://ghfast.top/${rawUrl}`
+  if (window.pm && window.pm.openExternal) {
+    window.pm.openExternal(fastUrl)
+  } else {
+    window.open(fastUrl, '_blank')
+  }
+}
+
 export { t, currentLocale } from './i18n.js'
 
 
