@@ -1496,47 +1496,44 @@ function createWindow() {
 }
 
 function toggleWindow() {
-  if (!mainWindow) return
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  clearTimeout(tuckTimer)
   const saved = readJsonSafe(P.dataFile) || {}
   const s = saved.settings || {}
   const defaultScaleMode = s.windowScaleMode === 'full' ? 'full' : 'quick'
-  // 如果当前是胶囊形态，快捷键按下必须是呼出展开为快捷输入，绝不能误判为隐藏！
-  if (mode === 'capsule') {
-    try {
-      const helperPath = getPasteHelperPath()
-      if (fs.existsSync(helperPath)) {
-        const curFg = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
-        updateLastExternalHwnd(curFg)
-      }
-    } catch { /* ignore */ }
-    setMode('quick')
+
+  // 如果当前贴边半隐藏、不可见、未获得焦点或处于胶囊态：立即呼出展开至前台！
+  if (tucked || !mainWindow.isVisible() || !mainWindow.isFocused() || mode === 'capsule') {
+    untuck()
+    if (mode === 'capsule' || (defaultScaleMode === 'quick' && mode === 'full')) {
+      setMode(defaultScaleMode === 'full' ? 'full' : 'quick')
+    }
     mainWindow.show()
+    applyAlwaysOnTop()
     mainWindow.focus()
     mainWindow.webContents.send('pm:focus-composer')
+
+    // 异步更新外部窗口句柄，不阻塞呼出呈现
+    setImmediate(() => {
+      try {
+        const helperPath = getPasteHelperPath()
+        if (fs.existsSync(helperPath)) {
+          const curFg = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 200 }).toString().trim()
+          updateLastExternalHwnd(curFg)
+        }
+      } catch { /* ignore */ }
+    })
     return
   }
 
-  if (mainWindow.isVisible() && mainWindow.isFocused()) {
-    mainWindow.hide()
+  // 当前已在前台可见且已获得焦点：按快捷键隐藏或收起为基准胶囊
+  if (defaultScaleMode === 'quick') {
+    setMode('capsule')
   } else {
-    try {
-      const helperPath = getPasteHelperPath()
-      if (fs.existsSync(helperPath)) {
-        const curFg = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
-        updateLastExternalHwnd(curFg)
-      }
-    } catch { /* ignore */ }
-    if (defaultScaleMode === 'quick' && mode === 'full') {
-      setMode('quick')
-    }
-    mainWindow.show()
-    mainWindow.focus()
-    mainWindow.webContents.send('pm:focus-composer')
+    mainWindow.hide()
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* 自定义全局快捷键：弹出最旧未用 / 收录选中文字                        */
 /* ------------------------------------------------------------------ */
 function sendToRenderer(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1549,7 +1546,7 @@ let lastHotkeyPopTime = 0
 /** 快捷键 1：弹出提示词（按出弹模式：霰弹枪/左轮/手枪，复制、标记使用并直接粘贴到光标处） */
 function onHotkeyPop() {
   const now = Date.now()
-  if (now - lastHotkeyPopTime < 600) {
+  if (now - lastHotkeyPopTime < 250) {
     log('hotkey pop debounced, ignoring duplicate trigger')
     return
   }
@@ -1628,7 +1625,7 @@ function getForegroundHwndSync() {
   try {
     const helperPath = getPasteHelperPath()
     if (fs.existsSync(helperPath)) {
-      const out = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 500 }).toString().trim()
+      const out = execFileSync(helperPath, ['get'], { windowsHide: true, timeout: 250 }).toString().trim()
       log('getForegroundHwndSync raw out:', out, 'isPromptMag:', isPromptMagHwnd(out))
 
       // 1. 如果当前前台窗口是有效外部应用（非 PromptMag 自身），立即更新并返回
@@ -1637,9 +1634,15 @@ function getForegroundHwndSync() {
         return out
       }
 
-      // 2. 如果当前前台是 PromptMag 自身，优先嗅探鼠标光标悬停所在的外部窗口
+      // 2. 优先回退到此前记录的最近一次外部窗口
+      if (lastExternalHwnd && lastExternalHwnd !== '0' && !isPromptMagHwnd(lastExternalHwnd)) {
+        log('using lastExternalHwnd fallback:', lastExternalHwnd)
+        return lastExternalHwnd
+      }
+
+      // 3. 尝试嗅探鼠标光标悬停所在的外部窗口
       try {
-        const mouseOut = execFileSync(helperPath, ['get-mouse'], { windowsHide: true, timeout: 500 }).toString().trim()
+        const mouseOut = execFileSync(helperPath, ['get-mouse'], { windowsHide: true, timeout: 200 }).toString().trim()
         if (mouseOut && mouseOut !== '0' && !isPromptMagHwnd(mouseOut)) {
           log('detected external window under mouse:', mouseOut)
           updateLastExternalHwnd(mouseOut)
@@ -1647,16 +1650,13 @@ function getForegroundHwndSync() {
         }
       } catch { /* ignore */ }
 
-      // 3. 鼠标不在有效外部窗口时，回退到此前记录的最近一次外部窗口
-      if (lastExternalHwnd && lastExternalHwnd !== '0' && !isPromptMagHwnd(lastExternalHwnd)) {
-        log('using lastExternalHwnd fallback:', lastExternalHwnd)
-        return lastExternalHwnd
-      }
-
-      return '0'
+      return out || '0'
     }
   } catch (e) {
     log('getForegroundHwndSync error:', e && e.message)
+    if (lastExternalHwnd && lastExternalHwnd !== '0' && !isPromptMagHwnd(lastExternalHwnd)) {
+      return lastExternalHwnd
+    }
   }
   return '0'
 }

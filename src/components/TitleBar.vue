@@ -22,10 +22,6 @@ const showSettings = ref(false)
 
 watch(showSettings, (val) => {
   state.isSettingsOpen = val
-  if (!val && state.settings.windowScaleMode !== 'full' && state.settings.mode === 'full') {
-    // 关闭设置时，若用户已选定「默认缩放为悬浮窗」，则窗口自动缩放回悬浮窗形态！
-    setMode('quick')
-  }
 })
 
 function onSelectScaleMode(m) {

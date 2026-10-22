@@ -172,11 +172,13 @@ function createChipNode(imgIdx, keyword = '') {
   textSpan.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
+      e.stopPropagation()
       emit('keydown-enter', e)
       return
     }
     if ((e.key === 'Enter' || e.key === 'Tab') && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
+      e.stopPropagation()
       textSpan.blur()
       // 将光标移到框外后方
       let nextNode = chip.nextSibling
@@ -194,6 +196,7 @@ function createChipNode(imgIdx, keyword = '') {
       }
     } else if (e.key === 'Backspace' && !textSpan.textContent) {
       e.preventDefault()
+      e.stopPropagation()
       const currentIdx = Number(chip.getAttribute('data-img-idx'))
       removeImage(currentIdx)
     }
@@ -368,14 +371,15 @@ async function bindImageToSelection(imagesList, forcedRange = null, forcedText =
     }
   }
 
-  // 智能兜底：若没有明确选中文本，但编辑器内只有纯文本且无任何已有 chip，则自动将全部纯文本作为关联词框选
-  if ((!selectedWord || !selectedWord.trim()) && editorRef.value) {
-    const existingChips = editorRef.value.querySelectorAll('.kw-chip')
-    const rawText = editorRef.value.textContent.trim()
-    if (existingChips.length === 0 && rawText) {
-      range = document.createRange()
-      range.selectNodeContents(editorRef.value)
-      selectedWord = rawText
+  // 仅当用户明确选中文本时，才将选中文本作为图片描述关联；未选中文本时绝不自动侵入已有文字
+  if (!range) {
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount) {
+      const r = sel.getRangeAt(0)
+      if (editorRef.value && (editorRef.value === r.commonAncestorContainer || editorRef.value.contains(r.commonAncestorContainer))) {
+        range = r
+        selectedWord = selectedWord || sel.toString().trim()
+      }
     }
   }
 
@@ -394,7 +398,7 @@ async function bindImageToSelection(imagesList, forcedRange = null, forcedText =
   const startIdx = state.composer.images.length
   addImages(imagesList, selectedWord)
 
-  // 删除选区中的文字，并在同一位置无缝插入带右上角图N角标的高亮卡片框
+  // 删除选区中的文字（未选中文本时 range 为折叠点，删除 0 内容），并在同一位置无缝插入带右上角图N角标的高亮卡片框
   range.deleteContents()
   const chip = createChipNode(startIdx, selectedWord)
   range.insertNode(chip)
@@ -403,30 +407,14 @@ async function bindImageToSelection(imagesList, forcedRange = null, forcedText =
   const spacer = document.createTextNode(' ')
   chip.after(spacer)
 
-  const textEl = chip.querySelector('.kw-text')
   const sel = window.getSelection()
-
-  // 关键：若无初始选中词，光标立即定位到框内 .kw-text 中，用户键入的词直接完整显示在框中！
-  if (!selectedWord) {
-    nextTick(() => {
-      textEl.focus()
-      const r = document.createRange()
-      r.selectNodeContents(textEl)
-      r.collapse(false)
-      if (sel) {
-        sel.removeAllRanges()
-        sel.addRange(r)
-      }
-    })
-  } else {
-    // 已有选词，完整保留并在框内显示，光标放在框后空格处
-    const newRange = document.createRange()
-    newRange.setStartAfter(spacer)
-    newRange.collapse(true)
-    if (sel) {
-      sel.removeAllRanges()
-      sel.addRange(newRange)
-    }
+  // 关键修复：光标统一置于卡片后的空格后，输入框原有文字完整保留，后续键入文字自然追加在图片后方
+  const newRange = document.createRange()
+  newRange.setStartAfter(spacer)
+  newRange.collapse(true)
+  if (sel) {
+    sel.removeAllRanges()
+    sel.addRange(newRange)
   }
 
   savedSelection = null
@@ -486,6 +474,17 @@ async function onPaste(e) {
   if (res && res.ok && res.images && res.images.length) {
     e.preventDefault()
     await bindImageToSelection(res.images, capturedRange, capturedText)
+
+    // 若剪贴板中同时包含图文混合纯文本（如微信复制图文消息），且非纯图片路径，一并追加文字入框
+    const clipboardText = (e.clipboardData ? e.clipboardData.getData('text/plain') : '').trim()
+    if (clipboardText && !/\.(png|jpe?g|gif|webp|bmp)$/i.test(clipboardText) && !clipboardText.startsWith('file://')) {
+      const parsed = parseCompiledPrompt(clipboardText)
+      if (!parsed) {
+        document.execCommand('insertText', false, clipboardText)
+        onInput()
+      }
+    }
+
     toast(`已关联图片与关键词 [图${state.composer.images.length}]`)
     return
   }
@@ -546,6 +545,8 @@ function focusEditor(e) {
 
 function onKeydown(e) {
   if (e.key === 'Enter') {
+    // 避免来自 chip 内部按键重复冒泡触发二次保存
+    if (e.target && e.target.closest && e.target.closest('.kw-chip')) return
     emit('keydown-enter', e)
   }
 }

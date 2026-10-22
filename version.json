@@ -1,17 +1,17 @@
 {
-  "version": "1.9.20",
-  "tagName": "v1.9.20",
-  "name": "PromptMag v1.9.20",
-  "publishedAt": "2026-10-20T18:00:00+08:00",
-  "body": "### PromptMag v1.9.20 更新说明\n\n1. 【网络与更新】彻底优化国内网络环境下的版本检测与更新包下载，提供多通道智能降级机制（官方 API / jsDelivr CDN / 镜像加速下载），解决网络错误与下载超时问题。\n2. 【诊断日志】全量日志改用高精度北京时间（UTC+8）记录，大幅丰富核心运行链路日志（启动参数、窗口形态演变、弹夹出弹、全局快捷键、自动清理周期、更新下载测速等）。\n3. 【设置面板】在设置中心「存储管理」与「版本与更新」中增加「查看运行日志」快捷入口，方便用户和开发者快速排查问题。",
+  "version": "1.9.21",
+  "tagName": "v1.9.21",
+  "name": "PromptMag v1.9.21",
+  "publishedAt": "2026-10-22T14:00:00+08:00",
+  "body": "### PromptMag v1.9.21 更新说明\n\n1. 【图文粘贴防抖】彻底修复从微信等场景粘贴图文时因子组件按键冒泡与防抖缺失导致产生两条任务（一条含图、一条无图）的问题；\n2. 【输入框文本保护】修复在输入框文字后粘贴图片自动将原文本转换为图片描述的问题，光标顺畅后移支持自然续写；\n3. 【大窗口模式常驻】修复在软件内部大窗口打开设置后再关闭导致整个大窗口异常关闭的问题，保持大窗口模式稳定驻留；\n4. 【快捷键极速响应】全链路优化呼出与出弹快捷键（Alt+Q / Alt+V），解除同步进程执行阻塞，支持边缘吸附贴边唤醒，出弹全状态明确 Toast 反馈。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.20.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.20/PromptMag-Portable-1.9.20.exe"
+      "name": "PromptMag-Portable-1.9.21.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.21/PromptMag-Portable-1.9.21.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.20.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.20/PromptMag-Setup-1.9.20.exe"
+      "name": "PromptMag-Setup-1.9.21.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.21/PromptMag-Setup-1.9.21.exe"
     }
   ]
 }

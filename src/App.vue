@@ -49,13 +49,7 @@ function scheduleCollapse() {
     if (pointerDown) return
     if (Date.now() - lastExpandAt < 800) return   // 展开防抖缓冲（800ms），杜绝快捷键呼出瞬间被误判自缩
     if (document.hasFocus()) return               // 正在输入，不收起
-    if (mode.value === 'full') {
-      // 只有在用户设置「默认缩放为悬浮窗」且设置面板未开启时，离开或失焦才平滑缩放为悬浮球
-      if (state.settings.windowScaleMode !== 'full' && !state.isSettingsOpen) {
-        setMode('capsule')
-      }
-      return
-    }
+    if (mode.value === 'full') return // 完整大窗口需手动收起或点击关闭，失焦与离开不自动缩放
     setMode('capsule')
   }, 220)
 }
@@ -76,12 +70,7 @@ function onShellLeave() {
 function onWinBlur() {
   if (state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen || state.isSettingsOpen) return
   if (Date.now() - lastExpandAt < 800) return
-  if (mode.value === 'full') {
-    if (state.settings.windowScaleMode !== 'full' && !state.isSettingsOpen) {
-      scheduleCollapse()
-    }
-    return
-  }
+  if (mode.value === 'full') return
   if (mode.value !== 'capsule' && hasEntered) scheduleCollapse()
 }
 function onWinFocus() {

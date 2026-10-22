@@ -225,7 +225,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.20'
+  state.version = res.version || '1.9.21'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -538,13 +538,11 @@ function bindHotkeyEvents() {
     const fgHwnd = payload && payload.fgHwnd ? payload.fgHwnd : '0'
     const pending = state.queue.filter((t) => !t.done)
     if (!pending.length) {
-      // 悬浮窗状态下（capsule 悬浮球或 quick 悬浮面板），不用显示提示，也不用专门展开显示提示
-      if (state.settings.mode === 'full') {
-        if (state.queue.length > 0) {
-          toast(t('toast.magAllDone'))
-        } else {
-          toast(t('toast.magEmpty'))
-        }
+      // 全局弹出提示词时若无待用内容，全形态给予明确 Toast 引导提示
+      if (state.queue.length > 0) {
+        toast(t('toast.magAllDone'))
+      } else {
+        toast(t('toast.magEmpty'))
       }
       isPoppingPrompt = false
       return
@@ -586,7 +584,7 @@ function bindHotkeyEvents() {
     } finally {
       setTimeout(() => {
         isPoppingPrompt = false
-      }, 600)
+      }, 200)
     }
   })
 
@@ -864,9 +862,14 @@ export function formatDateTime(ts) {
 }
 
 /* ---------------- 队列操作 ---------------- */
+let lastSaveTime = 0
+
 export function pushComposerToQueue(targetMagId = null) {
+  const now = Date.now()
+  if (now - lastSaveTime < 350) return null
   const c = state.composer
   if (!String(c.text).trim() && !c.images.length) return null
+  lastSaveTime = now
   const textStr = String(c.text)
 
   // 1. 如果处于编辑状态，执行更新原有任务（不删除，原地更新最新内容）
@@ -1579,7 +1582,7 @@ export function closeUpdateModal() {
  * @param {'portable' | 'setup'} type 
  */
 export function directDownloadLatest(type = 'portable') {
-  const version = state.updateStatus.info?.version || '1.9.20'
+  const version = state.updateStatus.info?.version || '1.9.21'
   const fileName = type === 'portable'
     ? `PromptMag-Portable-${version}.exe`
     : `PromptMag-Setup-${version}.exe`

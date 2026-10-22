@@ -95,6 +95,7 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 - [x] **Single-line pop guarantee & CLI multi-request elimination (v1.9.18)**: completely flattened multiline prompt text into clean single-line strings during pop, preventing terminal emulators (Antigravity CLI, PowerShell, Gemini CLI, Claude Code) from interpreting newlines as separate Enter triggers; added 600ms hotkey debounce and concurrency mutex
 - [x] **Internal line break preservation & QuickPanel enter semantics unification (v1.9.19)**: ensured full multi-line newline integrity inside the software (editor, queue storage, task inspection), unified QuickPanel to use `Enter` for normal newline and `Ctrl+Enter` for saving
 - [x] **Multi-channel resilient updater & Locale-adaptive diagnostic logging (v1.9.20)**: introduced multi-channel auto-fallback update check and accelerated mirror downloading with automatic direct download fallback on error; upgraded diagnostic logging to be fully locale-adaptive (Chinese = Beijing Time UTC+8 + Chinese logs, English = US Eastern Time + English logs) with 5MB rotation and 1-click log viewing in Settings
+- [x] **Fix duplicate tasks on mixed image/text paste, inline text preservation, persistent full-mode settings, and ultra-responsive hotkeys (v1.9.21)**: eliminated duplicate task generation when pasting image+text by adding event stopPropagation, chip keyboard isolation, and save debounce; fixed auto-converting pre-typed text into image notes on image paste, smoothly placing cursor after the chip for natural typing; resolved abnormal window closing when closing settings in full window mode; optimized summon (Alt+Q) and pop (Alt+V) hotkeys with edge-untuck wake-up, non-blocking window activation, and global pop toast feedback.
 
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
 
@@ -193,6 +194,7 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **出弹单行保证与终端换行防多次请求（v1.9.18）**：彻底平铺压缩出弹提示词内的所有换行符为单行指令，根除终端/CLI（Antigravity、PowerShell、Gemini CLI、Claude Code）将换行解析为多次回车而触发多次请求的问题；增加 600ms 出弹热键防抖与并发互斥锁，并在出弹后与已用清理即时联动
 - [x] **软件内部正常换行与快捷面板交互统一（v1.9.19）**：全面保障软件内部（录入框、弹夹数据持久化、列表查看与编辑）原始多行换行排版完整性，单行仅在外部终端出弹时作用；统一悬浮窗快捷面板（QuickPanel）交互为 `Enter` 正常换行、`Ctrl+Enter` 保存入库
 - [x] **多通道弹性更新检测与双时区多语言诊断日志（v1.9.20）**：引入多通道智能降级版本检测与镜像源竞速下载，支持网络错误时自动弹出直链下载引导；诊断日志全面自适应语言设置（中文=北京时间 UTC+8 + 中文日志，英文=美国东部时间 + 英文日志），支持 5MB 自动归档轮转；设置面板新增「查看运行日志」快捷入口
+- [x] **图文混贴与双向防抖修复、大窗口设置常驻与快捷键极速响应（v1.9.21）**：彻底修复从微信等场景粘贴图文时因子组件按键冒泡与防抖缺失导致产生两条任务（一条含图、一条无图）的缺陷；修复在输入框文字后粘贴图片自动将原文本转换为图片描述的问题，光标顺畅后移支持自然续写；彻底解决大窗口模式下打开设置再关闭导致整个大窗口异常关闭的问题，保持大窗口模式稳定驻留；全链路优化呼出/弹出快捷键（Alt+Q / Alt+V），解除同步进程执行阻塞，修复边缘贴边半隐藏状态呼出唤醒与全状态出弹 Toast 反馈，呼出极速丝滑。
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 
