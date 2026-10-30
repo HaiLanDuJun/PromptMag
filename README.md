@@ -4,6 +4,8 @@ CLI 提示词弹夹。为 Claude Code / Codex / AGY 等 CLI 编码 Agent 设计�
 
 [English](#english) · [中文](#中文)
 
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/HaiLanDuJun/badge.svg)](https://hub.xerj.org/contributors/HaiLanDuJun)
+
 ---
 
 ## 中文
