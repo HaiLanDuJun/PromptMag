@@ -1,17 +1,17 @@
 {
-  "version": "1.9.22",
-  "tagName": "v1.9.22",
-  "name": "PromptMag v1.9.22",
-  "publishedAt": "2026-11-03T14:35:00+08:00",
-  "body": "### PromptMag v1.9.22 更新说明\n\n1. 【Mandate 授权边界】任务自带协议级授权标记（L1 只读改代码、L2 运行命令与测试、L3 高危删除/Push/发布），L3 动作严格限定用户亲自下达（explicit），超范围任务自动转为 blocked 提问，杜绝越界；\n2. 【Observe 试运行模式】Agent 在 tasks.md 自主新增的任务进入独立待批准区（proposed），批准后升为亲自下达，统计采纳率；\n3. 【Attention 注意力面板】界面只展示等人的事（挂起疑问与待批提案），支持卡片内直接输入回答并恢复接力，健康状态零占位不打扰，普通列表精简统计。",
+  "version": "1.9.23",
+  "tagName": "v1.9.23",
+  "name": "PromptMag v1.9.23",
+  "publishedAt": "2026-11-03T16:15:00+08:00",
+  "body": "### PromptMag v1.9.23 更新说明\n\n1. 【输入框缩放基准修复】彻底修复设置「默认缩放为悬浮窗」后，处于快捷输入框形态（quick）靠边缩放或失焦时依然保持半截长黑条输入框的问题；靠边或失焦时统一自动平滑缩放为精致悬浮球（capsule），彻底杜绝黑长条遮挡屏幕边缘，悬停或唤出时丝滑展开；\n2. 【应用内更新弹窗交互修复】彻底修复更新提醒弹窗在输入框形态弹出时受限于 195px 窗口高度导致截断、无法打开完整工作台且无法关闭的问题；唤起更新时自动强制展开为完整大窗口，支持随时点击右上角取消/关闭或按 Esc 退出，弹窗内容自适应滚动；关闭更新弹窗后安全回缩至先前形态。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.22.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.22/PromptMag-Portable-1.9.22.exe"
+      "name": "PromptMag-Portable-1.9.23.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.23/PromptMag-Portable-1.9.23.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.22.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.22/PromptMag-Setup-1.9.22.exe"
+      "name": "PromptMag-Setup-1.9.23.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.23/PromptMag-Setup-1.9.23.exe"
     }
   ]
 }

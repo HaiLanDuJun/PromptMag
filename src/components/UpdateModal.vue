@@ -10,7 +10,7 @@
 import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { marked } from 'marked'
 import {
-  state, closeUpdateModal, ignoreUpdateVersion, openUpdateUrl, openReleaseNotesUrl,
+  state, setMode, closeUpdateModal, ignoreUpdateVersion, openUpdateUrl, openReleaseNotesUrl,
   startInAppUpdate, cancelInAppUpdate, confirmInstallUpdate, directDownloadLatest, t
 } from '../lib/store'
 
@@ -61,13 +61,16 @@ function onMarkdownClick(e) {
 }
 
 function onKeyDown(e) {
-  if (e.key === 'Escape' && !state.updateStatus.downloading) {
+  if (e.key === 'Escape') {
     e.preventDefault()
     closeUpdateModal()
   }
 }
 
 onMounted(() => {
+  if (state.settings.mode !== 'full') {
+    setMode('full')
+  }
   window.addEventListener('keydown', onKeyDown)
 })
 
@@ -79,11 +82,11 @@ onBeforeUnmount(() => {
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
     <!-- 背景遮罩 -->
-    <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm" @click="!state.updateStatus.downloading && closeUpdateModal()" />
+    <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm" @click="closeUpdateModal" />
 
     <!-- 弹窗主体 -->
     <div
-      class="relative w-full max-w-md rounded-xl bg-slate-900 border border-sky-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(56,189,248,0.2)] p-4 flex flex-col gap-3 z-10 max-h-[90vh]"
+      class="relative w-full max-w-md rounded-xl bg-slate-900 border border-sky-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(56,189,248,0.2)] p-4 flex flex-col gap-3 z-10 max-h-[90vh] overflow-y-auto"
       @click.stop
     >
       <!-- 头部 -->
@@ -97,9 +100,8 @@ onBeforeUnmount(() => {
           </span>
         </div>
         <button
-          v-if="!state.updateStatus.downloading"
           class="text-slate-400 hover:text-rose-400 transition-colors p-1 cursor-pointer"
-          :title="t('updateModal.btnRemindLater')"
+          :title="state.updateStatus.downloading ? t('updateModal.btnCancelDownload') : t('updateModal.btnRemindLater')"
           @click="closeUpdateModal"
         >
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">

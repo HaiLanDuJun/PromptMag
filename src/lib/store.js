@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.22',
+  version: '1.9.23',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
@@ -269,7 +269,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.22'
+  state.version = res.version || '1.9.23'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -1595,6 +1595,17 @@ export function compareVersions(v1, v2) {
  * 检查 GitHub Releases 最新版本
  * @param {boolean} manual 是否为用户手动点击检查更新
  */
+let preUpdateModalMode = null
+
+function ensureFullModeForUpdate() {
+  if (state.settings.mode !== 'full') {
+    if (!preUpdateModalMode) {
+      preUpdateModalMode = state.settings.mode
+    }
+    setMode('full')
+  }
+}
+
 export async function checkForUpdates(manual = false) {
   if (state.updateStatus.checking) return
   state.updateStatus.checking = true
@@ -1643,10 +1654,8 @@ export async function checkForUpdates(manual = false) {
     if (isNewer) {
       const isIgnored = state.settings.ignoredVersion && state.settings.ignoredVersion === latest.version
       if (manual || !isIgnored) {
+        ensureFullModeForUpdate()
         state.isUpdateModalOpen = true
-        if (state.settings.mode === 'capsule') {
-          setMode('full')
-        }
       }
     } else {
       if (manual) {
@@ -1673,7 +1682,7 @@ export function ignoreUpdateVersion(ver) {
     state.settings.ignoredVersion = versionToIgnore
     toast(t('updateModal.ignoredToast', { version: versionToIgnore }))
   }
-  state.isUpdateModalOpen = false
+  closeUpdateModal()
 }
 
 /**
@@ -1686,6 +1695,7 @@ export function unignoreUpdateVersion() {
     toast(t('updateModal.unignoredToast', { version: oldIgnored }))
   }
   if (state.updateStatus.hasUpdate) {
+    ensureFullModeForUpdate()
     state.isUpdateModalOpen = true
   }
 }
@@ -1778,14 +1788,19 @@ export async function confirmInstallUpdate() {
 }
 
 export function openUpdateModal() {
+  ensureFullModeForUpdate()
   state.isUpdateModalOpen = true
-  if (state.settings.mode === 'capsule') {
-    setMode('full')
-  }
 }
 
 export function closeUpdateModal() {
+  if (state.updateStatus.downloading) {
+    cancelInAppUpdate()
+  }
   state.isUpdateModalOpen = false
+  if (preUpdateModalMode && preUpdateModalMode !== 'full') {
+    setMode(preUpdateModalMode)
+  }
+  preUpdateModalMode = null
 }
 
 /**
@@ -1793,7 +1808,7 @@ export function closeUpdateModal() {
  * @param {'portable' | 'setup'} type 
  */
 export function directDownloadLatest(type = 'portable') {
-  const version = state.updateStatus.info?.version || '1.9.22'
+  const version = state.updateStatus.info?.version || '1.9.23'
   const fileName = type === 'portable'
     ? `PromptMag-Portable-${version}.exe`
     : `PromptMag-Setup-${version}.exe`

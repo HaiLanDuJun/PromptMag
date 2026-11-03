@@ -1250,10 +1250,10 @@ function tuck() {
   const s = saved.settings || {}
   const defaultScaleMode = s.windowScaleMode === 'full' ? 'full' : 'quick'
 
-  // 如果配置了「默认缩放为悬浮窗」，当完整工作台靠边缩放时，自动缩放为悬浮窗（capsule 胶囊形态）
-  // 杜绝 520px 巨大原窗口直接缩进边缘造成黑长条遮挡！
-  if (mode === 'full' && defaultScaleMode !== 'full') {
-    log('tuck: converting full mode to capsule per windowScaleMode setting')
+  // 无论是输入框形态(quick)，或是配置了「默认缩放为悬浮窗」的完整工作台(full)，靠边缩放时均自动缩放为精致悬浮窗（capsule 胶囊形态）
+  // 彻底杜绝输入框(440px)或原大窗口(520px)靠边缩放时以半截长黑条形式卡在屏幕边缘
+  if (mode === 'quick' || (mode === 'full' && defaultScaleMode !== 'full')) {
+    log('tuck: converting ' + mode + ' mode to capsule per windowScaleMode setting')
     setMode('capsule')
     return
   }

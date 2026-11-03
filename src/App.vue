@@ -40,9 +40,9 @@ function hoverOpenQuick() {
 
 let isPickerOpen = false
 
-function scheduleCollapse() {
+function scheduleCollapse(force = false) {
   if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen || state.isSettingsOpen) return
-  if (!hasEntered || pointerDown) return
+  if (!force && (!hasEntered || pointerDown)) return
   clearTimeout(collapseTimer)
   collapseTimer = setTimeout(() => {
     if (isPickerOpen || state.preview || state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen || state.isSettingsOpen) return
@@ -71,7 +71,7 @@ function onWinBlur() {
   if (state.isDialogOpening || state.isMagazinePickerOpen || state.isRelayStartupModalOpen || state.isUpdateModalOpen || state.isSettingsOpen) return
   if (Date.now() - lastExpandAt < 800) return
   if (mode.value === 'full') return
-  if (mode.value !== 'capsule' && hasEntered) scheduleCollapse()
+  if (mode.value !== 'capsule') scheduleCollapse(true)
 }
 function onWinFocus() {
   clearTimeout(collapseTimer)
@@ -210,6 +210,6 @@ onBeforeUnmount(() => {
     <!-- Agent接力启动提示词生成弹窗 -->
     <RelayStartupModal v-if="state.isRelayStartupModalOpen && mode !== 'capsule'" />
     <!-- 版本更新提醒弹窗 -->
-    <UpdateModal v-if="state.isUpdateModalOpen && mode !== 'capsule'" />
+    <UpdateModal v-if="state.isUpdateModalOpen" />
   </div>
 </template>
