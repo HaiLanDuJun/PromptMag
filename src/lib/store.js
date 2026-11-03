@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.24',
+  version: '1.9.25',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
@@ -269,7 +269,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.24'
+  state.version = res.version || '1.9.25'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -286,6 +286,9 @@ export async function initStore() {
     },
     d.settings || {}
   )
+  if (res.mode) {
+    state.settings.mode = res.mode
+  }
   state.observeStats = Object.assign({ proposed: 0, accepted: 0, rejected: 0 }, d.observeStats || {})
   // 旧快捷键自动迁移与容错（Alt+C 会触发微信关闭窗口，Alt+S 会触发微信发消息）
   if (state.settings.hotkeySnippets === 'Alt+C') state.settings.hotkeySnippets = 'Alt+X'
@@ -1482,13 +1485,16 @@ let lastModeAt = 0
  * 切换形态。带 400ms 冷却，避免窗口缩放后光标恰好落在新形态上
  * 触发「收起 -> 立刻展开」的抖动循环。
  */
-export function setMode(m) {
+export function setMode(m, force = false) {
   const mode = MODES.includes(m) ? m : 'full'
+  if (state.isUpdateModalOpen && mode !== 'full') {
+    return
+  }
   if (mode === 'capsule') {
     state.toast = ''
   }
-  if (state.settings.mode === mode) return
-  if (Date.now() - lastModeAt < 400) return
+  if (!force && state.settings.mode === mode) return
+  if (!force && Date.now() - lastModeAt < 400) return
   lastModeAt = Date.now()
   state.settings.mode = mode
   window.pm.setMode(mode)
@@ -1598,12 +1604,14 @@ export function compareVersions(v1, v2) {
 let preUpdateModalMode = null
 
 function ensureFullModeForUpdate() {
-  if (state.settings.mode !== 'full') {
-    if (!preUpdateModalMode) {
-      preUpdateModalMode = state.settings.mode
-    }
-    setMode('full')
+  if (!preUpdateModalMode) {
+    preUpdateModalMode = state.settings.mode
   }
+  state.isUpdateModalOpen = true
+  if (window.pm && window.pm.setUpdateActive) {
+    window.pm.setUpdateActive(true)
+  }
+  setMode('full', true)
 }
 
 export async function checkForUpdates(manual = false) {
@@ -1797,8 +1805,11 @@ export function closeUpdateModal() {
     cancelInAppUpdate()
   }
   state.isUpdateModalOpen = false
+  if (window.pm && window.pm.setUpdateActive) {
+    window.pm.setUpdateActive(false)
+  }
   if (preUpdateModalMode && preUpdateModalMode !== 'full') {
-    setMode(preUpdateModalMode)
+    setMode(preUpdateModalMode, true)
   }
   preUpdateModalMode = null
 }
@@ -1808,7 +1819,7 @@ export function closeUpdateModal() {
  * @param {'portable' | 'setup'} type 
  */
 export function directDownloadLatest(type = 'portable') {
-  const version = state.updateStatus.info?.version || '1.9.24'
+  const version = state.updateStatus.info?.version || '1.9.25'
   const fileName = type === 'portable'
     ? `PromptMag-Portable-${version}.exe`
     : `PromptMag-Setup-${version}.exe`

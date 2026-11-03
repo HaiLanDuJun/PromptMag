@@ -68,13 +68,17 @@ function onKeyDown(e) {
 }
 
 onMounted(() => {
-  if (state.settings.mode !== 'full') {
-    setMode('full')
+  if (window.pm && window.pm.setUpdateActive) {
+    window.pm.setUpdateActive(true)
   }
+  setMode('full', true)
   window.addEventListener('keydown', onKeyDown)
 })
 
 onBeforeUnmount(() => {
+  if (window.pm && window.pm.setUpdateActive) {
+    window.pm.setUpdateActive(false)
+  }
   window.removeEventListener('keydown', onKeyDown)
 })
 </script>

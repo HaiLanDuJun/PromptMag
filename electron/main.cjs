@@ -1346,7 +1346,27 @@ function nearestEdge(b) {
 }
 
 /** 缩进到最近的边缘，只露出一半（胶囊形态同样生效） */
+let isUpdateActive = false;
+
+function setUpdateActive(active) {
+  isUpdateActive = !!active;
+  log('setUpdateActive ->', isUpdateActive);
+  if (isUpdateActive) {
+    clearTimeout(tuckTimer);
+    untuck();
+    setMode('full', true);
+    try { mainWindow.setShape([]) } catch (e) {}
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setResizable(true);
+      applyAlwaysOnTop();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  }
+}
+
 function tuck() {
+  if (isUpdateActive) return;
   if (!mainWindow || tucked) return
   if (mainWindow.isDestroyed()) return
   if (mainWindow.isFocused()) return
@@ -1396,11 +1416,13 @@ function untuck() {
   }
 }
 function scheduleTuck() {
-  clearTimeout(tuckTimer)
+  clearTimeout(tuckTimer);
+  if (isUpdateActive) return;
   tuckTimer = setTimeout(() => {
-    if (!mainWindow || mainWindow.isDestroyed()) return
-    tuck()
-  }, TUCK_DELAY)
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (isUpdateActive) return;
+    tuck();
+  }, TUCK_DELAY);
 }
 
 /** 重新断言置顶（Windows 上所有 level 最终都是 HWND_TOPMOST，screen-saver 最高） */
@@ -1475,8 +1497,22 @@ function updateTaskbarVisibility() {
   mainWindow.setSkipTaskbar(shouldSkip)
 }
 
-function setMode(next) {
-  if (!mainWindow || mainWindow.isDestroyed() || mode === next) return
+function setMode(next, force = false) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (isUpdateActive && (next === 'capsule' || next === 'quick')) {
+    log('setMode: blocked shrink to ' + next + ' because update is active');
+    return;
+  }
+  if (mode === next && !force) {
+    if (next === 'full') {
+      const cur = mainWindow.getBounds();
+      if (cur.height >= FULL_MIN.height && cur.width >= FULL_MIN.width) {
+        return;
+      }
+    } else {
+      return;
+    }
+  }
   const prev = mode
   // 从胶囊形态展开到面板时，记录当前外部前台窗口
   if (prev === 'capsule' && next !== 'capsule') {
@@ -1665,8 +1701,16 @@ function createWindow() {
 }
 
 function toggleWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) return
-  clearTimeout(tuckTimer)
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  clearTimeout(tuckTimer);
+  if (isUpdateActive) {
+    untuck();
+    setMode('full', true);
+    mainWindow.show();
+    applyAlwaysOnTop();
+    mainWindow.focus();
+    return;
+  }
   const saved = readJsonSafe(P.dataFile) || {}
   const s = saved.settings || {}
   const defaultScaleMode = s.windowScaleMode === 'full' ? 'full' : 'quick'
@@ -2159,6 +2203,10 @@ function createTray() {
 /* IPC                                                                 */
 /* ------------------------------------------------------------------ */
 function registerIpc() {
+  ipcMain.on('pm:set-update-active', (_e, active) => {
+    setUpdateActive(active);
+  });
+
   ipcMain.on('pm:log', (_e, ...args) => {
     log('[Renderer]', ...args)
   })
@@ -2183,6 +2231,7 @@ function registerIpc() {
 
   ipcMain.handle('pm:get-init-data', () => ({
     data: readJsonSafe(P.dataFile) || {},
+    mode,
     paths: {
       homeDir: P.home,
       imagesDir: P.images,

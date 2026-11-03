@@ -74,6 +74,7 @@ const api = {
   startDownloadUpdate: (payload) => ipcRenderer.invoke('pm:start-download-update', payload || {}),
   cancelDownloadUpdate: () => ipcRenderer.invoke('pm:cancel-download-update'),
   installUpdate: (filePath) => ipcRenderer.invoke('pm:install-update', filePath),
+  setUpdateActive: (active) => ipcRenderer.send('pm:set-update-active', active),
   onUpdateDownloadProgress: (cb) => {
     const h = (_e, data) => cb(data)
     ipcRenderer.on('pm:update-download-progress', h)

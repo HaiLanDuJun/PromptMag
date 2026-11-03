@@ -1,17 +1,17 @@
 {
-  "version": "1.9.24",
-  "tagName": "v1.9.24",
-  "name": "PromptMag v1.9.24",
-  "publishedAt": "2026-11-03T16:40:00+08:00",
-  "body": "### PromptMag v1.9.24 更新说明\n\n1. 【运行诊断日志按日轮转】运行日志改为每日独立单文件存储（`logs/main-YYYY-MM-DD.log`），按自然日独立归档，彻底解决单文件无限膨胀风险；\n2. 【日志最多保留 7 天】引入自动生命周期管理机制，启动与换日时自动清理超出 7 天的历史日志，数据目录保持轻巧清爽；\n3. 【一键查看最新日志】点击「查看最新运行日志」智能定位并打开当前最新生成的日志文件；设置面板新增「打开日志目录」入口，支持一键浏览最近 7 天的所有运行记录。",
+  "version": "1.9.25",
+  "tagName": "v1.9.25",
+  "name": "PromptMag v1.9.25",
+  "publishedAt": "2026-11-03T17:15:00+08:00",
+  "body": "### PromptMag v1.9.25 更新说明\n\n1. 【更新状态强制锁定大窗口防卡死】彻底解决更新弹窗弹出时因窗口未展开导致内容截断、以及失焦/贴边自动缩为 56px 悬浮球导致页面被挤压卡死的严重问题；\n2. 【更新全流程严禁缩小化】在更新弹窗展示与下载更新期间，主进程与渲染进程双向锁定完整大窗口（mode='full'），全程禁止贴边缩进、收起为悬浮球或切换为快捷输入面板，Alt+Q 热键智能唤醒聚焦；\n3. 【取消/关闭响应与形态安全恢复】更新弹窗右上角关闭按钮、稍后提醒与 Escape 快捷键全程响应可用（下载中支持随时一键取消）；关闭更新后安全解除锁定并平滑恢复进入更新前的窗口形态。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.24.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.24/PromptMag-Portable-1.9.24.exe"
+      "name": "PromptMag-Portable-1.9.25.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.25/PromptMag-Portable-1.9.25.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.24.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.24/PromptMag-Setup-1.9.24.exe"
+      "name": "PromptMag-Setup-1.9.25.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.25/PromptMag-Setup-1.9.25.exe"
     }
   ]
 }

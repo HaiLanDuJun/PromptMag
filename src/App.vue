@@ -29,9 +29,9 @@ function notifyPointerOut() { window.pm.pointerOut() }
 /** 胶囊 -> 快捷输入面板（悬停 70ms 展开，极速灵动响应） */
 function hoverOpenQuick() {
   clearTimeout(hoverTimer)
-  if (pointerDown || state.isDialogOpening) return
+  if (pointerDown || state.isDialogOpening || state.isUpdateModalOpen) return
   hoverTimer = setTimeout(() => {
-    if (pointerDown || state.isDialogOpening) return
+    if (pointerDown || state.isDialogOpening || state.isUpdateModalOpen) return
     if (mode.value !== 'capsule') return
     lastExpandAt = Date.now()
     setMode('quick')
@@ -65,6 +65,7 @@ function onShellEnter(e) {
 function onShellLeave() {
   clearTimeout(hoverTimer)
   notifyPointerOut()
+  if (state.isUpdateModalOpen) return
   if (mode.value !== 'capsule') scheduleCollapse()
 }
 function onWinBlur() {
@@ -188,11 +189,11 @@ onBeforeUnmount(() => {
   </div>
 
   <!-- 主应用悬浮胶囊 / 快捷面板 / 完整窗口 -->
-  <div v-else class="shell" :class="'mode-' + mode" @mouseenter="onShellEnter" @mouseleave="onShellLeave">
+  <div v-else class="shell" :class="state.isUpdateModalOpen ? 'mode-full' : ('mode-' + mode)" @mouseenter="onShellEnter" @mouseleave="onShellLeave">
     <!-- 圆球：悬停/点击 -> 快捷输入面板；整球可拖拽 -->
     <Transition name="orb-fade" mode="out-in">
-      <BallOrb v-if="mode === 'capsule'" key="capsule" @open="hoverOpenQuick" />
-      <QuickPanel v-else-if="mode === 'quick'" key="quick" />
+      <BallOrb v-if="mode === 'capsule' && !state.isUpdateModalOpen" key="capsule" @open="hoverOpenQuick" />
+      <QuickPanel v-else-if="mode === 'quick' && !state.isUpdateModalOpen" key="quick" />
       <div v-else key="full" class="flex flex-col h-full min-h-0">
         <TitleBar @collapse="setMode('capsule')" @mini="setMode('quick')" />
         <Composer />
