@@ -992,12 +992,20 @@ footer a:hover{color:var(--cyan)}
   .footer-row{flex-direction:column;gap:12px;text-align:center}
 }
 
-/* Real footage gallery (2026-11-03) */
-.gif-gallery{display:flex;flex-direction:column;gap:28px;margin-top:36px}
-.gif-card{margin:0;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:16px;overflow:hidden}
-.gif-card img{display:block;width:100%;height:auto}
+/* Real footage carousel (2026-11-03): one page at a time, horizontal scroll-snap */
+.gif-carousel-wrap{position:relative;margin-top:36px}
+.gif-carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;gap:0;border-radius:16px;scrollbar-width:none;-ms-overflow-style:none}
+.gif-carousel::-webkit-scrollbar{display:none}
+.gif-card{flex:0 0 100%;scroll-snap-align:start;margin:0;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.gif-card img{display:block;max-width:100%;max-height:600px;width:auto;height:auto;margin:auto;object-fit:contain;background:#0b0f16}
 .gif-card figcaption{padding:14px 18px;font-size:14px;color:var(--txt-muted);text-align:center}
-.gif-card-tall{max-width:430px;width:100%;margin:0 auto}
+.gif-nav{position:absolute;top:42%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,22,.72);color:#fff;font-size:24px;line-height:1;cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.gif-nav:hover{background:rgba(30,40,60,.9)}
+.gif-nav.prev{left:12px}
+.gif-nav.next{right:12px}
+.gif-dots{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.gif-dots button{width:9px;height:9px;border-radius:50%;border:none;padding:0;background:rgba(255,255,255,.25);cursor:pointer}
+.gif-dots button.active{background:#4da3ff;width:26px;border-radius:5px}
 </style>
 </head>
 <body data-lang="zh">
@@ -1081,7 +1089,7 @@ footer a:hover{color:var(--cyan)}
     <span lang="en">Every clip below is a real screen recording from a live desktop and terminal: prompt ejection, image-task delivery, and agent relay, exactly as it happens.</span>
   </p>
 
-  <div class="gif-gallery">
+  <div class="gif-carousel-wrap"><div class="gif-carousel" id="gifCarousel">
     <figure class="gif-card">
       <img src="demo-relay.gif" alt="PromptMag agent relay in a real terminal" loading="lazy">
       <figcaption>
@@ -1096,7 +1104,7 @@ footer a:hover{color:var(--cyan)}
         <span lang="en">🖼️ Image-task ejection — precise [Image N] mapping, zero ambiguity</span>
       </figcaption>
     </figure>
-    <figure class="gif-card gif-card-tall">
+    <figure class="gif-card">
       <img src="demo-quickinput.gif" alt="PromptMag quick input window with live magazine sync" loading="lazy">
       <figcaption>
         <span lang="zh">⌨️ 快捷输入窗 — 热键弹出，弹仓实时同步</span>
@@ -1104,6 +1112,14 @@ footer a:hover{color:var(--cyan)}
       </figcaption>
     </figure>
   </div>
+  <button class="gif-nav prev" onclick="gifStep(-1)" aria-label="Previous">&#8249;</button>
+  <button class="gif-nav next" onclick="gifStep(1)" aria-label="Next">&#8250;</button>
+  <div class="gif-dots" id="gifDots">
+    <button class="active" onclick="gifGo(0)" aria-label="Demo 1"></button>
+    <button onclick="gifGo(1)" aria-label="Demo 2"></button>
+    <button onclick="gifGo(2)" aria-label="Demo 3"></button>
+  </div>
+</div>
 </div></section>
 
 <!-- ==================================================================== -->
@@ -1466,6 +1482,20 @@ fetch('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest')
   })
   .catch(() => {});
 
+</script>
+
+<script>
+// Demo GIF carousel: one page at a time
+(function(){
+  var track = document.getElementById('gifCarousel');
+  if (!track) return;
+  var dots = document.querySelectorAll('#gifDots button');
+  function idx(){ return Math.round(track.scrollLeft / track.clientWidth); }
+  function sync(){ var i = idx(); dots.forEach(function(d,k){ d.classList.toggle('active', k===i); }); }
+  window.gifGo = function(i){ track.scrollTo({left: i * track.clientWidth, behavior: 'smooth'}); };
+  window.gifStep = function(d){ var n = track.children.length; gifGo(Math.max(0, Math.min(n-1, idx()+d))); };
+  track.addEventListener('scroll', function(){ window.requestAnimationFrame(sync); }, {passive:true});
+})();
 </script>
 </body>
 </html>
