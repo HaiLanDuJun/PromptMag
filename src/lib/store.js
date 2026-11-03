@@ -12,7 +12,7 @@ if (typeof window !== 'undefined' && !window.pm) {
   window.pm = {
     getInitData: async () => ({
       data: {},
-      paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '', logFile: '' },
+      paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '', logFile: '', logsDir: '' },
       platform: 'browser'
     }),
     saveData: async () => ({ ok: true }),
@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.23',
+  version: '1.9.24',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
@@ -85,7 +85,7 @@ export const state = reactive({
   },
   isUpdateModalOpen: false,
   toast: '',
-  paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '', logFile: '' },
+  paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '', logFile: '', logsDir: '' },
   isHotkeyRecording: false,
   settings: {
     alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
@@ -269,7 +269,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.23'
+  state.version = res.version || '1.9.24'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -1808,7 +1808,7 @@ export function closeUpdateModal() {
  * @param {'portable' | 'setup'} type 
  */
 export function directDownloadLatest(type = 'portable') {
-  const version = state.updateStatus.info?.version || '1.9.23'
+  const version = state.updateStatus.info?.version || '1.9.24'
   const fileName = type === 'portable'
     ? `PromptMag-Portable-${version}.exe`
     : `PromptMag-Setup-${version}.exe`

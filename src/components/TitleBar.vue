@@ -53,6 +53,12 @@ function openLog() {
   }
 }
 
+function openLogsDir() {
+  if (state.paths && state.paths.logsDir) {
+    window.pm.openPath(state.paths.logsDir)
+  }
+}
+
 function openExternalUrl(url) {
   if (window.pm && window.pm.openExternal) {
     window.pm.openExternal(url)
@@ -504,7 +510,8 @@ function toggleLang() {
           <div class="settings-label">{{ t('settings.logFilePath') }}</div>
           <div class="settings-path select-all" :title="state.paths.logFile || ''">{{ state.paths.logFile || '' }}</div>
           <div class="flex gap-2 mt-2">
-            <button class="btn w-full text-xs" @click="openLog" :title="t('settings.openLogTip')">{{ t('settings.openLog') }}</button>
+            <button class="btn flex-1 text-xs" @click="openLog" :title="t('settings.openLogTip')">{{ t('settings.openLog') }}</button>
+            <button v-if="state.paths.logsDir" class="btn text-xs text-slate-300 hover:text-white cursor-pointer" @click="openLogsDir" :title="t('settings.openLogsDirTip')">{{ t('settings.openLogsDir') }}</button>
           </div>
         </div>
 

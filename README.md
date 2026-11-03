@@ -10,12 +10,12 @@ CLI 提示词弹夹。为 Claude Code / Codex / AGY 等 CLI 编码 Agent 设计�
 
 ## 中文
 
-### 下载（v1.9.23，Windows x64，开箱即用）
+### 下载（v1.9.24，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.23.exe`](/installer/PromptMag-Portable-1.9.23.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.23.exe`](/installer/PromptMag-Setup-1.9.23.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.24.exe`](/installer/PromptMag-Portable-1.9.24.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.24.exe`](/installer/PromptMag-Setup-1.9.24.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -35,6 +35,10 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
   - **单写多读锁机制**：文件修改类任务同一时刻仅限一个 Agent 独占（写锁保护），读取类任务支持多 Agent 并发；写锁释放后自动触发接力交接；
   - **三态流转（pending → doing → done）**：清晰呈现任务正在被谁执行（Claude、AGY、Codex 等），执行完成后自动记录「谁解决的」与「解决方案」，无缝开启下一棒；
   - **一键复制接力启动提示词**：为每个项目弹夹一键生成量身定制的 Agent 启动指令，完美适配 Claude `loop` 等持续工作机制。
+- **运行日志每日独立单文件轮转与最多保留 7 天机制（v1.9.24）**：
+  - **每日单文件存储**：运行诊断日志全面升级为按自然日独立归档（`logs/main-YYYY-MM-DD.log`），单日独立记录，彻底消除单一日志文件无限膨胀风险；
+  - **最多保留 7 天自动归档**：启动与跨天时自动清理距今超过 7 天的历史日志，轻量纯净；
+  - **智能查看最新**：点击「查看最新运行日志」直达当天最新记录，设置页新增「打开日志目录」支持一览最近 7 天日志；
 - **输入框靠边/失焦缩放修复与应用内更新交互优化（v1.9.23）**：
   - **输入框缩放基准修复**：彻底修复在「默认缩放为悬浮窗」配置下，快捷输入框（QuickPanel）靠边缩放或失去焦点时依旧以半截长条黑块卡在屏幕边缘的问题；统一自动平滑缩放为精致悬浮球（capsule），鼠标悬停或热键呼出时瞬间展开；
   - **更新弹窗形态与交互闭环**：彻底解决新版本检测在输入框形态弹出时受限于 195px 窗口高度导致截断、无法打开完整工作台且无法关闭的问题；唤起更新时强制平滑自动展开为完整大窗口，支持随时点击右上角取消/关闭或按 Escape 退出，弹窗内容自适应滚动，关闭后无缝回缩先前形态。
@@ -84,7 +88,7 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
   - 针对终端与 CLI 工具（Antigravity、Gemini CLI、Claude Code、PowerShell、CMD 等），出弹时将换行符平铺压缩为单行格式，彻底解决多行日志或多段正文在终端被当成多次回车而触发多次请求的痛点，确保仅触发单次完整请求；
   - 引入 600ms 热键防抖与并发互斥锁，杜绝快捷键连击重复出弹；出弹后与「使用后立即清理」规则实时联动，界面队列与弹夹徽章全量响应式同步。
 - **应用内版本号展示与 GitHub Releases 自动检测更新**：
-  - 设置面板直观展示当前版本号（如 v1.9.23），支持启动自动静默比对与一键手动检测；
+  - 设置面板直观展示当前版本号（如 v1.9.24），支持启动自动静默比对与一键手动检测；
   - 发现新版本弹出专属说明窗口，支持「立即更新」、「忽略此版本」与「稍后提醒」灵活掌控。
 - **悬浮形态与无冲突人体工学快捷键**：
   - 圆球 `capsule` / 快捷输入 `quick` / 完整 `full` 三种形态；
@@ -137,8 +141,8 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 ```
 
 - 该命令会自动清除旧构建、执行 `vite build`、通过 `electron-builder` 产出绿色版与安装版，并由 `scripts/sync-installer.cjs` 自动清理旧版本并将最新版复制到 `installer/`。
-- `installer/PromptMag-Portable-1.9.23.exe`：单文件免安装绿色版，双击即用
-- `installer/PromptMag-Setup-1.9.23.exe`：安装向导版，可自选安装目录与桌面快捷方式
+- `installer/PromptMag-Portable-1.9.24.exe`：单文件免安装绿色版，双击即用
+- `installer/PromptMag-Setup-1.9.24.exe`：安装向导版，可自选安装目录与桌面快捷方式
 - 用户配置与队列数据默认保存在 `~/.prompt-mag/`，替换或更新 exe 均不影响既有数据。
 
 ### 架构
@@ -196,10 +200,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 ## English
 
-### Download (v1.9.23, Windows x64)
+### Download (v1.9.24, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.23.exe`](/installer/PromptMag-Portable-1.9.23.exe) — no install needed, portable mode
-- Installer: [`installer/PromptMag-Setup-1.9.23.exe`](/installer/PromptMag-Setup-1.9.23.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.24.exe`](/installer/PromptMag-Portable-1.9.24.exe) — no install needed, portable mode
+- Installer: [`installer/PromptMag-Setup-1.9.24.exe`](/installer/PromptMag-Setup-1.9.24.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases). Default hotkey to summon the window: `Alt+Q`.
 
@@ -219,6 +223,10 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
   - **Single-Writer Multi-Reader Lock**: File modification tasks are strictly locked by one agent (e.g. Claude Code), while other agents (like AGY) wait or read;
   - **Three-State Workflow (pending → doing → done)**: Tracks which agent claimed the task, records resolution details upon completion, and unlocks the next task;
   - **Relay Startup Prompt Generator**: One-click generation of tailored instructions for agents, fully compatible with continuous loop execution.
+- **Daily Log Rotation with 7-Day Retention & Latest Log View (v1.9.24)**:
+  - **Daily Rolling Log Files**: diagnostic logs now rotate daily into independent files (`logs/main-YYYY-MM-DD.log`), preventing infinite file growth;
+  - **7-Day Retention Lifecycle**: automatically purges log files older than 7 days on startup and daily midnight transitions;
+  - **Instant Latest Log Access**: clicking "View Latest Log" immediately opens the active/latest daily log, alongside an "Open Logs Folder" button to inspect recent history;
 - **Input Box Edge Tucking & Scale Normalization, Plus Update Modal Trapped-State Fix (v1.9.23)**:
   - **Input Box Scale Normalization**: fixed input box (quick mode) sticking to screen edges as an awkward cut-off bar instead of transforming into the compact floating orb (capsule) when tucking or losing focus under "Default Scale to Floating Window";
   - **Update Modal Responsive Workspace**: completely resolved trapped update modal when triggered in quick panel mode by auto-expanding to full workspace, ensuring Escape/close buttons remain responsive during downloads, and safely collapsing back upon dismissal.
@@ -268,7 +276,7 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
   - Automatically flattens newlines in popped prompts into clean single-line format for CLI/terminals (Antigravity, Gemini CLI, Claude Code, PowerShell, CMD), eliminating premature Enter triggers and ensuring only a single request is submitted;
   - Added 600ms hotkey debounce and concurrency locking to eliminate duplicate triggers; added real-time cleanup integration for `done_only` magazines and full-spectrum queue badge synchronization.
 - **In-App Version Display & GitHub Releases Auto-Updater**:
-  - Settings panel clearly displays current version (v1.9.23) with automatic and manual update checks;
+  - Settings panel clearly displays current version (v1.9.24) with automatic and manual update checks;
   - Release notes update modal with flexible choices: Update Now, Ignore this Version, or Remind Me Later.
 - **Floating Form Factors & Hotkeys**: frameless dark orb with glowing core, always-on-top, 40%–100% opacity, customizable conflict-free global hotkeys
 
@@ -312,8 +320,8 @@ The dev server listens on `5199` (override with `PM_DEV_PORT`) instead of 5173. 
 npm run update:exe    # produces two executables under installer/
 ```
 
-- `installer/PromptMag-Portable-1.9.23.exe`: single-file, no installation, double-click to run
-- `installer/PromptMag-Setup-1.9.23.exe`: installer wizard with a choosable install directory
+- `installer/PromptMag-Portable-1.9.24.exe`: single-file, no installation, double-click to run
+- `installer/PromptMag-Setup-1.9.24.exe`: installer wizard with a choosable install directory
 - User data lives in `~/.prompt-mag/` and survives exe replacement.
 
 ### Architecture

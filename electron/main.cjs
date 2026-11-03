@@ -57,7 +57,12 @@ P.favorites = path.join(P.home, 'favorites')
 P.favImages = path.join(P.favorites, 'images')
 P.favDataFile = path.join(P.favorites, 'favorites.json')
 P.magazinesDir = path.join(P.home, 'magazines')
-P.logFile = path.join(P.home, 'main.log')
+P.logsDir = path.join(P.home, 'logs')
+Object.defineProperty(P, 'logFile', {
+  get() { return getTodayLogFile() },
+  configurable: true,
+  enumerable: true
+})
 P.windowState = path.join(P.home, 'window-state.json')
 
 /* 可自定义全局快捷键（设置面板可改，每个功能至多1个，也可置空禁用，存于 data.json settings） */
@@ -152,6 +157,116 @@ function getLogTimeString(d = new Date(), locale = appLocale) {
   }
 }
 
+function getLogDateString(d = new Date(), locale = appLocale) {
+  try {
+    const isEn = locale === 'en';
+    const formatter = isEn ? usFormatter : bjFormatter;
+    const parts = formatter.formatToParts(d);
+    let y = '0000', m = '00', day = '00';
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (p.type === 'year') y = p.value;
+      else if (p.type === 'month') m = p.value;
+      else if (p.type === 'day') day = p.value;
+    }
+    return y + '-' + m + '-' + day;
+  } catch {
+    const pad = (n, len = 2) => String(n).padStart(len, '0');
+    return pad(d.getFullYear(), 4) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+}
+
+function getTodayLogFile() {
+  ensureDirs();
+  const dateStr = getLogDateString();
+  return path.join(P.logsDir, `main-${dateStr}.log`);
+}
+
+function getLatestLogFile() {
+  ensureDirs();
+  try {
+    if (fs.existsSync(P.logsDir)) {
+      const files = fs.readdirSync(P.logsDir)
+        .filter(f => /^main-\d{4}-\d{2}-\d{2}\.log$/.test(f))
+        .sort();
+      if (files.length > 0) {
+        return path.join(P.logsDir, files[files.length - 1]);
+      }
+    }
+  } catch { /* ignore */ }
+  return getTodayLogFile();
+}
+
+const MAX_LOG_DAYS = 7;
+let lastLogCleanupDate = '';
+
+function cleanOldLogs() {
+  try {
+    ensureDirs();
+    if (!fs.existsSync(P.logsDir)) return;
+    const files = fs.readdirSync(P.logsDir)
+      .filter(f => /^main-\d{4}-\d{2}-\d{2}\.log$/.test(f))
+      .sort();
+
+    // 1. 保留最新的最多 7 个日志文件
+    if (files.length > MAX_LOG_DAYS) {
+      const toDelete = files.slice(0, files.length - MAX_LOG_DAYS);
+      for (const f of toDelete) {
+        try { fs.unlinkSync(path.join(P.logsDir, f)); } catch {}
+      }
+    }
+
+    // 2. 超出 7 天的文件按日期清理
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - MAX_LOG_DAYS * 24 * 60 * 60 * 1000);
+    const cutoffDateStr = getLogDateString(sevenDaysAgo);
+
+    const remainingFiles = fs.readdirSync(P.logsDir)
+      .filter(f => /^main-\d{4}-\d{2}-\d{2}\.log$/.test(f));
+    for (const f of remainingFiles) {
+      const match = f.match(/^main-(\d{4}-\d{2}-\d{2})\.log$/);
+      if (match && match[1] && match[1] < cutoffDateStr) {
+        try { fs.unlinkSync(path.join(P.logsDir, f)); } catch {}
+      }
+    }
+
+    // 3. 兼容清理数据根目录遗留的历史旧日志
+    const legacyMainLog = path.join(P.home, 'main.log');
+    const legacyOldLog = path.join(P.home, 'main.log.old');
+    [legacyMainLog, legacyOldLog].forEach((p) => {
+      try {
+        if (fs.existsSync(p)) {
+          const stat = fs.statSync(p);
+          if (now.getTime() - stat.mtimeMs > MAX_LOG_DAYS * 24 * 60 * 60 * 1000) {
+            fs.unlinkSync(p);
+          }
+        }
+      } catch {}
+    });
+  } catch { /* ignore */ }
+}
+
+function migrateLegacyLog() {
+  try {
+    ensureDirs();
+    const legacy = path.join(P.home, 'main.log');
+    if (fs.existsSync(legacy)) {
+      const todayFile = getTodayLogFile();
+      if (!fs.existsSync(todayFile)) {
+        try {
+          fs.renameSync(legacy, todayFile);
+        } catch {
+          fs.copyFileSync(legacy, todayFile);
+          try { fs.unlinkSync(legacy); } catch {}
+        }
+      }
+    }
+  } catch { /* ignore */ }
+}
+
+migrateLegacyLog();
+cleanOldLogs();
+
 function tLog(zh, en) {
   return appLocale === 'en' ? en : zh
 }
@@ -172,23 +287,19 @@ function formatLogArg(arg) {
 
 function log(...args) {
   try {
-    ensureDirs()
-    try {
-      if (fs.existsSync(P.logFile)) {
-        const stat = fs.statSync(P.logFile)
-        if (stat.size > 5 * 1024 * 1024) {
-          const oldLogFile = path.join(P.home, 'main.log.old')
-          try { if (fs.existsSync(oldLogFile)) fs.unlinkSync(oldLogFile) } catch {}
-          fs.renameSync(P.logFile, oldLogFile)
-        }
-      }
-    } catch { /* ignore */ }
+    ensureDirs();
+    const todayDate = getLogDateString();
+    if (todayDate !== lastLogCleanupDate) {
+      lastLogCleanupDate = todayDate;
+      cleanOldLogs();
+    }
+    const curLogFile = getTodayLogFile();
 
-    const timeStr = getLogTimeString()
-    const msg = args.map(formatLogArg).join(' ')
-    fs.appendFileSync(P.logFile, `[${timeStr}] ${msg}\n`, 'utf8')
+    const timeStr = getLogTimeString();
+    const msg = args.map(formatLogArg).join(' ');
+    fs.appendFileSync(curLogFile, `[${timeStr}] ${msg}\n`, 'utf8');
     if (isDev) {
-      console.log(`[${timeStr}]`, ...args)
+      console.log(`[${timeStr}]`, ...args);
     }
   } catch { /* ignore */ }
 }
@@ -282,6 +393,7 @@ function ensureDirs() {
   fs.mkdirSync(P.favorites, { recursive: true })
   fs.mkdirSync(P.favImages, { recursive: true })
   fs.mkdirSync(P.magazinesDir, { recursive: true })
+  fs.mkdirSync(P.logsDir, { recursive: true })
 }
 
 function readJsonSafe(file) {
@@ -2054,13 +2166,15 @@ function registerIpc() {
   ipcMain.on('pm:open-log-file', () => {
     try {
       ensureDirs()
-      if (!fs.existsSync(P.logFile)) {
-        fs.writeFileSync(P.logFile, `[${getLogTimeString()}] === PromptMag Log Created ===\n`, 'utf8')
+      cleanOldLogs()
+      const targetFile = getLatestLogFile()
+      if (!fs.existsSync(targetFile)) {
+        fs.writeFileSync(targetFile, `[${getLogTimeString()}] === PromptMag Log Created ===\n`, 'utf8')
       }
-      log(tLog('[System] 用户请求打开运行日志文件:', '[System] User requested to open diagnostic log file:'), P.logFile)
-      shell.openPath(P.logFile).catch((err) => {
+      log(tLog('[System] 用户请求打开最新运行日志文件:', '[System] User requested to open latest diagnostic log file:'), targetFile)
+      shell.openPath(targetFile).catch((err) => {
         log(tLog('[System] openPath 打开日志失败，尝试定位文件:', '[System] openPath failed to open log file, falling back to showItemInFolder:'), err && err.message)
-        shell.showItemInFolder(P.logFile)
+        shell.showItemInFolder(targetFile)
       })
     } catch (err) {
       log(tLog('[System] 打开日志文件异常:', '[System] Exception while opening log file:'), err && err.message)
@@ -2075,7 +2189,8 @@ function registerIpc() {
       tasksFile: P.tasksFile,
       dataFile: P.dataFile,
       magazinesDir: P.magazinesDir,
-      logFile: P.logFile
+      logFile: getLatestLogFile(),
+      logsDir: P.logsDir
     },
     platform: process.platform,
     version: app.getVersion()

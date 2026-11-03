@@ -1,17 +1,17 @@
 {
-  "version": "1.9.23",
-  "tagName": "v1.9.23",
-  "name": "PromptMag v1.9.23",
-  "publishedAt": "2026-11-03T16:15:00+08:00",
-  "body": "### PromptMag v1.9.23 更新说明\n\n1. 【输入框缩放基准修复】彻底修复设置「默认缩放为悬浮窗」后，处于快捷输入框形态（quick）靠边缩放或失焦时依然保持半截长黑条输入框的问题；靠边或失焦时统一自动平滑缩放为精致悬浮球（capsule），彻底杜绝黑长条遮挡屏幕边缘，悬停或唤出时丝滑展开；\n2. 【应用内更新弹窗交互修复】彻底修复更新提醒弹窗在输入框形态弹出时受限于 195px 窗口高度导致截断、无法打开完整工作台且无法关闭的问题；唤起更新时自动强制展开为完整大窗口，支持随时点击右上角取消/关闭或按 Esc 退出，弹窗内容自适应滚动；关闭更新弹窗后安全回缩至先前形态。",
+  "version": "1.9.24",
+  "tagName": "v1.9.24",
+  "name": "PromptMag v1.9.24",
+  "publishedAt": "2026-11-03T16:40:00+08:00",
+  "body": "### PromptMag v1.9.24 更新说明\n\n1. 【运行诊断日志按日轮转】运行日志改为每日独立单文件存储（`logs/main-YYYY-MM-DD.log`），按自然日独立归档，彻底解决单文件无限膨胀风险；\n2. 【日志最多保留 7 天】引入自动生命周期管理机制，启动与换日时自动清理超出 7 天的历史日志，数据目录保持轻巧清爽；\n3. 【一键查看最新日志】点击「查看最新运行日志」智能定位并打开当前最新生成的日志文件；设置面板新增「打开日志目录」入口，支持一键浏览最近 7 天的所有运行记录。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.23.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.23/PromptMag-Portable-1.9.23.exe"
+      "name": "PromptMag-Portable-1.9.24.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.24/PromptMag-Portable-1.9.24.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.23.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.23/PromptMag-Setup-1.9.23.exe"
+      "name": "PromptMag-Setup-1.9.24.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.24/PromptMag-Setup-1.9.24.exe"
     }
   ]
 }
