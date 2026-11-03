@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>promptmag</title>
-<meta name="description" content="PromptMag 是一款挂在 Windows 桌面上的开源提示词弹夹悬浮窗。零歧义图文强绑定、三种出弹模式（霰弹枪/左轮/手枪）、光标处瞬发直贴、CLI Agent 多任务自动接力与互斥写锁。数据 100% 留存在本地，不用登录，下载即用。">
+<meta name="description" content="PromptMag — 为 CLI 重度使用者打造的 Windows 桌面提示词弹夹。完全本地运行：零歧义图文强绑定、三种出弹模式（霰弹枪/左轮/手枪）、光标处瞬发直贴、CLI Agent 多任务自动接力。数据 100% 留存在本地，零云端、无登录、无遥测，下载即用。">
 <meta name="keywords" content="PromptMag, 提示词管理, AI提示词, Claude Code, Cursor, Aider, 桌面悬浮窗, 提示词弹夹, 提示词编译器, 开源工具, Windows效率工具">
 <link rel="icon" href="icon.ico" type="image/x-icon">
 <style>
@@ -1006,6 +1006,13 @@ footer a:hover{color:var(--cyan)}
 .gif-dots{display:flex;gap:8px;justify-content:center;margin-top:16px}
 .gif-dots button{width:9px;height:9px;border-radius:50%;border:none;padding:0;background:rgba(255,255,255,.25);cursor:pointer}
 .gif-dots button.active{background:#4da3ff;width:26px;border-radius:5px}
+
+/* Positioning highlight (2026-11-03): heavy CLI users + fully local */
+.hero-kicker{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
+.hero-kicker .kick{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:999px;font-size:14px;font-weight:700;letter-spacing:.4px;border:1px solid rgba(56,189,248,.45);color:#7dd3fc;background:rgba(56,189,248,.08)}
+.hero-kicker .kick.local{border-color:rgba(52,211,153,.5);color:#6ee7b7;background:rgba(52,211,153,.08)}
+.hero-desc strong{color:#fff;font-weight:800}
+.trust-badges span.hl{border:1px solid rgba(52,211,153,.45);border-radius:999px;padding:5px 12px;background:rgba(52,211,153,.07)}
 </style>
 </head>
 <body data-lang="zh">
@@ -1045,14 +1052,19 @@ footer a:hover{color:var(--cyan)}
     <span lang="en">PromptMag v<span id="verTagPillEn">1.9.7</span> · Desktop Prompt Magazine &amp; Multimodal Relay</span>
   </div>
 
+  <div class="hero-kicker">
+    <span class="kick"><span lang="zh">⌨️ 为 CLI 重度使用者而生</span><span lang="en">⌨️ Built for Heavy CLI Users</span></span>
+    <span class="kick local"><span lang="zh">🔒 完全本地 · 零云端</span><span lang="en">🔒 Fully Local · Zero Cloud</span></span>
+  </div>
+
   <h1 class="hero-title">
     <span lang="zh">提示词翻来覆去地敲？<br><span class="grad">桌面弹夹一次装好，一键瞬发。</span></span>
     <span lang="en">Stop Retyping Your Prompts.<br><span class="grad">Load into Magazine Once, Fire with One Key.</span></span>
   </h1>
 
   <p class="hero-desc">
-    <span lang="zh">专为重度 AI 开发者打造的 Windows 桌面悬浮弹夹。零歧义图文强绑定、三种出弹模式（霰弹枪/左轮/手枪）、光标处免切瞬发直贴、CLI Agent 任务自动接力与文件互斥写锁。数据 100% 存本地，零云端无登录，开箱即用。</span>
-    <span lang="en">The Windows floating prompt magazine built for heavy AI engineers. Bulletproof image-prompt binding, 3 firing modes (Shotgun / Revolver / Pistol), direct-to-cursor auto-pasting, and CLI Agent auto-relay with write locks. 100% local, zero telemetry, no login required.</span>
+    <span lang="zh">专为 <strong>CLI 重度使用者</strong>打造的 Windows 桌面悬浮弹夹：整天泡在终端和 CLI Agent 里的人都懂，提示词翻来覆去地敲、图片反复地拖，有多烦。零歧义图文强绑定、三种出弹模式（霰弹枪/左轮/手枪）、光标处免切瞬发直贴、CLI Agent 任务自动接力与文件互斥写锁。<strong>完全本地运行</strong>：数据 100% 存本地，零云端、无登录、无遥测，开箱即用。</span>
+    <span lang="en">The Windows floating prompt magazine built for <strong>heavy CLI users</strong> — if you live in the terminal with CLI agents all day, you know the pain of retyping prompts and re-dragging images. Bulletproof image-prompt binding, 3 firing modes (Shotgun / Revolver / Pistol), direct-to-cursor auto-pasting, and CLI Agent auto-relay with write locks. <strong>Fully local</strong>: 100% on-device data, zero cloud, zero telemetry, no login required.</span>
   </p>
 
   <div class="cta-group">
@@ -1069,9 +1081,9 @@ footer a:hover{color:var(--cyan)}
   </div>
 
   <div class="trust-badges">
-    <span><span class="dot">✓</span> <span lang="zh">100% 纯本地隐私安全</span><span lang="en">100% Local &amp; Private</span></span>
+    <span class="hl"><span class="dot">✓</span> <span lang="zh">完全本地 · 数据 100% 不出电脑</span><span lang="en">Fully Local · Data Never Leaves Your PC</span></span>
     <span><span class="dot">✓</span> <span lang="zh">免注册无登录零云端</span><span lang="en">No Account / Zero Cloud</span></span>
-    <span><span class="dot">✓</span> <span lang="zh">支持 Claude Code / Cursor / Aider 接力</span><span lang="en">Claude Code / Cursor Relay Ready</span></span>
+    <span><span class="dot">✓</span> <span lang="zh">为 CLI 而生：Claude Code / Gemini CLI / Aider 接力</span><span lang="en">CLI-Native: Claude Code / Gemini CLI / Aider Relay</span></span>
     <span><span class="dot">✓</span> <span lang="zh">提供安装版与绿色便携版</span><span lang="en">Setup &amp; Portable Versions</span></span>
   </div>
 </div></header>
