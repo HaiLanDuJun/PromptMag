@@ -12,6 +12,7 @@ import {
   toggleTaskDone, resetAllTasksPending, formatDateTime, toast, openImagePreview,
   cyclePopMode, toggleFavorite, cleanupUnfavorited, startEditingTask,
   setActiveMagazine, createMagazine, renameMagazine, deleteMagazine, openRelayStartupModal, getActiveMagazine,
+  attentionList, attentionCount, approveProposedTask, rejectProposedTask, answerBlockedTask, updateTaskMandate,
   t, currentLocale
 } from '../lib/store'
 
@@ -33,16 +34,24 @@ function onSwitchMag(id) {
 // 1. 编辑提示词确认弹窗
 const showEditConfirmModal = ref(false)
 const taskToEdit = ref(null)
+const editMandateStrength = ref('explicit')
+const editMandateLevel = ref(2)
 
 function onClickItem(item) {
   if (!item) return
   if (state.editingTaskId === item.id) return
   taskToEdit.value = item
+  editMandateStrength.value = item.mandate?.strength || 'explicit'
+  editMandateLevel.value = item.mandate?.level || 2
   showEditConfirmModal.value = true
 }
 
 function confirmEditTask() {
   if (taskToEdit.value) {
+    updateTaskMandate(taskToEdit.value.id, {
+      strength: editMandateStrength.value,
+      level: editMandateLevel.value
+    })
     startEditingTask(taskToEdit.value.id)
   }
   showEditConfirmModal.value = false
@@ -140,17 +149,44 @@ function onOpenRelayStartup(magId = null) {
   openRelayStartupModal(magId || state.activeMagazineId)
 }
 
-const pendingCount = computed(() => state.queue.filter(tTask => !tTask.done).length)
-const doneCount = computed(() => state.queue.filter(tTask => tTask.done).length)
+const doingCount = computed(() => state.queue.filter(tTask => tTask.status === 'doing').length)
+const pendingCount = computed(() => state.queue.filter(tTask => !tTask.done && tTask.status !== 'done' && tTask.status !== 'proposed' && tTask.status !== 'blocked').length)
+const doneCount = computed(() => state.queue.filter(tTask => tTask.done || tTask.status === 'done').length)
 const favoriteCount = computed(() => state.queue.filter(tTask => tTask.favorite).length)
 const unfavoritedCount = computed(() => state.queue.filter(tTask => !tTask.favorite).length)
-const hasDoneItems = computed(() => state.queue.some(tTask => tTask.done))
+const hasDoneItems = computed(() => state.queue.some(tTask => tTask.done || tTask.status === 'done'))
 
-// 历史列表按时间倒序（最新的在最前）并根据 filterTab 过滤
+const answerInputs = ref({})
+function onAnswer(taskId) {
+  const ans = answerInputs.value[taskId]
+  if (ans && ans.trim()) {
+    answerBlockedTask(taskId, ans.trim())
+    delete answerInputs.value[taskId]
+  }
+}
+
+function formatDuration(ts) {
+  if (!ts) return ''
+  const diff = Math.max(0, Date.now() - ts)
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return currentLocale.value === 'en' ? 'Just now' : '刚刚'
+  if (mins < 60) return currentLocale.value === 'en' ? `Waiting ${mins}m` : `已等 ${mins} 分钟`
+  const hours = Math.floor(mins / 60)
+  return currentLocale.value === 'en' ? `Waiting ${hours}h` : `已等 ${hours} 小时`
+}
+
+const observeStats = computed(() => state.observeStats || { proposed: 0, accepted: 0, rejected: 0 })
+const acceptanceRate = computed(() => {
+  const total = (observeStats.value.accepted || 0) + (observeStats.value.rejected || 0)
+  if (total === 0) return null
+  return Math.round(((observeStats.value.accepted || 0) / total) * 100)
+})
+
+// 历史列表按时间倒序（最新的在最前）并根据 filterTab 过滤；Attention 中的 blocked 与 proposed 不在普通列表重复打扰
 const historyItems = computed(() => {
-  const list = [...state.queue].reverse()
-  if (filterTab.value === 'pending') return list.filter(t => !t.done)
-  if (filterTab.value === 'done') return list.filter(t => t.done)
+  const list = [...state.queue].filter(t => t.status !== 'blocked' && t.status !== 'proposed').reverse()
+  if (filterTab.value === 'pending') return list.filter(t => !t.done && t.status !== 'done')
+  if (filterTab.value === 'done') return list.filter(t => t.done || t.status === 'done')
   if (filterTab.value === 'favorite') return list.filter(t => t.favorite)
   return list
 })
@@ -389,6 +425,128 @@ function displayTitle(item) {
       </div>
     </div>
 
+    <!-- 简明状态统计汇总行（进行中 x · 已完成 y，仅数字） -->
+    <div v-if="activeMagazine && activeMagazine.id !== 'favorites' && state.queue.length" class="flex items-center justify-between text-[10px] text-slate-400 px-1 py-0.5 mb-1 select-none shrink-0">
+      <div class="flex items-center gap-2">
+        <span>进行中 <b class="text-amber-400 font-semibold">{{ doingCount }}</b></span>
+        <span class="text-slate-600">·</span>
+        <span>待办 <b class="text-sky-300 font-semibold">{{ pendingCount }}</b></span>
+        <span class="text-slate-600">·</span>
+        <span>已完成 <b class="text-emerald-400 font-semibold">{{ doneCount }}</b></span>
+      </div>
+      <div v-if="acceptanceRate !== null" class="text-[9.5px]">
+        Observe 采纳率: <b class="text-emerald-400 font-semibold">{{ acceptanceRate }}%</b>
+      </div>
+    </div>
+
+    <!-- Attention 注意力面板（只显示等人的事：blocked 挂起任务与 proposed 待批提案；为空时零占位完全不渲染） -->
+    <div
+      v-if="attentionList.length > 0"
+      class="mb-2 p-2 rounded-xl bg-gradient-to-br from-amber-500/15 via-rose-500/10 to-slate-900 border border-amber-400/50 shadow-[0_4px_16px_rgba(245,158,11,0.15)] flex flex-col gap-2 shrink-0 select-text"
+    >
+      <div class="flex items-center justify-between border-b border-amber-500/20 pb-1 select-none">
+        <div class="flex items-center gap-1.5">
+          <span class="text-amber-400 text-xs animate-bounce">🔔</span>
+          <span class="text-[11px] font-bold text-amber-200">Attention · 等待你处理 ({{ attentionList.length }})</span>
+        </div>
+        <div v-if="acceptanceRate !== null" class="text-[9.5px] text-slate-400">
+          采纳率: <span class="font-bold text-emerald-400">{{ acceptanceRate }}%</span> ({{ observeStats.accepted }}/{{ (observeStats.accepted || 0) + (observeStats.rejected || 0) }})
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2 max-h-52 overflow-y-auto pr-0.5">
+        <div
+          v-for="item in attentionList"
+          :key="item.id"
+          class="p-2 rounded-lg bg-slate-900/90 border text-xs flex flex-col gap-1.5 transition-all"
+          :class="item.status === 'blocked' ? 'border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.2)]' : 'border-sky-400/60 shadow-[0_0_8px_rgba(56,189,248,0.2)]'"
+        >
+          <!-- 项头部：类型徽标 + 任务标题 + 等待时长 + 停止/撤销按钮 -->
+          <div class="flex items-center justify-between gap-1.5 select-none">
+            <div class="flex items-center gap-1.5 min-w-0 flex-1">
+              <span
+                v-if="item.status === 'blocked'"
+                class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 border border-amber-400/60 text-amber-300 shrink-0"
+              >
+                ❓ 任务挂起 Blocked
+              </span>
+              <span
+                v-else
+                class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 border border-sky-400/60 text-sky-300 shrink-0"
+              >
+                📋 待批准 OBSERVE
+              </span>
+
+              <span class="font-medium text-slate-100 truncate" :title="item.text">
+                {{ displayTitle(item) }}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="text-[9.5px] text-slate-400 font-mono">
+                {{ formatDuration(item.statusSince) }}
+              </span>
+              <button
+                class="text-[10px] text-rose-400 hover:text-rose-300 px-1 py-0.5 rounded hover:bg-rose-500/10 cursor-pointer transition-colors"
+                :title="t('queue.stopTaskTitle', '停止并删除该任务（撤回授权）')"
+                @click.stop="onRemove(item)"
+              >
+                停止
+              </button>
+            </div>
+          </div>
+
+          <!-- 若为 Blocked 项：显示提问原文 + 输入框 + 回答并继续 -->
+          <div v-if="item.status === 'blocked'" class="flex flex-col gap-1.5 pl-1.5 border-l-2 border-amber-400/70 ml-0.5 mt-0.5">
+            <div class="text-[11px] text-amber-100 bg-amber-500/10 p-1.5 rounded border border-amber-400/20 leading-relaxed break-words">
+              <span class="font-bold text-amber-300">Q: </span>
+              {{ item.blockedQuestion || '任务无法继续，需要您做出决定。' }}
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input
+                v-model="answerInputs[item.id]"
+                type="text"
+                class="flex-1 text-xs py-1 px-2 rounded bg-slate-800 border border-slate-700 text-slate-100 outline-none focus:border-amber-400 select-text cursor-text"
+                placeholder="输入回答（将回写为 > A: 子行并恢复待办）..."
+                @keydown.enter="onAnswer(item.id)"
+              />
+              <button
+                class="btn btn-primary !py-1 !px-2.5 text-[11px] shrink-0 cursor-pointer !bg-amber-600 hover:!bg-amber-500 text-white"
+                @click="onAnswer(item.id)"
+              >
+                回答并继续
+              </button>
+            </div>
+          </div>
+
+          <!-- 若为 Proposed 项：显示授权等级 + 批准/拒绝按钮 -->
+          <div v-else-if="item.status === 'proposed'" class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+            <div class="text-[10px] text-slate-400 flex items-center gap-1">
+              <span>来源: Agent 自生成</span>
+              <span class="px-1 py-0.2 rounded bg-slate-800 border border-slate-700 text-[9px] text-sky-300">
+                L{{ item.mandate?.level || 2 }} 权限
+              </span>
+            </div>
+            <div class="flex items-center gap-1.5 select-none">
+              <button
+                class="px-2 py-0.8 rounded text-[10.5px] font-medium bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-400/30 cursor-pointer transition-colors"
+                @click="rejectProposedTask(item.id)"
+              >
+                拒绝
+              </button>
+              <button
+                class="px-2.5 py-0.8 rounded text-[10.5px] font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 cursor-pointer transition-colors flex items-center gap-1"
+                @click="approveProposedTask(item.id)"
+              >
+                <span>✓</span>
+                <span>批准</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 文件修改写锁提示横幅（当有 Agent 正在独占修改文件时显式提示） -->
     <div
       v-if="state.relayStatus.isWriteLocked"
@@ -479,6 +637,20 @@ function displayTitle(item) {
             <span v-if="item.type === 'write'" class="text-[8px] opacity-80">🔒</span>
           </span>
 
+          <!-- Mandate 授权徽标（L3 高危或亲令显式标记） -->
+          <span
+            v-if="item.mandate"
+            class="shrink-0 px-1 py-0.2 rounded text-[8.5px] font-medium border"
+            :class="item.mandate.level === 3
+              ? 'bg-rose-500/20 border-rose-400/50 text-rose-300 font-bold'
+              : (item.mandate.strength === 'explicit'
+                ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300'
+                : 'bg-slate-800/80 border-slate-700 text-slate-400')"
+            :title="`Mandate: L${item.mandate.level || 2} · ${item.mandate.strength === 'explicit' ? '亲自下达' : '自动推断'} (${item.mandate.issuer || 'user'})`"
+          >
+            L{{ item.mandate.level || 2 }}{{ item.mandate.strength === 'explicit' ? '·亲' : '' }}
+          </span>
+
           <!-- 状态标签：已完成 / 待使用（仅在普通项目弹夹显示；收藏弹夹不显示） -->
           <template v-if="activeMagazine && activeMagazine.id !== 'favorites'">
             <span
@@ -548,6 +720,37 @@ function displayTitle(item) {
         </p>
         <div v-if="taskToEdit" class="p-2 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-sky-200 whitespace-pre-wrap break-words max-h-36 overflow-y-auto font-mono">
           {{ taskToEdit.text || displayTitle(taskToEdit) }}
+        </div>
+
+        <!-- Mandate 授权配置小控件（强度 + 动作等级下拉） -->
+        <div v-if="taskToEdit" class="flex flex-col gap-1.5 p-2 rounded-lg bg-slate-800/40 border border-slate-700/50 text-xs">
+          <div class="text-[10px] font-semibold text-slate-300 flex items-center gap-1">
+            <span>🛡️</span>
+            <span>授权边界（Mandate）</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="flex flex-col gap-1">
+              <label class="text-[9.5px] text-slate-400">签发强度</label>
+              <select
+                v-model="editMandateStrength"
+                class="bg-slate-800 border border-slate-700 text-slate-200 text-[11px] rounded px-1.5 py-1 outline-none focus:border-sky-400"
+              >
+                <option value="explicit">我亲自下达 (explicit)</option>
+                <option value="inferred">自动生成 (inferred)</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-[9.5px] text-slate-400">允许动作等级</label>
+              <select
+                v-model.number="editMandateLevel"
+                class="bg-slate-800 border border-slate-700 text-slate-200 text-[11px] rounded px-1.5 py-1 outline-none focus:border-sky-400"
+              >
+                <option :value="1">1级: 只读与改代码</option>
+                <option :value="2">2级: 运行命令与测试</option>
+                <option :value="3">3级: 删除/Push/发版 (高危)</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
           <button class="btn !py-1 !px-3 text-xs" @click="cancelEditConfirm">{{ t('common.cancel') }}</button>

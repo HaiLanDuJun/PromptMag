@@ -1,17 +1,17 @@
 {
-  "version": "1.9.21",
-  "tagName": "v1.9.21",
-  "name": "PromptMag v1.9.21",
-  "publishedAt": "2026-10-22T14:00:00+08:00",
-  "body": "### PromptMag v1.9.21 更新说明\n\n1. 【图文粘贴防抖】彻底修复从微信等场景粘贴图文时因子组件按键冒泡与防抖缺失导致产生两条任务（一条含图、一条无图）的问题；\n2. 【输入框文本保护】修复在输入框文字后粘贴图片自动将原文本转换为图片描述的问题，光标顺畅后移支持自然续写；\n3. 【大窗口模式常驻】修复在软件内部大窗口打开设置后再关闭导致整个大窗口异常关闭的问题，保持大窗口模式稳定驻留；\n4. 【快捷键极速响应】全链路优化呼出与出弹快捷键（Alt+Q / Alt+V），解除同步进程执行阻塞，支持边缘吸附贴边唤醒，出弹全状态明确 Toast 反馈。",
+  "version": "1.9.22",
+  "tagName": "v1.9.22",
+  "name": "PromptMag v1.9.22",
+  "publishedAt": "2026-11-03T14:35:00+08:00",
+  "body": "### PromptMag v1.9.22 更新说明\n\n1. 【Mandate 授权边界】任务自带协议级授权标记（L1 只读改代码、L2 运行命令与测试、L3 高危删除/Push/发布），L3 动作严格限定用户亲自下达（explicit），超范围任务自动转为 blocked 提问，杜绝越界；\n2. 【Observe 试运行模式】Agent 在 tasks.md 自主新增的任务进入独立待批准区（proposed），批准后升为亲自下达，统计采纳率；\n3. 【Attention 注意力面板】界面只展示等人的事（挂起疑问与待批提案），支持卡片内直接输入回答并恢复接力，健康状态零占位不打扰，普通列表精简统计。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.21.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.21/PromptMag-Portable-1.9.21.exe"
+      "name": "PromptMag-Portable-1.9.22.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.22/PromptMag-Portable-1.9.22.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.21.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.21/PromptMag-Setup-1.9.21.exe"
+      "name": "PromptMag-Setup-1.9.22.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.22/PromptMag-Setup-1.9.22.exe"
     }
   ]
 }

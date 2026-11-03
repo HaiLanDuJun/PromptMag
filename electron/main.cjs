@@ -379,16 +379,28 @@ function parseTasksContent(content) {
   const items = []
   const lines = String(content || '').split(/\r?\n/)
   let currentItem = null
+  let inObserveSection = false
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i]
-    const m = rawLine.match(/^\s*-\s*\[([ xX✓vV~/\-])\]\s*(.+)$/)
-    if (m) {
-      const symbol = m[1]
-      const body = m[2]
+
+    if (/^\s*##\s*(?:待批准|Pending Approval)/i.test(rawLine)) {
+      inObserveSection = true
+      currentItem = null
+      continue
+    }
+
+    const m = rawLine.match(/^\s*-\s*\[([ xX✓vV~/\-?!])\]\s*(.+)$/)
+    const mObs = !m ? rawLine.match(/^\s*-\s*(?:\(待批准\)|\(Pending\))\s*(.+)$/i) : null
+
+    if (m || mObs) {
+      const symbol = m ? m[1] : ' '
+      const body = m ? m[2] : mObs[1]
       const done = ['x', 'X', '✓', 'v', 'V'].includes(symbol)
       const doing = ['~', '/', '-'].includes(symbol)
-      let status = done ? 'done' : (doing ? 'doing' : 'pending')
+      const blocked = symbol === '?'
+      const failed = symbol === '!'
+      let status = done ? 'done' : (doing ? 'doing' : (blocked ? 'blocked' : (failed ? 'failed' : (inObserveSection || mObs ? 'proposed' : 'pending'))))
 
       const idm = body.match(/<!--\s*pm:([A-Za-z0-9_-]+)(.*?)\s*-->/)
       let id = idm ? idm[1] : null
@@ -396,10 +408,13 @@ function parseTasksContent(content) {
       let taskType = 'write'
       let heartbeat = null
       let doneAt = null
+      let mandateStrength = 'inferred'
+      let mandateLevel = 2
+      let mandateIssuer = id ? 'user' : 'agent'
 
       if (idm && idm[2]) {
         const metaStr = idm[2]
-        const stMatch = metaStr.match(/\bst:(pending|doing|done)\b/)
+        const stMatch = metaStr.match(/\bst:(pending|doing|done|blocked|failed|proposed)\b/)
         if (stMatch) status = stMatch[1]
         const agentMatch = metaStr.match(/\bagent:([^\s>]+)/)
         if (agentMatch) agent = agentMatch[1]
@@ -409,13 +424,26 @@ function parseTasksContent(content) {
         if (hbMatch) heartbeat = Number(hbMatch[1])
         const doneAtMatch = metaStr.match(/\bdoneAt:(\d+)/)
         if (doneAtMatch) doneAt = Number(doneAtMatch[1])
+        const mdtMatch = metaStr.match(/\bmdt:(explicit|inferred):([123])\b/)
+        if (mdtMatch) {
+          mandateStrength = mdtMatch[1]
+          mandateLevel = Number(mdtMatch[2])
+        }
+        const issMatch = metaStr.match(/\biss:([^\s>]+)/)
+        if (issMatch) {
+          mandateIssuer = issMatch[1]
+        }
       }
 
-      // 关键防护：以实际复选框标记为最终权威判定
       if (done) status = 'done'
       else if (doing && status !== 'done') status = 'doing'
+      else if (blocked) status = 'blocked'
+      else if (failed) status = 'failed'
+      else if (inObserveSection || mObs) status = 'proposed'
 
-      const text = body.replace(/<!--\s*pm:[A-Za-z0-9_-]+.*?\s*-->/, '').trim()
+      let text = body.replace(/<!--\s*pm:[A-Za-z0-9_-]+.*?\s*-->/, '').trim()
+      text = text.replace(/^\d+\.\s*/, '')
+
       currentItem = {
         line: i,
         id,
@@ -427,6 +455,16 @@ function parseTasksContent(content) {
         solution: '',
         heartbeat,
         doneAt,
+        origin: id ? (mandateIssuer === 'agent' ? 'agent' : 'user') : 'agent',
+        mandate: {
+          issuer: mandateIssuer,
+          strength: mandateStrength,
+          level: mandateLevel,
+          expiresAt: 0
+        },
+        blockedQuestion: '',
+        answer: '',
+        isNewAgentTask: !id,
         text
       }
       items.push(currentItem)
@@ -434,6 +472,24 @@ function parseTasksContent(content) {
     }
 
     if (currentItem) {
+      const qMatch = rawLine.match(/^\s*>\s*Q:\s*(.+)$/i)
+      if (qMatch) {
+        currentItem.blockedQuestion = qMatch[1].trim()
+        if (currentItem.status !== 'done' && !currentItem.answer) {
+          currentItem.status = 'blocked'
+        }
+        continue
+      }
+
+      const aMatch = rawLine.match(/^\s*>\s*A:\s*(.+)$/i)
+      if (aMatch) {
+        currentItem.answer = aMatch[1].trim()
+        if (currentItem.status === 'blocked') {
+          currentItem.status = 'pending'
+        }
+        continue
+      }
+
       const solMatch = rawLine.match(/^\s*>\s*(?:解决者|Solved by)\s*:\s*([^|]+)\|\s*(?:解决方案|Resolution)\s*:\s*(.+)$/i)
       if (solMatch) {
         currentItem.solver = solMatch[1].trim()
@@ -442,8 +498,9 @@ function parseTasksContent(content) {
         currentItem.done = true
         continue
       }
+
       const claimMatch = rawLine.match(/^\s*>\s*(?:认领者|Claimed by)\s*:\s*([^|]+)/i)
-      if (claimMatch && currentItem.status !== 'done') {
+      if (claimMatch && currentItem.status !== 'done' && currentItem.status !== 'blocked') {
         currentItem.agent = claimMatch[1].trim()
         currentItem.status = 'doing'
         continue

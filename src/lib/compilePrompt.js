@@ -214,7 +214,11 @@ export function buildRelayHook(tasksPath, lang = null, meta = {}) {
       '4. [Advance to Next Relay Task & Looping Instructions]',
       '   - Immediately read the task file again and advance to the next uncompleted task until no pending tasks remain;',
       '   - Claude Code: use `/loop` or persistent instructions for autonomous looping;',
-      '   - Antigravity (agy): continue fetching and executing subsequent tasks.'
+      '   - Antigravity (agy): continue fetching and executing subsequent tasks.',
+      '5. [Mandate & Authorization Boundary]',
+      '   - Each task line carries a mandate tag mdt:<strength>:<level> in its trailing comment. Strength "explicit" means ordered by the user personally; "inferred" means auto-generated. Level 1 = read & edit code, 2 = also run commands & tests, 3 = delete files, git push, release, or change system/account settings. Check the mandate before starting: level-3 actions are allowed only under "explicit". If a task asks for more than its mandate allows, do not do that part — set the line marker to [?], add a sub-line "> Q: <one sentence on what the user must decide>", stop that task, and move on. A missing mandate means inferred, level 2.',
+      '6. [Blocked Tasks & Non-Blocking Workflow]',
+      '   - When any task cannot proceed (missing information, decision required, insufficient mandate, or repeated failures), do not wait idle in the terminal, and do not guess: change the line marker to [?], add a sub-line "> Q: <one sentence question, <= 40 chars>", stop this task and proceed to the next in queue. The user will answer in the UI; the answer will appear below the task as a "> A: <answer>" sub-line, at which point you may resume from the breakpoint.'
     ].join('\n')
   }
 
@@ -241,7 +245,11 @@ export function buildRelayHook(tasksPath, lang = null, meta = {}) {
     '4. 【开启下一个接力任务与持续循环】',
     '   - 完成一个任务后，立即重新读取任务文件并开启下一个任务，直至没有待办任务为止；',
     '   - Claude Code 持续接力：建议在终端使用 `/loop` 或持续执行指令保持自动化接力循环；',
-    '   - Antigravity (agy) 持续接力：根据当前接力协议持续推进下一个任务。'
+    '   - Antigravity (agy) 持续接力：根据当前接力协议持续推进下一个任务。',
+    '5. 【授权标记与动作边界（Mandate）】',
+    '   - 每个任务行尾注释带有授权标记 mdt:<强度>:<等级>。强度 explicit 表示用户亲自下达，inferred 表示自动生成。等级 1=只读与改代码，2=可运行命令与测试，3=删除文件、git push、发布、改系统配置。开始任务前先看授权：等级 3 的动作只在 explicit 时允许；若任务要求超出授权，不要执行超出的部分，把行首改为 [?]，在下一行写「> Q: <一句话说明需要用户决定什么>」，然后停止该任务，继续下一个。授权缺失时按 inferred、等级 2 处理。',
+    '6. 【任务挂起与提问规范（Blocked）】',
+    '   - 任何任务无法继续（缺信息、需要做选择、授权不足、反复失败），不要在终端干等，也不要猜：把行首改为 [?]，下一行写「> Q: <一句话问题，不超过40字>」，停止该任务并继续队列里的下一个。用户会在界面里回答，回答以「> A:」子行出现在任务下方，届时从断点继续。'
   ].join('\n')
 }
 
@@ -303,6 +311,8 @@ export function buildRelayStartupPrompt(magazine, opts = {}) {
       '     > Solved by: <your_name> | Resolution: <concise summary of files modified and solution>.',
       '   PromptMag client will listen to this change in real-time and mark the task as done in the UI.',
       `6. [Agent Loop Command]: ${agentSpecificLoop}`,
+      '7. [Mandate Boundary]: Obey mdt:<strength>:<level>. Level 3 (delete files, git push, release, sys config) requires strength=explicit. Inferred tasks attempting Level 3 must mark [?] and add "> Q: <question>".',
+      '8. [Blocked Non-Blocking]: If blocked or lacking information, set [?], append "> Q: <question <= 40 chars>", and immediately move to the next task. Never hang in terminal waiting.',
       '',
       'Please read the task queue file now and start autonomous continuous relay execution!'
     ].join('\n')
@@ -341,6 +351,8 @@ export function buildRelayStartupPrompt(magazine, opts = {}) {
     '     > 解决者: <你的名称> | 解决方案: <简明扼要说明修改了哪些文件、如何解决该问题>',
     '   PromptMag 客户端后台将毫秒级监听该文件的状态变化，自动将该任务同步标记为“已使用”并持久化保存。',
     `6. 【持续循环指令】${agentSpecificLoopZh}`,
+    '7. 【授权边界核查】：遵守 mdt:<强度>:<等级>。等级 3（删除文件、git push、发版、改系统配置）只在 explicit 时允许。inferred 任务若遇等级 3 必须改 [?] 提问并停下。',
+    '8. 【挂起不空等】：无法继续时改行首为 [?]，写「> Q: <一句话问题，不超过40字>」，立即推进下一任务，严禁在终端盲目干等。',
     '',
     '请立即开始读取任务文件，开启全自动不间断接力执行！'
   ].join('\n')
@@ -402,10 +414,17 @@ export function compileTaskLine(task, num, lang = null) {
   const isEn = l === 'en'
   const done = !!(task && (task.done || task.status === 'done'))
   const doing = !done && !!(task && task.status === 'doing')
-  const status = done ? 'done' : (doing ? 'doing' : 'pending')
-  const checkChar = done ? 'x' : (doing ? '~' : ' ')
+  const blocked = !done && !doing && !!(task && task.status === 'blocked')
+  const failed = !done && !doing && !blocked && !!(task && task.status === 'failed')
+  const status = done ? 'done' : (doing ? 'doing' : (blocked ? 'blocked' : (failed ? 'failed' : (task && task.status ? task.status : 'pending'))))
+  const checkChar = done ? 'x' : (doing ? '~' : (blocked ? '?' : (failed ? '!' : ' ')))
   const images = validImages(task)
   const taskType = (task && task.type) || inferTaskType((task && task.text) || '')
+
+  const mandate = (task && task.mandate) || {}
+  const strength = mandate.strength || 'inferred'
+  const level = mandate.level || 2
+  const issuer = mandate.issuer || (task && task.origin) || 'user'
 
   let text = String((task && task.text) || '')
     .replace(TOKEN_RE, (m, n, note) => {
@@ -442,7 +461,7 @@ export function compileTaskLine(task, num, lang = null) {
   const hb = (task && (task.heartbeat || task.claimedAt)) || ''
   const doneAt = (task && task.doneAt) || ''
 
-  const tagParts = [`pm:${id}`, `st:${status}`, `type:${taskType}`]
+  const tagParts = [`pm:${id}`, `st:${status}`, `mdt:${strength}:${level}`, `iss:${issuer}`, `type:${taskType}`]
   if (agent) tagParts.push(`agent:${agent}`)
   if (hb) tagParts.push(`hb:${hb}`)
   if (doneAt) tagParts.push(`doneAt:${doneAt}`)
@@ -460,6 +479,14 @@ export function compileTaskLine(task, num, lang = null) {
     line += '\n  > ' + (isEn ? 'Claimed by' : '认领者') + ': ' + (agent || 'Agent') + ' | ' + (isEn ? 'Status: Processing' : '状态: 正在处理中') + lockNotice
   }
 
+  // Blocked 问题与 Answer 回答子行
+  if (task && task.blockedQuestion) {
+    line += '\n  > Q: ' + task.blockedQuestion
+  }
+  if (task && task.answer) {
+    line += '\n  > A: ' + task.answer
+  }
+
   return line
 }
 
@@ -469,7 +496,7 @@ export function compileTaskLine(task, num, lang = null) {
  * 2. 严格按照当前弹夹选择的出弹模式排列任务执行顺序
  */
 export function prepareRelayQueue(queue, popMode = 'shotgun') {
-  const pending = (queue || []).filter((t) => !t.done && t.status !== 'done')
+  const pending = (queue || []).filter((t) => !t.done && t.status !== 'done' && t.status !== 'proposed')
   if (popMode === 'pistol') {
     // 手枪模式：最近保存优先 (LIFO)
     return pending.slice().reverse()
@@ -533,28 +560,63 @@ export function buildTasksFile(queue, lang = null, meta = {}) {
   // 关键：已完成的任务绝不放入接力任务中！按出弹模式严格排序！
   const filtered = prepareRelayQueue(queue, popMode)
 
+  let body = ''
   if (!filtered || !filtered.length) {
-    return header + (isEn ? '(No pending tasks in this magazine)\n' : '(当前弹夹暂无待办任务)\n')
+    body = (isEn ? '(No pending tasks in this magazine)\n' : '(当前弹夹暂无待办任务)\n')
+  } else {
+    body = filtered.map((t, i) => compileTaskLine(t, i + 1, l)).join('\n') + '\n'
   }
-  return header + filtered.map((t, i) => compileTaskLine(t, i + 1, l)).join('\n') + '\n'
+
+  // Observe 分区：待批准（proposed）任务单独追加在文件末尾，不使用 "- []"
+  const proposed = (queue || []).filter((t) => t.status === 'proposed')
+  if (proposed.length) {
+    const observeTitle = isEn
+      ? '## Pending Approval (OBSERVE · Will not execute until approved)'
+      : '## 待批准（OBSERVE · 批准前不会执行）'
+    const observePrefix = isEn ? '- (Pending)' : '- (待批准)'
+    const proposedLines = proposed.map((t) => {
+      const id = t.id || ''
+      const mdt = t.mandate ? `mdt:${t.mandate.strength || 'inferred'}:${t.mandate.level || 2}` : 'mdt:inferred:2'
+      const iss = t.mandate?.issuer || t.origin || 'agent'
+      const tag = id ? ` <!--pm:${id} st:proposed ${mdt} iss:${iss}-->` : ''
+      return `${observePrefix} ${t.text}${tag}`
+    }).join('\n')
+    body += '\n' + observeTitle + '\n' + proposedLines + '\n'
+  }
+
+  return header + body
 }
 
-/** 解析 next_tasks.md（支持容错 [x][X][✓][v][~][/][-]、HTML注释提取与解决历史） */
+/** 解析 next_tasks.md（支持容错 [x][X][✓][v][~][/][-][?][!]、OBSERVE 分区、HTML注释提取与解决历史） */
 export function parseTasksLines(content) {
   const items = []
   const lines = String(content || '').split(/\r?\n/)
   let currentItem = null
+  let inObserveSection = false
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i]
-    // 匹配主任务行：- [ ] 或 - [x] 或 - [~] 等
-    const m = rawLine.match(/^\s*-\s*\[([ xX✓vV~/\-])\]\s*(.+)$/)
-    if (m) {
-      const symbol = m[1]
-      const body = m[2]
+
+    // 检查是否进入 Observe 待批准分区
+    if (/^\s*##\s*(?:待批准|Pending Approval)/i.test(rawLine)) {
+      inObserveSection = true
+      currentItem = null
+      continue
+    }
+
+    // 匹配主任务行：- [ ] 或 - [x] 或 - [~] 或 - [?] 或 - [!] 等
+    const m = rawLine.match(/^\s*-\s*\[([ xX✓vV~/\-?!])\]\s*(.+)$/)
+    // 匹配 Observe 分区待批准行：- (待批准) ... 或 - (Pending) ...
+    const mObs = !m ? rawLine.match(/^\s*-\s*(?:\(待批准\)|\(Pending\))\s*(.+)$/i) : null
+
+    if (m || mObs) {
+      const symbol = m ? m[1] : ' '
+      const body = m ? m[2] : mObs[1]
       const done = ['x', 'X', '✓', 'v', 'V'].includes(symbol)
       const doing = ['~', '/', '-'].includes(symbol)
-      let status = done ? 'done' : (doing ? 'doing' : 'pending')
+      const blocked = symbol === '?'
+      const failed = symbol === '!'
+      let status = done ? 'done' : (doing ? 'doing' : (blocked ? 'blocked' : (failed ? 'failed' : (inObserveSection || mObs ? 'proposed' : 'pending'))))
 
       // 解析 HTML 注释机器元数据
       const idm = body.match(/<!--\s*pm:([A-Za-z0-9_-]+)(.*?)\s*-->/)
@@ -563,10 +625,13 @@ export function parseTasksLines(content) {
       let taskType = 'write'
       let heartbeat = null
       let doneAt = null
+      let mandateStrength = 'inferred'
+      let mandateLevel = 2
+      let mandateIssuer = id ? 'user' : 'agent'
 
       if (idm && idm[2]) {
         const metaStr = idm[2]
-        const stMatch = metaStr.match(/\bst:(pending|doing|done)\b/)
+        const stMatch = metaStr.match(/\bst:(pending|doing|done|blocked|failed|proposed)\b/)
         if (stMatch) status = stMatch[1]
         const agentMatch = metaStr.match(/\bagent:([^\s>]+)/)
         if (agentMatch) agent = agentMatch[1]
@@ -576,13 +641,28 @@ export function parseTasksLines(content) {
         if (hbMatch) heartbeat = Number(hbMatch[1])
         const doneAtMatch = metaStr.match(/\bdoneAt:(\d+)/)
         if (doneAtMatch) doneAt = Number(doneAtMatch[1])
+        const mdtMatch = metaStr.match(/\bmdt:(explicit|inferred):([123])\b/)
+        if (mdtMatch) {
+          mandateStrength = mdtMatch[1]
+          mandateLevel = Number(mdtMatch[2])
+        }
+        const issMatch = metaStr.match(/\biss:([^\s>]+)/)
+        if (issMatch) {
+          mandateIssuer = issMatch[1]
+        }
       }
 
-      // 关键防护：以实际复选框标记为最终权威判定
+      // 权威标记优先级
       if (done) status = 'done'
       else if (doing && status !== 'done') status = 'doing'
+      else if (blocked) status = 'blocked'
+      else if (failed) status = 'failed'
+      else if (inObserveSection || mObs) status = 'proposed'
 
-      const text = body.replace(/<!--\s*pm:[A-Za-z0-9_-]+.*?\s*-->/, '').trim()
+      let text = body.replace(/<!--\s*pm:[A-Za-z0-9_-]+.*?\s*-->/, '').trim()
+      // 清除可选的前导序号 "1. "
+      text = text.replace(/^\d+\.\s*/, '')
+
       currentItem = {
         line: i,
         id,
@@ -594,14 +674,45 @@ export function parseTasksLines(content) {
         solution: '',
         heartbeat,
         doneAt,
+        origin: id ? (mandateIssuer === 'agent' ? 'agent' : 'user') : 'agent',
+        mandate: {
+          issuer: mandateIssuer,
+          strength: mandateStrength,
+          level: mandateLevel,
+          expiresAt: 0
+        },
+        blockedQuestion: '',
+        answer: '',
+        isNewAgentTask: !id,
         text
       }
       items.push(currentItem)
       continue
     }
 
-    // 匹配跟随解决方案或认领说明行：> 解决者: ... | 解决方案: ...
+    // 匹配跟随说明行（解决方案、认领说明、Q提问、A回答）
     if (currentItem) {
+      // 1. Q 提问子行
+      const qMatch = rawLine.match(/^\s*>\s*Q:\s*(.+)$/i)
+      if (qMatch) {
+        currentItem.blockedQuestion = qMatch[1].trim()
+        if (currentItem.status !== 'done' && !currentItem.answer) {
+          currentItem.status = 'blocked'
+        }
+        continue
+      }
+
+      // 2. A 回答子行（有回答时将挂起状态自动恢复为待办 pending）
+      const aMatch = rawLine.match(/^\s*>\s*A:\s*(.+)$/i)
+      if (aMatch) {
+        currentItem.answer = aMatch[1].trim()
+        if (currentItem.status === 'blocked') {
+          currentItem.status = 'pending'
+        }
+        continue
+      }
+
+      // 3. 解决者与解决方案
       const solMatch = rawLine.match(/^\s*>\s*(?:解决者|Solved by)\s*:\s*([^|]+)\|\s*(?:解决方案|Resolution)\s*:\s*(.+)$/i)
       if (solMatch) {
         currentItem.solver = solMatch[1].trim()
@@ -610,8 +721,10 @@ export function parseTasksLines(content) {
         currentItem.done = true
         continue
       }
+
+      // 4. 认领者
       const claimMatch = rawLine.match(/^\s*>\s*(?:认领者|Claimed by)\s*:\s*([^|]+)/i)
-      if (claimMatch && currentItem.status !== 'done') {
+      if (claimMatch && currentItem.status !== 'done' && currentItem.status !== 'blocked') {
         currentItem.agent = claimMatch[1].trim()
         currentItem.status = 'doing'
         continue

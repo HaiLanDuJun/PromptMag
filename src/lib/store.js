@@ -3,7 +3,7 @@
  * 职责：data.json 持久化、队列/词库/输入区状态、图片增删重排（自动重编 [图N] 标记）、
  *      next_tasks.md 实时同步、外部勾选状态回写。
  */
-import { reactive, watch, toRaw } from 'vue'
+import { reactive, watch, toRaw, computed } from 'vue'
 import { compilePrompt, buildTasksFile, inferTaskType, buildRelayStartupPrompt } from './compilePrompt.js'
 import { t, currentLocale, setLocale } from './i18n.js'
 
@@ -66,7 +66,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.19',
+  version: '1.9.22',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
@@ -95,7 +95,13 @@ export const state = reactive({
     defaultMagazineId: 'default',
     ignoredVersion: '',
     windowScaleMode: 'quick',
-    hideTaskbar: true
+    hideTaskbar: true,
+    observeAgentTasks: true
+  },
+  observeStats: {
+    proposed: 0,
+    accepted: 0,
+    rejected: 0
   },
   magazines: [],
   activeMagazineId: 'default',
@@ -151,6 +157,7 @@ function scheduleSave() {
     }
     window.pm.saveData({
       settings: { ...toRaw(state.settings) },
+      observeStats: { ...toRaw(state.observeStats) },
       snippets: JSON.parse(JSON.stringify(state.snippets)),
       composer: JSON.parse(JSON.stringify(state.composer)),
       magazines: JSON.parse(JSON.stringify(state.magazines)),
@@ -160,11 +167,48 @@ function scheduleSave() {
   }, 300)
 }
 
+const saveStateDebounced = scheduleSave
+
 watch(
-  () => [state.settings, state.snippets, state.composer, state.queue, state.magazines, state.activeMagazineId],
+  () => [state.settings, state.observeStats, state.snippets, state.composer, state.queue, state.magazines, state.activeMagazineId],
   scheduleSave,
   { deep: true }
 )
+
+/** 全局数据约定兼容归一化（老任务读取时补默认值） */
+export function normalizeTask(t, defaultOrigin = 'user') {
+  if (!t) return t
+  const done = !!(t.done || t.status === 'done')
+  const status = t.status || (done ? 'done' : 'pending')
+  const origin = t.origin || defaultOrigin
+  const mandate = Object.assign({
+    issuer: origin === 'user' ? 'user' : (t.mandate?.issuer || origin),
+    strength: 'inferred',
+    level: 2,
+    expiresAt: 0
+  }, t.mandate || {})
+
+  return {
+    ...t,
+    done,
+    status,
+    statusSince: t.statusSince || t.createdAt || Date.now(),
+    origin,
+    mandate,
+    blockedQuestion: t.blockedQuestion || '',
+    answer: t.answer || ''
+  }
+}
+
+/** Attention 派生列表：队列中 status ∈ {blocked, proposed} 的任务，按 statusSince 升序（等得越久越靠前） */
+export const attentionList = computed(() => {
+  const q = state.queue || []
+  return q
+    .filter((t) => t.status === 'blocked' || t.status === 'proposed')
+    .sort((a, b) => (a.statusSince || 0) - (b.statusSince || 0))
+})
+
+export const attentionCount = computed(() => attentionList.value.length)
 
 /* ---------------- next_tasks.md 实时同步 ---------------- */
 export function getActiveMagazine() {
@@ -225,7 +269,7 @@ export async function initStore() {
   const res = await window.pm.getInitData()
   const d = res.data || {}
   state.platform = res.platform || 'win32'
-  state.version = res.version || '1.9.21'
+  state.version = res.version || '1.9.22'
   state.paths = { ...state.paths, ...(res.paths || {}) }
   state.settings = Object.assign(
     {
@@ -237,10 +281,12 @@ export async function initStore() {
       defaultMagazineId: 'default',
     ignoredVersion: '',
       autoCleanup: 'off',
+      observeAgentTasks: true,
       magazineAutoCleanup: {}
     },
     d.settings || {}
   )
+  state.observeStats = Object.assign({ proposed: 0, accepted: 0, rejected: 0 }, d.observeStats || {})
   // 旧快捷键自动迁移与容错（Alt+C 会触发微信关闭窗口，Alt+S 会触发微信发消息）
   if (state.settings.hotkeySnippets === 'Alt+C') state.settings.hotkeySnippets = 'Alt+X'
   // 保证默认快捷键预先填写，不出现空未设置
@@ -261,6 +307,11 @@ export async function initStore() {
 
   // 保证默认弹夹与收藏弹夹始终存在并位于前两位（默认弹夹在首位，收藏弹夹紧挨着默认弹夹）
   const loadedMags = Array.isArray(d.magazines) && d.magazines.length ? d.magazines : []
+  loadedMags.forEach((m) => {
+    if (Array.isArray(m.queue)) {
+      m.queue = m.queue.map((t) => normalizeTask(t))
+    }
+  })
 
   // 1. 默认弹夹 (index 0)
   let defaultMag = loadedMags.find((m) => m.id === 'default')
@@ -272,7 +323,7 @@ export async function initStore() {
       color: '#38bdf8',
       createdAt: Date.now(),
       autoCleanup: 'off',
-      queue: Array.isArray(d.queue) ? d.queue : []
+      queue: Array.isArray(d.queue) ? d.queue.map((t) => normalizeTask(t)) : []
     }
   }
 
@@ -697,53 +748,113 @@ export async function readClipboardText() {
   return ''
 }
 
-/* 双向监听：CLI Agent 接力状态（认领 doing、完成 done、解决者/方案回写、写锁状态） */
+/* 双向监听：CLI Agent 接力状态（认领 doing、完成 done、挂起 blocked、解决者/方案回写、写锁状态、Observe 自生成提案导入） */
 export function bindExternalEvents() {
   window.pm.onTasksExternalChange(({ items, writeLock }) => {
     let hasStateChanges = false
+    let needSync = false
     ;(items || []).forEach((it) => {
-      if (!it.id) return
-      // 更新当前活跃队列与对应弹夹
-      const q = state.queue.find((t) => t.id === it.id)
-      let foundInAnyMag = null
-      for (const m of state.magazines) {
-        const found = (m.queue || []).find((t) => t.id === it.id)
-        if (found) {
-          foundInAnyMag = found
-          break
+      if (it.id) {
+        // 更新现有任务
+        const q = state.queue.find((t) => t.id === it.id)
+        let foundInAnyMag = null
+        for (const m of state.magazines) {
+          const found = (m.queue || []).find((t) => t.id === it.id)
+          if (found) {
+            foundInAnyMag = found
+            break
+          }
         }
-      }
-      const targetTask = q || foundInAnyMag
-      if (targetTask) {
-        const oldDone = !!targetTask.done
-        const newDone = !!it.done || it.status === 'done'
-        const oldStatus = targetTask.status
-        const newStatus = it.status || (newDone ? 'done' : 'pending')
+        const targetTask = q || foundInAnyMag
+        if (targetTask) {
+          const oldDone = !!targetTask.done
+          const newDone = !!it.done || it.status === 'done'
+          const oldStatus = targetTask.status
+          const newStatus = it.status || (newDone ? 'done' : 'pending')
 
-        if (oldDone !== newDone || oldStatus !== newStatus || targetTask.solver !== it.solver || targetTask.solution !== it.solution) {
+          if (oldDone !== newDone || oldStatus !== newStatus || targetTask.solver !== it.solver || targetTask.solution !== it.solution || targetTask.blockedQuestion !== it.blockedQuestion || targetTask.answer !== it.answer) {
+            hasStateChanges = true
+          }
+
+          if (oldStatus !== newStatus) {
+            targetTask.statusSince = Date.now()
+          }
+
+          targetTask.done = newDone
+          targetTask.status = newStatus
+          if (it.agent) targetTask.agent = it.agent
+          if (it.solver) targetTask.solver = it.solver
+          if (it.solution) targetTask.solution = it.solution
+          if (it.type) targetTask.type = it.type
+          if (it.blockedQuestion !== undefined && it.blockedQuestion !== '') targetTask.blockedQuestion = it.blockedQuestion
+          if (it.answer !== undefined && it.answer !== '') targetTask.answer = it.answer
+          if (it.mandate) targetTask.mandate = Object.assign(targetTask.mandate || {}, it.mandate)
+
+          if (!oldDone && newDone) {
+            const solverName = targetTask.solver || targetTask.agent || 'Agent'
+            const sol = targetTask.solution ? ` (${targetTask.solution})` : ''
+            toast(`Agent [${solverName}] 已完成任务：${(targetTask.text || '').slice(0, 18)}…${sol}`)
+          } else if (oldStatus !== 'doing' && newStatus === 'doing') {
+            const agentName = targetTask.agent || 'Agent'
+            toast(`Agent [${agentName}] 已认领接力任务：${(targetTask.text || '').slice(0, 18)}…`)
+          } else if (oldStatus !== 'blocked' && newStatus === 'blocked') {
+            const qTxt = targetTask.blockedQuestion ? `: ${targetTask.blockedQuestion}` : ''
+            toast(`⚠️ Agent 挂起任务（等待答复）${qTxt}`)
+          }
+        }
+      } else if (it.text && it.text.trim()) {
+        // Observe 模式：认出无 <!--pm:id--> 的新行，自动导入为 Agent 任务或待批提案
+        const targetMag = (it.magazineId && state.magazines.find(m => m.id === it.magazineId)) || getActiveMagazine() || state.magazines[0]
+        const curQueue = targetMag ? targetMag.queue : state.queue
+        const existing = curQueue.find(t => t.text === it.text.trim())
+        if (!existing) {
+          const isObserve = state.settings.observeAgentTasks !== false
+          const initialStatus = it.status === 'proposed' || isObserve ? 'proposed' : 'pending'
+          const newId = uid()
+          const newTask = {
+            id: newId,
+            text: it.text.trim(),
+            images: [],
+            createdAt: Date.now(),
+            done: false,
+            status: initialStatus,
+            statusSince: Date.now(),
+            origin: 'agent',
+            mandate: {
+              issuer: it.mandate?.issuer || 'agent',
+              strength: 'inferred',
+              level: it.mandate?.level || 2,
+              expiresAt: 0
+            },
+            blockedQuestion: it.blockedQuestion || '',
+            answer: it.answer || '',
+            type: it.type || inferTaskType(it.text),
+            agent: it.agent || 'agent',
+            solver: '',
+            solution: '',
+            favorite: false
+          }
+          curQueue.push(newTask)
+          if (targetMag && targetMag.id === state.activeMagazineId && state.queue !== targetMag.queue) {
+            state.queue = targetMag.queue
+          }
+          if (initialStatus === 'proposed') {
+            state.observeStats.proposed++
+            toast(`[OBSERVE] 收到 Agent 任务提案（待批准）：${newTask.text.slice(0, 18)}…`)
+          } else {
+            toast(`收到 Agent 新任务：${newTask.text.slice(0, 18)}…`)
+          }
           hasStateChanges = true
-        }
-
-        targetTask.done = newDone
-        targetTask.status = newStatus
-        if (it.agent) targetTask.agent = it.agent
-        if (it.solver) targetTask.solver = it.solver
-        if (it.solution) targetTask.solution = it.solution
-        if (it.type) targetTask.type = it.type
-
-        if (!oldDone && newDone) {
-          const solverName = targetTask.solver || targetTask.agent || 'Agent'
-          const sol = targetTask.solution ? ` (${targetTask.solution})` : ''
-          toast(`Agent [${solverName}] 已完成任务：${(targetTask.text || '').slice(0, 18)}…${sol}`)
-        } else if (oldStatus !== 'doing' && newStatus === 'doing') {
-          const agentName = targetTask.agent || 'Agent'
-          toast(`Agent [${agentName}] 已认领接力任务：${(targetTask.text || '').slice(0, 18)}…`)
+          needSync = true
         }
       }
     })
 
     if (hasStateChanges) {
       scheduleSave()
+    }
+    if (needSync) {
+      syncTasksFile()
     }
 
     state.relayStatus = writeLock ? {
@@ -907,7 +1018,7 @@ export function pushComposerToQueue(targetMagId = null) {
     state.editingTaskId = null
   }
 
-  // 2. 正常新增任务
+  // 2. 正常新增任务（用户在 UI 手建，赋予 explicit 亲令授权）
   const isTargetFav = (targetMagId === 'favorites') || (state.activeMagazineId === 'favorites')
   const task = {
     id: uid(),
@@ -916,6 +1027,16 @@ export function pushComposerToQueue(targetMagId = null) {
     createdAt: Date.now(),
     done: false,
     status: 'pending',
+    statusSince: Date.now(),
+    origin: 'user',
+    mandate: {
+      issuer: 'user',
+      strength: 'explicit',
+      level: 2,
+      expiresAt: 0
+    },
+    blockedQuestion: '',
+    answer: '',
     type: inferTaskType(textStr),
     agent: '',
     solver: '',
@@ -1007,7 +1128,7 @@ export function removeTask(id) {
       }
     }
     // 若被删除项未收藏，后台调度检查清理无引用图片
-    if (removed && !removed.favorite && window.pm && window.pm.cleanupUnfavorited) {
+    if (removed && !removed.favorite && typeof window !== 'undefined' && window.pm && window.pm.cleanupUnfavorited) {
       window.pm.cleanupUnfavorited('1d').catch(() => {})
     }
   }
@@ -1190,14 +1311,26 @@ export function editBackfill(id) {
 }
 
 export function toggleTaskDone(id) {
-  const tTask = state.queue.find((x) => x.id === id)
+  let tTask = null
+  for (const m of state.magazines) {
+    const f = (m.queue || []).find((x) => x.id === id)
+    if (f) { tTask = f; break }
+  }
+  if (!tTask) tTask = state.queue.find((x) => x.id === id)
   if (!tTask) return
   tTask.done = !tTask.done
+  tTask.status = tTask.done ? 'done' : 'pending'
+  tTask.statusSince = Date.now()
   toast(tTask.done ? t('toast.taskMarkedDone') : t('toast.taskMarkedPending'))
 }
 
 export function resetAllTasksPending() {
-  state.queue.forEach((tTask) => { tTask.done = false })
+  const now = Date.now()
+  state.queue.forEach((tTask) => {
+    tTask.done = false
+    tTask.status = 'pending'
+    tTask.statusSince = now
+  })
   toast(t('toast.resetAllPending'))
 }
 
@@ -1205,6 +1338,74 @@ export function clearDoneTasks() {
   state.queue = state.queue.filter((tTask) => !tTask.done)
   const curMag = getActiveMagazine()
   if (curMag) curMag.queue = state.queue
+}
+
+/** 辅助跨弹夹精准查找任务 */
+export function findTask(id) {
+  for (const m of state.magazines) {
+    const found = (m.queue || []).find((t) => t.id === id)
+    if (found) return found
+  }
+  return state.queue.find((t) => t.id === id) || null
+}
+
+/** 批准待批任务（Observe）：转正为 pending，授权升为 explicit 亲令，issuer 改为 user */
+export function approveProposedTask(id) {
+  const task = findTask(id)
+  if (!task) return
+  task.status = 'pending'
+  task.statusSince = Date.now()
+  if (!task.mandate) task.mandate = { issuer: 'user', strength: 'explicit', level: 2, expiresAt: 0 }
+  task.mandate.strength = 'explicit'
+  task.mandate.issuer = 'user'
+  state.observeStats.accepted = (state.observeStats.accepted || 0) + 1
+  saveStateDebounced()
+  syncTasksFile()
+  toast(t('queue.proposedApproved', '已批准任务提案（已升为亲自下达）'))
+}
+
+/** 拒绝待批任务（Observe）：删除任务并计入拒绝统计 */
+export function rejectProposedTask(id) {
+  removeTask(id)
+  state.observeStats.rejected = (state.observeStats.rejected || 0) + 1
+  saveStateDebounced()
+  syncTasksFile()
+  toast(t('queue.proposedRejected', '已拒绝并删除提案'))
+}
+
+/** 回答挂起任务（Blocked Attention）：写回答案，恢复为 pending 继续接力 */
+export function answerBlockedTask(id, answerText) {
+  const trimmed = String(answerText || '').trim()
+  if (!trimmed) return
+  const task = findTask(id)
+  if (!task) return
+  task.answer = trimmed
+  task.status = 'pending'
+  task.statusSince = Date.now()
+  saveStateDebounced()
+  syncTasksFile()
+  toast(t('queue.blockedAnswered', '已提交回答，任务恢复接力'))
+}
+
+/** 修改任务授权（Mandate）：调整 strength (explicit/inferred) 或 level (1/2/3) */
+export function updateTaskMandate(id, patch = {}) {
+  const task = findTask(id)
+  if (!task) return
+  if (!task.mandate) {
+    task.mandate = { issuer: 'user', strength: 'explicit', level: 2, expiresAt: 0 }
+  }
+  if (patch.strength) task.mandate.strength = patch.strength
+  if (patch.level !== undefined) task.mandate.level = Number(patch.level)
+  if (patch.issuer) task.mandate.issuer = patch.issuer
+  saveStateDebounced()
+  syncTasksFile()
+  toast(t('queue.mandateUpdated', '授权设置已更新'))
+}
+
+/** 设置 Observe 试运行模式开关 */
+export function setObserveAgentTasks(val) {
+  state.settings.observeAgentTasks = !!val
+  saveStateDebounced()
 }
 
 export async function clearAllQueue() {
@@ -1327,6 +1528,16 @@ export function addSnippet(text, images = []) {
     createdAt: Date.now(),
     done: false,
     status: 'pending',
+    statusSince: Date.now(),
+    origin: 'user',
+    mandate: {
+      issuer: 'user',
+      strength: 'explicit',
+      level: 2,
+      expiresAt: 0
+    },
+    blockedQuestion: '',
+    answer: '',
     type: inferTaskType(t),
     agent: '',
     solver: '',
@@ -1582,7 +1793,7 @@ export function closeUpdateModal() {
  * @param {'portable' | 'setup'} type 
  */
 export function directDownloadLatest(type = 'portable') {
-  const version = state.updateStatus.info?.version || '1.9.21'
+  const version = state.updateStatus.info?.version || '1.9.22'
   const fileName = type === 'portable'
     ? `PromptMag-Portable-${version}.exe`
     : `PromptMag-Setup-${version}.exe`
