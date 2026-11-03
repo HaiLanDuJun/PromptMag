@@ -991,6 +991,13 @@ footer a:hover{color:var(--cyan)}
   .ide-editor-area{padding:14px}
   .footer-row{flex-direction:column;gap:12px;text-align:center}
 }
+
+/* Real footage gallery (2026-11-03) */
+.gif-gallery{display:flex;flex-direction:column;gap:28px;margin-top:36px}
+.gif-card{margin:0;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:16px;overflow:hidden}
+.gif-card img{display:block;width:100%;height:auto}
+.gif-card figcaption{padding:14px 18px;font-size:14px;color:var(--txt-muted);text-align:center}
+.gif-card-tall{max-width:430px;width:100%;margin:0 auto}
 </style>
 </head>
 <body data-lang="zh">
@@ -1048,8 +1055,8 @@ footer a:hover{color:var(--cyan)}
     </a>
     <a class="btn-secondary" href="#demo">
       <span>⚡</span>
-      <span lang="zh">体验代码互动演示</span>
-      <span lang="en">Try Interactive Playground</span>
+      <span lang="zh">观看真实录屏演示</span>
+      <span lang="en">Watch Real Demos</span>
     </a>
   </div>
 
@@ -1062,194 +1069,40 @@ footer a:hover{color:var(--cyan)}
 </div></header>
 
 <!-- ==================================================================== -->
-<!-- INTERACTIVE LIVE PLAYGROUND DEMO (CENTERPIECE)                       -->
+<!-- REAL FOOTAGE DEMO (replaced the interactive simulator 2026-11-03) -->
 <!-- ==================================================================== -->
 <section id="demo" class="demo-section"><div class="wrap">
   <h2 class="sec-title">
-    <span lang="zh">代码级<span class="grad">实时交互演示</span></span>
-    <span lang="en">Interactive <span class="grad">Live Playground</span></span>
+    <span lang="zh">真实录屏<span class="grad">演示</span></span>
+    <span lang="en">Real Footage, <span class="grad">No Simulator</span></span>
   </h2>
   <p class="sec-sub">
-    <span lang="zh">无需安装，直接在下方体验 PromptMag 的悬浮出弹、图文零歧义编译、光标瞬发直贴与多 Agent 协同接力。</span>
-    <span lang="en">Experience PromptMag right here: eject prompts, inspect multi-image compilation, test auto-paste, and watch multi-agent relay handoffs.</span>
+    <span lang="zh">以下全部来自真实桌面与终端的运行录屏：提示词出弹、带图任务投喂、Agent 接力——所见即所得。</span>
+    <span lang="en">Every clip below is a real screen recording from a live desktop and terminal: prompt ejection, image-task delivery, and agent relay, exactly as it happens.</span>
   </p>
 
-  <!-- Dual-Pane Live Simulator -->
-  <div class="demo-container">
-    <!-- Simulator Topbar -->
-    <div class="demo-window-header">
-      <div class="window-dots">
-        <span class="window-dot r"></span>
-        <span class="window-dot y"></span>
-        <span class="window-dot g"></span>
-      </div>
-      <div class="demo-window-title">
-        <span>PromptMag.Interactive.Simulator</span>
-        <span class="live-pill">LIVE PLAYGROUND</span>
-      </div>
-      <div style="font-size:11px;color:var(--txt-muted);font-family:monospace;">
-        <span lang="zh">按键响应：极速 15ms</span>
-        <span lang="en">Latency: ~15ms</span>
-      </div>
-    </div>
-
-    <!-- Scenario Switcher Bar -->
-    <div class="demo-tabs-bar">
-      <button class="demo-tab-btn active" onclick="switchDemoScenario('modes')">
-        <span>🔫</span>
-        <span lang="zh">三种出弹模式与光标直贴</span>
-        <span lang="en">3 Firing Modes &amp; Auto Paste</span>
-      </button>
-      <button class="demo-tab-btn" onclick="switchDemoScenario('images')">
-        <span>📸</span>
-        <span lang="zh">多图零歧义编译引擎</span>
-        <span lang="en">Zero-Ambiguity Image Compiler</span>
-      </button>
-      <button class="demo-tab-btn" onclick="switchDemoScenario('collect')">
-        <span>⭐</span>
-        <span lang="zh">外部选区瞬发收录 (Alt+T)</span>
-        <span lang="en">Selection Collector (Alt+T)</span>
-      </button>
-      <button class="demo-tab-btn" onclick="switchDemoScenario('relay')">
-        <span>🤖</span>
-        <span lang="zh">CLI Agent 接力与互斥写锁</span>
-        <span lang="en">Agent Relay &amp; Write Locks</span>
-      </button>
-    </div>
-
-    <!-- Workspace Split -->
-    <div class="demo-workspace">
-      <!-- Left Pane: PromptMag Floating Widget Mockup -->
-      <div class="demo-left-pane">
-        <!-- App Title Bar inside sim -->
-        <div class="app-header-sim">
-          <div class="app-brand-sim">
-            <span>⚡ PromptMag</span>
-            <span class="sim-badge" id="simMagBadge">🎯 默认弹夹</span>
-          </div>
-          <div style="font-size:11px;color:var(--txt-dim);">
-            <span id="simCountPending">3</span> <span lang="zh">条待发</span><span lang="en">pending</span>
-          </div>
-        </div>
-
-        <!-- Magazines Row inside sim -->
-        <div class="mag-nav-sim">
-          <button class="mag-tab-sim active" id="tabMagDefault" onclick="switchSimMag('default')">
-            <span>🎯 默认项目</span> (3)
-          </button>
-          <button class="mag-tab-sim" id="tabMagRefactor" onclick="switchSimMag('refactor')">
-            <span>⚡ 前端重构</span> (2)
-          </button>
-          <button class="mag-tab-sim" id="tabMagFav" onclick="switchSimMag('favorites')">
-            <span>⭐ 收藏弹夹</span> (4)
-          </button>
-        </div>
-
-        <!-- Mode Bar inside sim -->
-        <div class="mode-bar-sim">
-          <span class="mode-bar-label"><span lang="zh">出弹模式:</span><span lang="en">Firing Mode:</span></span>
-          <div class="mode-badges-sim">
-            <button class="mode-pill-btn active" id="btnModeShotgun" onclick="setSimMode('shotgun')">
-              <span lang="zh">霰弹枪(顺序)</span><span lang="en">Shotgun</span>
-            </button>
-            <button class="mode-pill-btn" id="btnModeRevolver" onclick="setSimMode('revolver')">
-              <span lang="zh">左轮(随机)</span><span lang="en">Revolver</span>
-            </button>
-            <button class="mode-pill-btn" id="btnModePistol" onclick="setSimMode('pistol')">
-              <span lang="zh">手枪(最新)</span><span lang="en">Pistol</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Queue Cards List -->
-        <div class="queue-list-sim" id="simQueueList">
-          <!-- Populated by JS -->
-        </div>
-
-        <!-- Controls -->
-        <div class="sim-controls">
-          <button class="sim-fire-btn" id="simFireBtn" onclick="triggerSimFire()">
-            <span>🔥</span>
-            <span lang="zh">模拟按下快捷键出弹 (Alt+V)</span>
-            <span lang="en">Simulate Fire Hotkey (Alt+V)</span>
-          </button>
-          <div class="sim-sub-controls">
-            <button class="sim-sub-btn" onclick="resetSimQueue()">
-              <span lang="zh">↺ 重置所有为待发</span>
-              <span lang="en">↺ Reset Queue</span>
-            </button>
-            <button class="sim-sub-btn" onclick="triggerSimCollect()">
-              <span lang="zh">⭐ 模拟选区收录 (Alt+T)</span>
-              <span lang="en">⭐ Collect (Alt+T)</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Pane: Target IDE / Terminal Simulator -->
-      <div class="demo-right-pane">
-        <div class="ide-tabs-bar">
-          <div class="ide-tab-active">
-            <span>📄</span>
-            <span id="ideFileName">app-auth.ts — VS Code / Cursor</span>
-          </div>
-          <div class="ide-subtab">
-            <span lang="zh">前台活动光标位置</span>
-            <span lang="en">Foreground Active Cursor</span>
-          </div>
-        </div>
-
-        <!-- IDE Text / Simulated Editor -->
-        <div class="ide-editor-area">
-          <div style="color:#64748b;margin-bottom:8px;">// Current editor buffer at line 142</div>
-          <div style="color:#f87171;">export async function <span style="color:#67e8f9;">validateUserSession</span>(token: string) {</div>
-          <div style="color:#94a3b8;padding-left:16px;">const payload = verifyJWT(token);</div>
-          <div style="color:#94a3b8;padding-left:16px;">if (!payload.isValid) throw new UnauthorizedError();</div>
-          
-          <!-- Animated Prompt Injection Destination -->
-          <div class="prompt-cursor-box" id="simPromptBox">
-            <div class="prompt-box-header">
-              <span>⚡ PROMPT INPUT / AI COPILOT CHAT</span>
-              <span id="simPromptModeTag">[Shotgun Mode · Ready]</span>
-            </div>
-            <div class="prompt-typed-text" id="simTypedText">
-              <span style="color:#64748b;">(点击左侧「🔥 模拟按下快捷键出弹」按钮，体验 PromptMag 如何一键将提示词直接送至光标处)</span>
-            </div>
-            <span class="cursor-blink"></span>
-          </div>
-        </div>
-
-        <!-- Simulated CLI Terminal for Agent Relay -->
-        <div class="terminal-strip">
-          <div class="terminal-strip-title">
-            <span>🤖 CLI AGENT RELAY TERMINAL (Claude Code / Gemini CLI / Aider)</span>
-            <span id="termStatusBadge" style="color:var(--emerald);">IDLE · WATCHING next_tasks.md</span>
-          </div>
-          <div class="terminal-lines" id="simTerminalLines">
-            <div class="term-line ok">[PromptMag Daemon] 自动双向同步 next_tasks.md 已开启...</div>
-            <div class="term-line">[System] 待出弹任务就绪，等待快捷键触发或 Agent 自动认领。</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Interactive Ball Callout -->
-  <div class="ball-banner-mock">
-    <div class="ball-desc">
-      <div class="ball-disc">💬</div>
-      <div>
-        <h4 style="font-size:15px;margin-bottom:3px;">
-          <span lang="zh">常驻桌面边缘的磁吸悬浮球</span>
-          <span lang="en">Floating Ball Docked on Desktop Edge</span>
-        </h4>
-        <p style="font-size:13px;color:var(--txt-dim);">
-          <span lang="zh">轻点呼出极速输入框，右键快捷切换模式，贴边自动半隐藏，绝不打断你的编码专注心流。</span>
-          <span lang="en">Click to open instant composer, right-click to switch modes, auto-docks to screen edge without interrupting your flow.</span>
-        </p>
-      </div>
-    </div>
-    <kbd>Alt + Q</kbd>
+  <div class="gif-gallery">
+    <figure class="gif-card">
+      <img src="demo-relay.gif" alt="PromptMag agent relay in a real terminal" loading="lazy">
+      <figcaption>
+        <span lang="zh">⚡ Agent 接力终端实录 — 任务送达，CLI Agent 即刻开工</span>
+        <span lang="en">⚡ Agent relay, live terminal — the task lands and the CLI agent gets to work</span>
+      </figcaption>
+    </figure>
+    <figure class="gif-card">
+      <img src="demo-eject.gif" alt="PromptMag ejecting an image task into a CLI agent" loading="lazy">
+      <figcaption>
+        <span lang="zh">🖼️ 带图任务出弹 — [图N] 精确映射，图文零歧义投喂</span>
+        <span lang="en">🖼️ Image-task ejection — precise [Image N] mapping, zero ambiguity</span>
+      </figcaption>
+    </figure>
+    <figure class="gif-card gif-card-tall">
+      <img src="demo-quickinput.gif" alt="PromptMag quick input window with live magazine sync" loading="lazy">
+      <figcaption>
+        <span lang="zh">⌨️ 快捷输入窗 — 热键弹出，弹仓实时同步</span>
+        <span lang="en">⌨️ Quick-input window — hotkey popup with live magazine sync</span>
+      </figcaption>
+    </figure>
   </div>
 </div></section>
 
@@ -1574,7 +1427,6 @@ function toggleLang() {
   try { localStorage.setItem('pm_lang', next); } catch(e){}
   const label = document.getElementById('langLabel');
   if (label) label.textContent = next === 'zh' ? 'EN / 中文' : '中文 / EN';
-  renderSimQueue();
 }
 
 // Restore saved language
@@ -1585,350 +1437,6 @@ try {
     document.documentElement.lang = saved === 'zh' ? 'zh-CN' : 'en';
   }
 } catch(e){}
-
-/* 2. Interactive Simulator State & Data */
-const demoState = {
-  scenario: 'modes', // 'modes' | 'images' | 'collect' | 'relay'
-  mode: 'shotgun',    // 'shotgun' | 'revolver' | 'pistol'
-  activeMag: 'default',
-  shotIndex: 0,
-  magazines: {
-    default: {
-      nameZh: '🎯 默认项目',
-      nameEn: '🎯 Default Project',
-      badge: '🎯 默认弹夹',
-      items: [
-        {
-          id: 1,
-          titleZh: '修复登录表单校验与错误提示 [图1: 样式错位]',
-          titleEn: 'Fix login form validation & alert [Img 1: Style bug]',
-          textZh: '请根据下方图片批注，修复移动端登录表单验证失败时的红色提示框布局重叠，并增加防抖提交。\n\n=== 📸 图片精确映射表 ===\n[图1: 样式错位] -> D:\\Assets\\login_bug.png\n========================',
-          textEn: 'Please fix the overlapping alert box on mobile login based on the attached screenshot.\n\n=== 📸 Image Mapping Table ===\n[Img 1: Style bug] -> D:\\Assets\\login_bug.png\n==============================',
-          images: ['login_bug.png'],
-          done: false,
-          agent: 'Claude Code'
-        },
-        {
-          id: 2,
-          titleZh: '重构 JWT 鉴权中间件并补充单元测试',
-          titleEn: 'Refactor JWT auth middleware with unit tests',
-          textZh: '优化 validateUserSession 方法，增加 token 过期安全续期机制，并编写 5 个核心边界用例。',
-          textEn: 'Refactor validateUserSession, add safe refresh tokens, and add 5 edge-case unit tests.',
-          images: [],
-          done: false,
-          agent: 'Gemini CLI'
-        },
-        {
-          id: 3,
-          titleZh: '排查 SQL 注入安全隐患并补充参数化校验',
-          titleEn: 'Audit SQL injection risks with parameterized queries',
-          textZh: '全面扫描 user-repository 中所有原始拼串 SQL，统一替换为安全参数化调用。',
-          textEn: 'Audit user-repository for raw SQL concatenation and replace with parameterized queries.',
-          images: [],
-          done: false,
-          agent: 'Aider'
-        }
-      ]
-    },
-    refactor: {
-      nameZh: '⚡ 前端重构',
-      nameEn: '⚡ Frontend Refactor',
-      badge: '⚡ 前端重构弹夹',
-      items: [
-        {
-          id: 11,
-          titleZh: '全面迁移到 Tailwind CSS v3 并清除旧冗余 CSS',
-          titleEn: 'Migrate to Tailwind CSS v3 and clean legacy CSS',
-          textZh: '将项目所有旧版样式表重构为标准 Tailwind 类名，压缩 bundle 体积。',
-          textEn: 'Refactor old stylesheet classes into standard Tailwind utility classes.',
-          images: [],
-          done: false
-        },
-        {
-          id: 12,
-          titleZh: '优化虚拟滚动列表长列表渲染性能 [图1: 掉帧分析]',
-          titleEn: 'Optimize virtual scrolling frame drops [Img 1: Perf trace]',
-          textZh: '根据性能火焰图，避免快速滚动时的 DOM 频繁重绘，保持 60 FPS。\n\n=== 📸 图片精确映射表 ===\n[图1: 掉帧分析] -> D:\\Assets\\perf_trace.png\n========================',
-          textEn: 'Resolve frame drops during rapid scrolling based on the performance trace.\n\n=== 📸 Image Mapping Table ===\n[Img 1: Perf trace] -> D:\\Assets\\perf_trace.png\n==============================',
-          images: ['perf_trace.png'],
-          done: false
-        }
-      ]
-    },
-    favorites: {
-      nameZh: '⭐ 收藏弹夹',
-      nameEn: '⭐ Starred Magazine',
-      badge: '⭐ 专属收藏弹夹 (永不自动清理)',
-      items: [
-        {
-          id: 21,
-          titleZh: '审查这段代码的时间复杂度并给出极致优化方案',
-          titleEn: 'Review time complexity & suggest optimization',
-          textZh: '请作为资深算法架构师，全面分析当前函数的 Big-O 复杂度，并给出兼顾内存与速度的最优实现。',
-          textEn: 'Act as a principal algorithm engineer: analyze Big-O complexity and optimize for speed and memory.',
-          images: [],
-          done: false,
-          favorite: true
-        },
-        {
-          id: 22,
-          titleZh: '为当前函数补充详尽的 JSDoc / TSDoc 中英文注释',
-          titleEn: 'Generate comprehensive JSDoc / TSDoc comments',
-          textZh: '请为所有导出类型、入参和返回值补齐严谨的 TSDoc 注释，说明边界异常情况。',
-          textEn: 'Generate complete TSDoc annotations for all export types, params, returns, and edge exceptions.',
-          images: [],
-          done: false,
-          favorite: true
-        },
-        {
-          id: 23,
-          titleZh: '分析这道 Bug 的根因并给出预防性防御方案 [图1: 崩溃堆栈]',
-          titleEn: 'Root-cause analysis for crash [Img 1: Crash stack]',
-          textZh: '请根据控制台报错堆栈截图，定位空指针或异步未捕获的根因，并给出修复 PR。\n\n=== 📸 图片精确映射表 ===\n[图1: 崩溃堆栈] -> D:\\Assets\\stack_trace.png\n========================',
-          textEn: 'Analyze crash callstack from screenshot, locate root cause, and formulate fix PR.\n\n=== 📸 Image Mapping Table ===\n[Img 1: Crash stack] -> D:\\Assets\\stack_trace.png\n==============================',
-          images: ['stack_trace.png'],
-          done: false,
-          favorite: true
-        }
-      ]
-    }
-  }
-};
-
-/* 3. Render Simulator Queue */
-function renderSimQueue() {
-  const isEn = document.documentElement.dataset.lang === 'en';
-  const mag = demoState.magazines[demoState.activeMag];
-  const listEl = document.getElementById('simQueueList');
-  const countEl = document.getElementById('simCountPending');
-  const badgeEl = document.getElementById('simMagBadge');
-
-  if (!mag || !listEl) return;
-  badgeEl.textContent = isEn ? (mag.nameEn || mag.nameZh) : mag.badge;
-
-  const pendingCount = mag.items.filter(i => !i.done).length;
-  countEl.textContent = pendingCount;
-
-  listEl.innerHTML = '';
-  mag.items.forEach((item, index) => {
-    const card = document.createElement('div');
-    card.className = 'queue-card-sim' + (item.done ? ' is-done' : '');
-    card.onclick = () => previewSimItem(item);
-
-    const title = isEn ? (item.titleEn || item.titleZh) : item.titleZh;
-    let statusClass = item.done ? 'done' : (item.doing ? 'doing' : 'pending');
-
-    let tagsHtml = '';
-    if (item.images && item.images.length) {
-      tagsHtml += `<span class="img-badge-sim">📸 ${isEn ? 'Img' : '图'} (${item.images.length})</span>`;
-    }
-    if (item.agent) {
-      tagsHtml += `<span class="agent-badge-sim">🤖 ${item.agent}</span>`;
-    }
-    if (item.favorite) {
-      tagsHtml += `<span class="img-badge-sim" style="color:var(--amber);border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);">⭐ ${isEn ? 'Starred' : '收藏'}</span>`;
-    }
-
-    card.innerHTML = `
-      <div class="card-header-row">
-        <div class="card-title-group">
-          <span class="card-status-dot ${statusClass}"></span>
-          <span class="card-title" title="${title}">${index + 1}. ${title}</span>
-        </div>
-        <span style="font-size:10px;color:var(--txt-muted);">${item.done ? (isEn ? 'Used' : '已出弹') : (isEn ? 'Ready' : '待发')}</span>
-      </div>
-      <div class="card-tags-row">${tagsHtml}</div>
-    `;
-    listEl.appendChild(card);
-  });
-}
-
-function switchSimMag(magKey) {
-  demoState.activeMag = magKey;
-  ['default', 'refactor', 'favorites'].forEach(k => {
-    const btn = document.getElementById(k === 'default' ? 'tabMagDefault' : (k === 'refactor' ? 'tabMagRefactor' : 'tabMagFav'));
-    if (btn) {
-      btn.className = 'mag-tab-sim' + (k === magKey ? (k === 'favorites' ? ' fav-active' : ' active') : '');
-    }
-  });
-  renderSimQueue();
-}
-
-function setSimMode(modeKey) {
-  demoState.mode = modeKey;
-  ['shotgun', 'revolver', 'pistol'].forEach(k => {
-    const btn = document.getElementById('btnMode' + k.charAt(0).toUpperCase() + k.slice(1));
-    if (btn) btn.className = 'mode-pill-btn' + (k === modeKey ? ' active' : '');
-  });
-  const tagEl = document.getElementById('simPromptModeTag');
-  if (tagEl) {
-    const isEn = document.documentElement.dataset.lang === 'en';
-    const names = {
-      shotgun: isEn ? 'Shotgun Mode · Sequential' : '霰弹枪模式 · 严格按顺序',
-      revolver: isEn ? 'Revolver Mode · Randomized' : '左轮模式 · 随机抽取',
-      pistol: isEn ? 'Pistol Mode · Most-Recent-First' : '手枪模式 · 最近优先'
-    };
-    tagEl.textContent = `[${names[modeKey] || modeKey}]`;
-  }
-}
-
-/* 4. Scenario Switching */
-function switchDemoScenario(scKey) {
-  demoState.scenario = scKey;
-  const buttons = document.querySelectorAll('.demo-tab-btn');
-  buttons.forEach(b => b.classList.remove('active'));
-  event.currentTarget.classList.add('active');
-
-  const isEn = document.documentElement.dataset.lang === 'en';
-
-  if (scKey === 'modes') {
-    switchSimMag('default');
-    setSimMode('shotgun');
-    addTermLine('ok', isEn ? '[Scenario] Firing Modes active: Press Alt+V to test direct cursor auto-paste.' : '【场景】出弹模式演练：按 Alt+V 体验免切窗口光标处瞬发直贴。');
-  } else if (scKey === 'images') {
-    switchSimMag('refactor');
-    addTermLine('cyan', isEn ? '[Scenario] Multimodal compiler: inspecting structured path table mapping.' : '【场景】多图零歧义编译：查看内联标记 [图1] 与本地绝对路径映射表。');
-    // Pre-load an image prompt
-    const item = demoState.magazines.refactor.items[1];
-    previewSimItem(item);
-  } else if (scKey === 'collect') {
-    switchSimMag('favorites');
-    addTermLine('warn', isEn ? '[Scenario] External Selection Collector: Press Alt+T to collect selected text or image into Starred Magazine.' : '【场景】外部选区收录：按 Alt+T 瞬时收录选中文本或截图至收藏弹夹。');
-  } else if (scKey === 'relay') {
-    switchSimMag('default');
-    addTermLine('ok', isEn ? '[Scenario] CLI Agent Relay: Simulating Claude Code grabbing mutex write lock on next_tasks.md.' : '【场景】CLI Agent 接力演练：模拟 Claude Code 认领任务并获取文件互斥写锁。');
-    simulateAgentRelay();
-  }
-}
-
-/* 5. Trigger Simulate Fire (Alt+V) */
-let isTyping = false;
-function triggerSimFire() {
-  if (isTyping) return;
-  const isEn = document.documentElement.dataset.lang === 'en';
-  const mag = demoState.magazines[demoState.activeMag];
-  const pendingItems = mag.items.filter(i => !i.done);
-
-  if (!pendingItems.length) {
-    addTermLine('warn', isEn ? '[Magazine Empty] All prompts used. Resetting queue...' : '【弹药耗尽】当前弹夹已全部出弹，正在重置队列...');
-    resetSimQueue();
-    return;
-  }
-
-  let targetItem = null;
-  if (demoState.mode === 'shotgun') {
-    targetItem = pendingItems[0]; // oldest
-  } else if (demoState.mode === 'revolver') {
-    targetItem = pendingItems[Math.floor(Math.random() * pendingItems.length)]; // random
-  } else if (demoState.mode === 'pistol') {
-    targetItem = pendingItems[pendingItems.length - 1]; // most recent
-  }
-
-  if (!targetItem) targetItem = pendingItems[0];
-
-  // Visual feedback: animate typing into right pane
-  isTyping = true;
-  const textToType = isEn ? (targetItem.textEn || targetItem.textZh) : targetItem.textZh;
-  const typedEl = document.getElementById('simTypedText');
-  const boxEl = document.getElementById('simPromptBox');
-
-  boxEl.style.boxShadow = '0 0 35px rgba(56, 189, 248, 0.7)';
-  boxEl.style.borderColor = '#38bdf8';
-  typedEl.textContent = '';
-
-  let charIdx = 0;
-  const timer = setInterval(() => {
-    if (charIdx < textToType.length) {
-      typedEl.textContent += textToType.charAt(charIdx);
-      charIdx++;
-    } else {
-      clearInterval(timer);
-      isTyping = false;
-      targetItem.done = true;
-      renderSimQueue();
-      boxEl.style.boxShadow = '0 0 20px rgba(56, 189, 248, 0.2)';
-
-      addTermLine('ok', isEn
-        ? `[Eject Success] Alt+V fired "${targetItem.titleEn || targetItem.titleZh}". Pasted to cursor in 18ms.`
-        : `【出弹成功】Alt+V 瞬发直贴已完成，耗时 18ms，已标记为已使用。`
-      );
-    }
-  }, 10);
-}
-
-function previewSimItem(item) {
-  if (!item || isTyping) return;
-  const isEn = document.documentElement.dataset.lang === 'en';
-  const text = isEn ? (item.textEn || item.textZh) : item.textZh;
-  document.getElementById('simTypedText').textContent = text;
-}
-
-function resetSimQueue() {
-  const mag = demoState.magazines[demoState.activeMag];
-  if (!mag) return;
-  mag.items.forEach(i => { i.done = false; i.doing = false; });
-  renderSimQueue();
-  const isEn = document.documentElement.dataset.lang === 'en';
-  addTermLine('cyan', isEn ? '[Queue Reset] All prompts restored to pending state.' : '【弹药装填完毕】所有提示词已恢复为待出弹状态。');
-}
-
-function triggerSimCollect() {
-  const isEn = document.documentElement.dataset.lang === 'en';
-  switchSimMag('favorites');
-  const newId = Date.now();
-  const newItem = {
-    id: newId,
-    titleZh: '新收录选中文本 [图1: 屏幕截图]',
-    titleEn: 'Newly collected selection [Img 1: Screenshot]',
-    textZh: '在外部应用中选中该段落并按下 Alt+T，PromptMag 已捕获文字并同步保存屏幕选区截图，已永久保存在收藏弹夹。',
-    textEn: 'Captured from active selection via Alt+T with attached image. Safely saved in Starred Magazine.',
-    images: ['collected_shot.png'],
-    done: false,
-    favorite: true
-  };
-  demoState.magazines.favorites.items.unshift(newItem);
-  renderSimQueue();
-  previewSimItem(newItem);
-  addTermLine('warn', isEn
-    ? '⭐ [Alt+T Captured] Text & image collected directly into Starred Magazine (exempt from auto-cleanup).'
-    : '⭐【Alt+T 收录成功】已将选中文本与图片收录进专属收藏弹夹（永不自动清理）。'
-  );
-}
-
-function simulateAgentRelay() {
-  const isEn = document.documentElement.dataset.lang === 'en';
-  const termEl = document.getElementById('termStatusBadge');
-  const item = demoState.magazines.default.items[0];
-  item.doing = true;
-  renderSimQueue();
-
-  if (termEl) {
-    termEl.textContent = '🔒 LOCKED BY [Claude Code]';
-    termEl.style.color = 'var(--amber)';
-  }
-
-  addTermLine('warn', isEn ? '🔒 [Agent Relay] Claude Code acquired WRITE_LOCK on next_tasks.md' : '🔒【Agent 接力】Claude Code 独占获取文件修改写锁 (WRITE_LOCK)...');
-  setTimeout(() => {
-    addTermLine('ok', isEn ? '⚡ [Agent Relay] Tests passed (14/14). Marking task [x] and releasing lock.' : '⚡【Agent 接力】单元测试全部通过 (14/14)，任务标记已完成 [x]，写锁已释放。');
-    item.doing = false;
-    item.done = true;
-    renderSimQueue();
-    if (termEl) {
-      termEl.textContent = 'IDLE · READY FOR NEXT TASK';
-      termEl.style.color = 'var(--emerald)';
-    }
-  }, 1600);
-}
-
-function addTermLine(type, text) {
-  const box = document.getElementById('simTerminalLines');
-  if (!box) return;
-  const div = document.createElement('div');
-  div.className = 'term-line' + (type ? ' ' + type : '');
-  div.textContent = text;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}
 
 /* 6. Fetch Latest Release from GitHub API */
 fetch('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest')
@@ -1958,11 +1466,6 @@ fetch('https://api.github.com/repos/HaiLanDuJun/PromptMag/releases/latest')
   })
   .catch(() => {});
 
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-  renderSimQueue();
-});
-renderSimQueue();
 </script>
 </body>
 </html>
