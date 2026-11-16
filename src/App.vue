@@ -5,6 +5,7 @@ import BallOrb from './components/BallOrb.vue'
 import QuickPanel from './components/QuickPanel.vue'
 import Composer from './components/Composer.vue'
 import QueueTab from './components/QueueTab.vue'
+import AccountsTab from './components/AccountsTab.vue'
 import SnippetPicker from './components/SnippetPicker.vue'
 import ImagePreviewModal from './components/ImagePreviewModal.vue'
 import MagazinePickerModal from './components/MagazinePickerModal.vue'
@@ -198,7 +199,8 @@ onBeforeUnmount(() => {
         <TitleBar @collapse="setMode('capsule')" @mini="setMode('quick')" />
         <Composer />
         <main class="flex-1 overflow-y-auto min-h-0 px-3.5 pb-3 pt-1">
-          <QueueTab />
+          <AccountsTab v-if="state.mainView === 'accounts'" />
+          <QueueTab v-else />
         </main>
       </div>
     </Transition>

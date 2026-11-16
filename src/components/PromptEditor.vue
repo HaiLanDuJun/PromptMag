@@ -503,6 +503,26 @@ async function onPaste(e) {
         toast(`已还原图片与关键词 [图${parsed.images.length}]`)
         return
       }
+
+      // 长文本自动转 .txt 落盘（正文仅留 [文件: xxx.txt] 锚点，无需手动另存）
+      if (state.settings.autoTxtEnabled !== false) {
+        const chars = Number(state.settings.autoTxtChars) > 0 ? Number(state.settings.autoTxtChars) : 1000
+        const lines = text.split(/\r?\n/).length
+        const lineLimit = Math.max(30, Math.floor(chars / 20))
+        if (text.length >= chars || lines >= lineLimit) {
+          const res = await window.pm.saveTextAsFile(text)
+          if (res && res.ok) {
+            if (!Array.isArray(state.composer.files)) state.composer.files = []
+            state.composer.files.push({ name: res.name, path: res.path, chars: res.chars || text.length })
+            insertTextAtCursor(`[文件: ${res.name}]`)
+            toast(currentLocale.value === 'en'
+              ? `Long text auto-saved as ${res.name} (${res.chars || text.length} chars)`
+              : `长文本已自动转为 ${res.name}（${res.chars || text.length} 字）`)
+            return
+          }
+        }
+      }
+
       document.execCommand('insertText', false, text)
       onInput()
     }

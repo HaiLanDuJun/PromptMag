@@ -67,11 +67,11 @@ async function pasteText() {
 /* ---------- 复制编译后的完整 Prompt ---------- */
 async function copyCurrent() {
   const c = state.composer
-  if (!String(c.text).trim() && !c.images.length) {
+  if (!String(c.text).trim() && !c.images.length && !(c.files || []).length) {
     toast(t('toast.composerEmpty'))
     return
   }
-  await copyCompiled({ text: c.text, images: c.images })
+  await copyCompiled({ text: c.text, images: c.images, files: c.files || [] })
   toast(t('toast.copiedFullPrompt'))
 }
 
@@ -94,6 +94,7 @@ function clearComposer() {
   }
   state.composer.text = ''
   state.composer.images = []
+  state.composer.files = []
   if (promptEditor.value && promptEditor.value.clearAllChips) {
     promptEditor.value.clearAllChips()
   }

@@ -17,6 +17,13 @@ if (typeof window !== 'undefined' && !window.pm) {
     }),
     saveData: async () => ({ ok: true }),
     saveClipboardImages: async () => ({ ok: false, error: 'no bridge' }),
+    saveTextAsFile: async () => ({ ok: false, error: 'no bridge' }),
+    encryptText: async (t) => ({ ok: true, encrypted: false, enc: 'plain:' + String(t || '') }),
+    decryptText: async (s) => {
+      const str = String(s || '')
+      if (str.startsWith('plain:')) return { ok: true, text: str.slice(6) }
+      return { ok: true, text: str }
+    },
     chooseImageFiles: async () => ({ ok: false, canceled: true }),
     readClipboardText: async () => ({ ok: false, text: '' }),
     copyText: async (t) => {
@@ -66,7 +73,7 @@ const DEFAULT_SNIPPETS = [
 export const state = reactive({
   ready: false,
   platform: 'win32',
-  version: '1.9.25',
+  version: '1.9.26',
   isSettingsOpen: false,
   updateStatus: {
     checking: false,
@@ -85,7 +92,9 @@ export const state = reactive({
   },
   isUpdateModalOpen: false,
   toast: '',
-  paths: { homeDir: '', imagesDir: '', tasksFile: '', dataFile: '', magazinesDir: '', logFile: '', logsDir: '' },
+  paths: { homeDir: '', imagesDir: '', textsDir: '', tasksFile: '', dataFile: '', magazinesDir: '', logFile: '', logsDir: '' },
+  /* 主区视图：'queue' 提示词队列 | 'accounts' 测试账号密码 */
+  mainView: 'queue',
   isHotkeyRecording: false,
   settings: {
     alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
@@ -96,8 +105,13 @@ export const state = reactive({
     ignoredVersion: '',
     windowScaleMode: 'quick',
     hideTaskbar: true,
-    observeAgentTasks: true
+    observeAgentTasks: true,
+    /* 长文本粘贴自动转 .txt */
+    autoTxtEnabled: true,
+    autoTxtChars: 1000
   },
+  /* 测试账号密码速记（密码系统级加密存储） */
+  accounts: [],
   observeStats: {
     proposed: 0,
     accepted: 0,
@@ -110,7 +124,7 @@ export const state = reactive({
   isRelayStartupModalOpen: false,
   relayStartupTargetMagId: null,
   snippets: [],
-  composer: { text: '', images: [] },
+  composer: { text: '', images: [], files: [] },
   queue: [],
   preview: null,
   isDialogOpening: false,
@@ -162,7 +176,8 @@ function scheduleSave() {
       composer: JSON.parse(JSON.stringify(state.composer)),
       magazines: JSON.parse(JSON.stringify(state.magazines)),
       activeMagazineId: state.activeMagazineId,
-      queue: JSON.parse(JSON.stringify(state.queue))
+      queue: JSON.parse(JSON.stringify(state.queue)),
+      accounts: JSON.parse(JSON.stringify(state.accounts))
     })
   }, 300)
 }
@@ -170,7 +185,7 @@ function scheduleSave() {
 const saveStateDebounced = scheduleSave
 
 watch(
-  () => [state.settings, state.observeStats, state.snippets, state.composer, state.queue, state.magazines, state.activeMagazineId],
+  () => [state.settings, state.observeStats, state.snippets, state.composer, state.queue, state.magazines, state.activeMagazineId, state.accounts],
   scheduleSave,
   { deep: true }
 )
@@ -282,7 +297,9 @@ export async function initStore() {
     ignoredVersion: '',
       autoCleanup: 'off',
       observeAgentTasks: true,
-      magazineAutoCleanup: {}
+      magazineAutoCleanup: {},
+      autoTxtEnabled: true,
+      autoTxtChars: 1000
     },
     d.settings || {}
   )
@@ -397,8 +414,10 @@ export async function initStore() {
   const c = d.composer || {}
   state.composer = {
     text: String(c.text || ''),
-    images: Array.isArray(c.images) ? c.images : []
+    images: Array.isArray(c.images) ? c.images : [],
+    files: Array.isArray(c.files) ? c.files : []
   }
+  state.accounts = Array.isArray(d.accounts) ? d.accounts : []
   state.ready = true
 
   window.pm.setOpacity(state.settings.opacity)
@@ -965,6 +984,76 @@ export function imgUrl(p) {
   return 'pmimg://local/' + encodeURIComponent(p)
 }
 
+/* ---------------- 主区视图切换（提示词队列 / 测试账号密码） ---------------- */
+export function setMainView(v) {
+  state.mainView = v === 'accounts' ? 'accounts' : 'queue'
+}
+
+/* ---------------- 测试账号密码速记 ---------------- */
+
+/** 新增账号：密码经 safeStorage 系统级加密后落盘（不可用时回退 plain: 前缀） */
+export async function addAccount({ title, username, password, note }) {
+  let stored = String(password || '')
+  if (stored && window.pm && window.pm.encryptText) {
+    try {
+      const r = await window.pm.encryptText(stored)
+      if (r && r.ok) stored = r.enc
+    } catch { /* 加密失败则按原样存储 */ }
+  }
+  const acc = {
+    id: uid(),
+    title: String(title || '').trim() || (currentLocale.value === 'en' ? 'Untitled' : '未命名'),
+    username: String(username || '').trim(),
+    password: stored,
+    note: String(note || '').trim(),
+    createdAt: Date.now()
+  }
+  state.accounts.unshift(acc)
+  toast(currentLocale.value === 'en' ? 'Account saved' : '已保存账号')
+  return acc
+}
+
+export function removeAccount(id) {
+  const i = state.accounts.findIndex((a) => a.id === id)
+  if (i > -1) state.accounts.splice(i, 1)
+}
+
+/** 解密取回密码明文（兼容历史明文记录） */
+export async function revealPassword(acc) {
+  if (!acc) return ''
+  const stored = String(acc.password || '')
+  if (window.pm && window.pm.decryptText) {
+    try {
+      const r = await window.pm.decryptText(stored)
+      if (r && r.ok) return r.text
+    } catch { /* fallthrough */ }
+  }
+  return stored.startsWith('plain:') ? stored.slice(6) : stored
+}
+
+export async function copyAccountPassword(acc) {
+  const p = await revealPassword(acc)
+  if (!p) {
+    toast(currentLocale.value === 'en' ? 'Empty password' : '密码为空')
+    return
+  }
+  await window.pm.copyText(p)
+  toast(t('common.copied'))
+}
+
+export function copyAccountUsername(acc) {
+  if (!acc || !acc.username) {
+    toast(currentLocale.value === 'en' ? 'Empty username' : '账号为空')
+    return
+  }
+  window.pm.copyText(acc.username)
+  toast(t('common.copied'))
+}
+
+export function isPasswordEncrypted(acc) {
+  return !!(acc && String(acc.password || '').startsWith('enc:'))
+}
+
 export function formatDateTime(ts) {
   if (!ts) return ''
   const d = new Date(ts)
@@ -1007,6 +1096,7 @@ export function pushComposerToQueue(targetMagId = null) {
     if (target) {
       target.text = textStr
       target.images = JSON.parse(JSON.stringify(c.images))
+      target.files = JSON.parse(JSON.stringify(c.files || []))
       target.type = inferTaskType(textStr)
       target.updatedAt = Date.now()
 
@@ -1014,6 +1104,7 @@ export function pushComposerToQueue(targetMagId = null) {
       copyCompiled(target, { magazineId: targetMag ? targetMag.id : state.activeMagazineId }).catch(() => {})
       c.text = ''
       c.images = []
+      c.files = []
       state.editingTaskId = null
       toast(t('toast.promptUpdated'))
       return { task: target, targetMagazine: targetMag, isUpdate: true }
@@ -1027,6 +1118,7 @@ export function pushComposerToQueue(targetMagId = null) {
     id: uid(),
     text: textStr,
     images: JSON.parse(JSON.stringify(c.images)),
+    files: JSON.parse(JSON.stringify(c.files || [])),
     createdAt: Date.now(),
     done: false,
     status: 'pending',
@@ -1067,12 +1159,13 @@ export function pushComposerToQueue(targetMagId = null) {
   copyCompiled(task, { magazineId: targetMag ? targetMag.id : state.activeMagazineId }).catch(() => {})
   c.text = ''
   c.images = []
+  c.files = []
   return { task, targetMagazine: targetMag }
 }
 
 export function requestSaveComposer(onSelectDone = null) {
   const c = state.composer
-  if (!String(c.text).trim() && !c.images.length) {
+  if (!String(c.text).trim() && !c.images.length && !(c.files || []).length) {
     toast(t('toast.pleaseInputOrImg'))
     return false
   }
@@ -1299,6 +1392,7 @@ export function startEditingTask(id) {
   state.editingTaskId = target.id
   state.composer.text = String(target.text || '')
   state.composer.images = JSON.parse(JSON.stringify(target.images || []))
+  state.composer.files = JSON.parse(JSON.stringify(target.files || []))
   toast(t('toast.editingStarted'))
 }
 
@@ -1306,6 +1400,7 @@ export function cancelEditingTask() {
   state.editingTaskId = null
   state.composer.text = ''
   state.composer.images = []
+  state.composer.files = []
   toast(t('toast.editCancelled'))
 }
 

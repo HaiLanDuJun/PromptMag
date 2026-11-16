@@ -13,6 +13,8 @@ import { currentLocale } from './i18n.js'
 export const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
 
 export const TOKEN_RE = /\[(?:图|Img|Image)\s*(\d+)(?:\s*[:：]\s*([^\]]*))?\]/gi
+/** 长文本粘贴自动转 .txt 的文件锚点标记，如 [文件: text_1731...txt] 或 [File: text_1731...txt] */
+export const FILE_TOKEN_RE = /\[(?:文件|File)\s*[:：]\s*([^\]\r\n]+?)\]/gi
 const EXPANDED_RE = /\[(?:图|Img|Image)\s*\d+\s*\((?:本地路径|Local Path):\s*"[^"]*"\)(?::\s*[^\]]*)?\]/gi
 const ORDINAL_RE_ZH = /第[一二三四五六七八九十1-9]+\s*张图|图\s*[1-9]\s*(?=[的地中里面上和与,，。]|$)/
 const ORDINAL_RE_EN = /\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\d+(?:st|nd|rd|th))\s*(?:image|img|pic|picture|photo)\b|\b(?:image|img|pic)\s*\d+\b/i
@@ -33,6 +35,26 @@ export function enOrdinal(n) {
 
 export function validImages(task) {
   return ((task && task.images) || []).filter((i) => i && i.path)
+}
+
+export function validFiles(task) {
+  return ((task && task.files) || []).filter((f) => f && f.path)
+}
+
+/** 正文内联展开文件锚点：[文件: xxx.txt] -> [文件: xxx.txt (本地路径: "绝对路径")] */
+export function expandFileTokens(text, files, lang = null) {
+  const l = lang || currentLocale.value || 'zh'
+  const isEn = l === 'en'
+  const prefix = isEn ? 'File: ' : '文件: '
+  const pathLabel = isEn ? 'Local Path: ' : '本地路径: '
+  return String(text || '').replace(FILE_TOKEN_RE, (m, name) => {
+    // 已展开（含路径标注）的锚点原样保留
+    if (/本地路径|Local Path/i.test(m)) return m
+    const nm = String(name || '').trim()
+    const f = (files || []).find((x) => x && (x.name === nm || x.path === nm))
+    if (!f) return m
+    return '[' + prefix + f.name + ' (' + pathLabel + quote(f.path) + ')]'
+  })
 }
 
 export function imgLabel(i, lang = null) {
@@ -60,11 +82,12 @@ export function expandInlineTokens(text, images, lang = null) {
   })
 }
 
-/** 去掉所有图片标记后，正文还剩多少实质内容 */
+/** 去掉所有图片/文件标记后，正文还剩多少实质内容 */
 export function bodyWithoutTokens(text) {
   return String(text || '')
     .replace(EXPANDED_RE, '')
     .replace(TOKEN_RE, '')
+    .replace(FILE_TOKEN_RE, '')
     .trim()
 }
 
@@ -362,13 +385,14 @@ export function buildRelayStartupPrompt(magazine, opts = {}) {
  * 主编译器：将「正文 + 图片 + 批注」组装成大模型不会认错顺序的结构化 Prompt
  */
 export function compilePrompt(task, opts = {}) {
-  const lang = opts.locale || currentLocale.value || 'zh'
+  const lang = opts.locale || opts.lang || currentLocale.value || 'zh'
   const tasksPath = opts.tasksPath || ''
   const relay = !!opts.relay
   const forPop = !!(opts.forPop || opts.singleLine)
   const images = validImages(task)
   let body = String((task && task.text) || '').trim()
   body = expandInlineTokens(body, images, lang)
+  body = expandFileTokens(body, validFiles(task), lang)
 
   const leftover = bodyWithoutTokens(body)
   const hasNotes = images.some((i) => (i.note || '').trim())
@@ -433,6 +457,12 @@ export function compileTaskLine(task, num, lang = null) {
       const descStr = desc ? '(' + desc + ')' : ''
       const prefix = isEn ? 'Img ' : '图'
       return img ? '[' + prefix + n + descStr + ': ' + quote(img.path) + ']' : m
+    })
+    .replace(FILE_TOKEN_RE, (m, name) => {
+      if (/本地路径|Local Path/i.test(m)) return m
+      const nm = String(name || '').trim()
+      const f = validFiles(task).find((x) => x && (x.name === nm || x.path === nm))
+      return f ? '[文件: ' + f.name + ': ' + quote(f.path) + ']' : m
     })
     .replace(/\s+/g, ' ')
     .trim()
@@ -800,6 +830,10 @@ export function parseCompiledPrompt(rawText) {
     const prefix = currentLocale.value === 'en' ? 'Img ' : '图'
     return cleanNote ? `[${prefix}${n}: ${cleanNote}]` : `[${prefix}${n}]`
   })
+
+  // 还原文件锚点：[文件/File: xxx.txt (本地路径/Local Path: "...")] / [文件/File: xxx.txt: "..."] -> [文件: xxx.txt]
+  body = body.replace(/\[(?:文件|File)\s*[:：]\s*([^\]\r\n]+?)\s*\((?:本地路径|Local Path):\s*"[^"]*"\)\]/gi, (m, name) => `[文件: ${String(name).trim()}]`)
+  body = body.replace(/\[(?:文件|File)\s*[:：]\s*([^\]\r\n]+?)\s*[:：]\s*"[^"]*"\]/gi, (m, name) => `[文件: ${String(name).trim()}]`)
 
   return { text: body, images: validImgs }
 }

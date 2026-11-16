@@ -18,7 +18,8 @@ const {
   protocol,
   net,
   dialog,
-  screen
+  screen,
+  safeStorage
 } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
@@ -51,6 +52,7 @@ function resolveDataDir() {
 
 const P = { home: resolveDataDir() }
 P.images = path.join(P.home, 'images')
+P.texts = path.join(P.home, 'texts')
 P.dataFile = path.join(P.home, 'data.json')
 P.tasksFile = path.join(P.home, 'next_tasks.md')
 P.favorites = path.join(P.home, 'favorites')
@@ -371,6 +373,7 @@ function normFilePath(p) {
 }
 let quitting = false
 let imgSeq = 0
+let txtSeq = 0
 /* 形态状态：capsule(胶囊) / quick(快捷输入) / full(完整) */
 let mode = 'full'
 let animating = false
@@ -390,6 +393,7 @@ let alwaysOnTop = true
 function ensureDirs() {
   fs.mkdirSync(P.home, { recursive: true })
   fs.mkdirSync(P.images, { recursive: true })
+  fs.mkdirSync(P.texts, { recursive: true })
   fs.mkdirSync(P.favorites, { recursive: true })
   fs.mkdirSync(P.favImages, { recursive: true })
   fs.mkdirSync(P.magazinesDir, { recursive: true })
@@ -418,6 +422,18 @@ function uniqueImagePath(ext = '.png') {
   do {
     imgSeq += 1
     p = path.join(P.images, `img_${ts}_${String(imgSeq).padStart(2, '0')}${ext}`)
+  } while (fs.existsSync(p))
+  return p
+}
+
+/** 粘贴长文本自动落盘：texts 目录下唯一文件名 text_时间戳_序号.txt */
+function uniqueTextPath(ext = '.txt') {
+  ensureDirs()
+  const ts = Date.now()
+  let p
+  do {
+    txtSeq += 1
+    p = path.join(P.texts, `text_${ts}_${String(txtSeq).padStart(2, '0')}${ext}`)
   } while (fs.existsSync(p))
   return p
 }
@@ -2235,6 +2251,7 @@ function registerIpc() {
     paths: {
       homeDir: P.home,
       imagesDir: P.images,
+      textsDir: P.texts,
       tasksFile: P.tasksFile,
       dataFile: P.dataFile,
       magazinesDir: P.magazinesDir,
@@ -2265,6 +2282,9 @@ function registerIpc() {
       }
       if (fs.existsSync(P.images)) {
         fs.cpSync(P.images, path.join(dir, 'images'), { recursive: true, force: false, errorOnExist: false })
+      }
+      if (fs.existsSync(P.texts)) {
+        fs.cpSync(P.texts, path.join(dir, 'texts'), { recursive: true, force: false, errorOnExist: false })
       }
       // 写入固定位置的配置，重启后生效
       fs.mkdirSync(CONFIG_DIR, { recursive: true })
@@ -2329,6 +2349,52 @@ function registerIpc() {
   })
 
   ipcMain.handle('pm:save-clipboard-images', () => saveClipboardImages())
+
+  /* 粘贴长文本自动转 .txt 落盘（texts 目录，本地保存，无需手动另存） */
+  ipcMain.handle('pm:save-text-as-file', (_e, text, ext) => {
+    try {
+      const content = String(text || '')
+      if (!content) return { ok: false, error: 'empty text' }
+      const safeExt = /^\.[a-z0-9]{1,8}$/i.test(String(ext || '')) ? String(ext) : '.txt'
+      ensureDirs()
+      const p = uniqueTextPath(safeExt)
+      fs.writeFileSync(p, content, 'utf8')
+      log(tLog('[Texts] 长文本已自动落盘:', '[Texts] Long text auto-saved:'), p, `(${content.length} chars)`)
+      return { ok: true, path: p, name: path.basename(p), chars: content.length }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  /* 测试账号密码：系统级加密存储（Windows DPAPI），不可用时回退前缀标记明文 */
+  ipcMain.handle('pm:encrypt-text', (_e, text) => {
+    try {
+      const s = String(text || '')
+      if (safeStorage && safeStorage.isEncryptionAvailable()) {
+        return { ok: true, encrypted: true, enc: 'enc:' + safeStorage.encryptString(s).toString('base64') }
+      }
+      return { ok: true, encrypted: false, enc: 'plain:' + s }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('pm:decrypt-text', (_e, stored) => {
+    try {
+      const s = String(stored || '')
+      if (s.startsWith('enc:')) {
+        if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
+          return { ok: false, error: 'safeStorage unavailable' }
+        }
+        return { ok: true, text: safeStorage.decryptString(Buffer.from(s.slice(4), 'base64')) }
+      }
+      if (s.startsWith('plain:')) return { ok: true, text: s.slice(6) }
+      // 兼容历史明文记录
+      return { ok: true, text: s }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
 
   /* 本地图片文件选择器 */
   ipcMain.handle('pm:choose-image-files', async () => {

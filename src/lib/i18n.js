@@ -33,7 +33,9 @@ export const messages = {
       closeWindow: '关闭窗口',
       closeWindowWithKey: '关闭窗口 ({key} 重新呼出)',
       relayActive: 'Agent 自动接力已开启',
-      switchLang: '切换语言 / Language'
+      switchLang: '切换语言 / Language',
+      accounts: '测试账号密码速记（一键复制）',
+      backToQueue: '返回提示词队列'
     },
     composer: {
       placeholder: '输入关键词与提示词… 提示：先输入文字，选中某一段关键词后按 Ctrl+V 贴图，即可将图片与该词强关联并在框内随时修改',
@@ -71,6 +73,31 @@ export const messages = {
     tabs: {
       history: '历史提示词',
       snippets: '收藏弹夹'
+    },
+    accounts: {
+      title: '测试账号密码',
+      addBtn: '＋ 新增账号',
+      fieldTitle: '名称 / 备注',
+      titlePlaceholder: '如：测试环境后台管理员',
+      fieldUsername: '账号',
+      usernamePlaceholder: '手机号 / 邮箱 / 用户名',
+      fieldPassword: '密码',
+      passwordPlaceholder: '输入密码（落盘前系统级加密）',
+      usernameShort: '账号',
+      passwordShort: '密码',
+      copyUsername: '复制账号',
+      copyPassword: '复制密码',
+      showPassword: '显示密码原文（10 秒后自动隐藏）',
+      hidePassword: '隐藏密码',
+      encryptedTag: '🔒 已加密存储',
+      plainTag: '⚠️ 明文存储（系统加密不可用）',
+      encHint: '密码将加密保存在本机 data.json',
+      confirmDelete: '确定删除账号「{title}」吗？',
+      deleted: '已删除账号',
+      needInput: '请至少填写账号或密码',
+      empty: '还没有记录任何账号',
+      emptyHint: '点击右上角「＋ 新增账号」记录测试凭据，随时一键复制',
+      storageHint: '说明：密码使用系统级加密（safeStorage / Windows DPAPI）后存于本机 data.json，界面默认掩码显示，原文显示 10 秒后自动恢复掩码。'
     },
     queue: {
       title: '提示词队列',
@@ -159,6 +186,12 @@ export const messages = {
       langEn: 'English',
             windowScaleModeTitle: '窗口缩放基准（默认形态）',
       windowScaleModeDesc: '选择窗口启动、呼出及缩放时的基准呈现形态：',
+      autoTxtTitle: '粘贴长文本自动转 TXT',
+      autoTxtDesc: '在输入框粘贴超过阈值的纯文本时，自动保存为 .txt 文件（存于数据目录 texts/），正文仅留 [文件: 文件名] 锚点，复制编译时自动展开为完整本地路径。',
+      autoTxtOn: '开启',
+      autoTxtOff: '关闭',
+      autoTxtThresholdTitle: '触发阈值（字符数），超过即自动转为 .txt',
+      autoTxtUnit: '字符',
       windowScaleQuick: '默认缩放为悬浮窗',
       windowScaleQuickShort: '轻量悬浮面板 (推荐)',
       windowScaleQuickDesc: '紧凑悬浮窗，不遮挡屏幕与终端代码',
@@ -407,7 +440,9 @@ export const messages = {
       closeWindow: 'Close window',
       closeWindowWithKey: 'Close window ({key} to reopen)',
       relayActive: 'Agent auto-relay is active',
-      switchLang: 'Language / 语言切换'
+      switchLang: 'Language / 语言切换',
+      accounts: 'Test account & password quick notes',
+      backToQueue: 'Back to prompt queue'
     },
     composer: {
       placeholder: 'Enter keywords & prompt… Tip: type text first, select keywords and press Ctrl+V to strongly bind image with text',
@@ -445,6 +480,31 @@ export const messages = {
     tabs: {
       history: 'Prompt History',
       snippets: 'Favorites Magazine'
+    },
+    accounts: {
+      title: 'Test Accounts & Passwords',
+      addBtn: '＋ Add Account',
+      fieldTitle: 'Name / Note',
+      titlePlaceholder: 'e.g. Admin of test environment',
+      fieldUsername: 'Username',
+      usernamePlaceholder: 'Phone / Email / Username',
+      fieldPassword: 'Password',
+      passwordPlaceholder: 'Enter password (encrypted before saving)',
+      usernameShort: 'User',
+      passwordShort: 'Pass',
+      copyUsername: 'Copy username',
+      copyPassword: 'Copy password',
+      showPassword: 'Reveal password (auto-hide in 10s)',
+      hidePassword: 'Hide password',
+      encryptedTag: '🔒 Encrypted at rest',
+      plainTag: '⚠️ Stored as plain text (system encryption unavailable)',
+      encHint: 'Password will be encrypted and saved in local data.json',
+      confirmDelete: 'Delete account "{title}"?',
+      deleted: 'Account deleted',
+      needInput: 'Please fill in at least username or password',
+      empty: 'No accounts recorded yet',
+      emptyHint: 'Click "＋ Add Account" to store test credentials for one-click copy',
+      storageHint: 'Note: passwords are encrypted with system-level safeStorage (Windows DPAPI) before being saved to local data.json. Masked by default; plaintext reveal auto-hides after 10 seconds.'
     },
     queue: {
       title: 'Prompt Queue',
@@ -533,6 +593,12 @@ export const messages = {
       langEn: 'English',
       windowScaleModeTitle: 'Window Scaling Baseline (Default Mode)',
       windowScaleModeDesc: 'Select baseline presentation mode for window startup, summon, and scaling:',
+      autoTxtTitle: 'Auto-convert pasted long text to TXT',
+      autoTxtDesc: 'When plain text longer than the threshold is pasted into the input box, it is automatically saved as a .txt file (under texts/ in the data directory); the body keeps only a [File: name.txt] anchor, expanded to the full local path when compiled.',
+      autoTxtOn: 'On',
+      autoTxtOff: 'Off',
+      autoTxtThresholdTitle: 'Threshold (characters) to trigger auto conversion',
+      autoTxtUnit: 'chars',
       windowScaleQuick: 'Default to Floating Window',
       windowScaleQuickShort: 'Lightweight Floating Panel (Recommended)',
       windowScaleQuickDesc: 'Compact floating window that never covers code or terminal',

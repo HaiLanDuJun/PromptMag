@@ -12,7 +12,7 @@ import {
   getMagazineAutoCleanup, setMagazineAutoCleanup,
   setSaveTargetMode, setWindowScaleMode, setHideTaskbar, checkForUpdates, openUpdateModal,
   ignoreUpdateVersion, unignoreUpdateVersion, openUpdateUrl, t, currentLocale,
-  setMode, toast, directDownloadLatest
+  setMode, toast, directDownloadLatest, setMainView
 } from '../lib/store'
 import HotkeyInput from './HotkeyInput.vue'
 
@@ -146,6 +146,18 @@ function toggleLang() {
         >
       </label>
 
+      <!-- 测试账号密码 -->
+      <button
+        class="icon-btn"
+        :class="{ active: state.mainView === 'accounts' }"
+        :title="state.mainView === 'accounts' ? t('titleBar.backToQueue') : t('titleBar.accounts')"
+        @click.stop="setMainView(state.mainView === 'accounts' ? 'queue' : 'accounts')"
+      >
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      </button>
+
       <!-- 设置 -->
       <button
         class="icon-btn relative"
@@ -243,6 +255,42 @@ function toggleLang() {
             >
               {{ t('settings.langEn') }}
             </button>
+          </div>
+        </div>
+
+        <!-- 长文本粘贴自动转 TXT -->
+        <div>
+          <div class="settings-label">{{ t('settings.autoTxtTitle') }}</div>
+          <div class="text-[10px] text-slate-400 mb-1.5 leading-snug">{{ t('settings.autoTxtDesc') }}</div>
+          <div class="flex items-center gap-2">
+            <button
+              class="btn flex-1 !py-1 text-xs"
+              :class="state.settings.autoTxtEnabled !== false ? 'btn-primary' : ''"
+              @click="state.settings.autoTxtEnabled = true"
+            >
+              {{ t('settings.autoTxtOn') }}
+            </button>
+            <button
+              class="btn flex-1 !py-1 text-xs"
+              :class="state.settings.autoTxtEnabled === false ? 'btn-primary' : ''"
+              @click="state.settings.autoTxtEnabled = false"
+            >
+              {{ t('settings.autoTxtOff') }}
+            </button>
+            <label
+              class="flex items-center gap-1 shrink-0 text-[10px] text-slate-400"
+              :title="t('settings.autoTxtThresholdTitle')"
+            >
+              <input
+                type="number"
+                min="100"
+                step="100"
+                class="w-16 rounded-lg bg-slate-800/80 border border-slate-700/70 px-1.5 py-1 text-xs text-slate-200 outline-none focus:border-sky-400/60 transition-colors"
+                :value="state.settings.autoTxtChars"
+                @change="state.settings.autoTxtChars = Math.max(100, Number($event.target.value) || 1000)"
+              >
+              {{ t('settings.autoTxtUnit') }}
+            </label>
           </div>
         </div>
 

@@ -14,6 +14,13 @@ const api = {
   /* 剪贴板图片落盘 */
   saveClipboardImages: () => ipcRenderer.invoke('pm:save-clipboard-images'),
 
+  /* 粘贴长文本自动转 .txt 落盘（返回 {ok, path, name, chars}） */
+  saveTextAsFile: (text, ext) => ipcRenderer.invoke('pm:save-text-as-file', text, ext),
+
+  /* 测试账号密码：系统级加密/解密（safeStorage） */
+  encryptText: (text) => ipcRenderer.invoke('pm:encrypt-text', text),
+  decryptText: (stored) => ipcRenderer.invoke('pm:decrypt-text', stored),
+
   /* 本地图片文件选择器 */
   chooseImageFiles: () => ipcRenderer.invoke('pm:choose-image-files'),
 
