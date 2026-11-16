@@ -100,6 +100,19 @@ async function onPasteAccount(acc, type = 'password') {
   }
 }
 
+/** 一键填充登录：账号 → Tab → 密码 自动打进前台窗口（不支持时降级为仅填密码） */
+async function onFillAccount(acc) {
+  if (!acc) return
+  const pass = await revealPassword(acc)
+  const user = acc.username || ''
+  if (window.pm && window.pm.fillLogin) {
+    const r = await window.pm.fillLogin(user, pass)
+    if (r && r.ok) return
+  }
+  // 降级：无 fillLogin 能力时仅填密码
+  if (pass) await window.pm.pasteSnippetAtCursor(pass)
+}
+
 function onClose() {
   window.pm.closeSnippetPicker()
 }
@@ -134,8 +147,15 @@ function onKeydown(e) {
     const item = list[activeIndex.value]
     if (activeTab.value === 'snippets') {
       onSelectSnippet(item)
+    } else if (e.shiftKey) {
+      // Shift+Enter：仅填入账号
+      onPasteAccount(item, 'username')
+    } else if (e.ctrlKey || e.metaKey) {
+      // Ctrl+Enter：仅填入密码
+      onPasteAccount(item, 'password')
     } else {
-      onPasteAccount(item, e.shiftKey ? 'username' : 'password')
+      // Enter：一键填充（账号 → Tab → 密码）
+      onFillAccount(item)
     }
   } else if (e.key === ' ' && activeTab.value === 'accounts' && (!searchQuery.value || e.ctrlKey)) {
     // 空格键快速显隐密码（搜索框为空或按 Ctrl+Space 时生效）
@@ -152,8 +172,10 @@ function onKeydown(e) {
       e.preventDefault()
       if (activeTab.value === 'snippets') {
         onSelectSnippet(list[num])
+      } else if (e.shiftKey) {
+        onPasteAccount(list[num], 'username')
       } else {
-        onPasteAccount(list[num], e.shiftKey ? 'username' : 'password')
+        onFillAccount(list[num])
       }
     }
   }
@@ -318,21 +340,21 @@ onMounted(async () => {
           <p v-if="!searchQuery" class="text-[10px] text-slate-500 mt-1">{{ t('snippetPicker.emptyAccountsHint') }}</p>
         </div>
 
-        <!-- 账号条目 -->
+        <!-- 账号条目：点击 = 一键填充（账号 → Tab → 密码） -->
         <div
           v-for="(acc, idx) in filteredAccounts"
           :key="acc.id"
           class="picker-item picker-account-item group"
           :class="{ active: idx === activeIndex }"
           :data-idx="idx"
-          @click="onPasteAccount(acc, 'password')"
+          @click="onFillAccount(acc)"
           @mouseenter="activeIndex = idx"
         >
           <!-- 序号 / 数字快捷键角标 -->
           <span
             class="picker-num-badge shrink-0"
             :class="idx < 9 && !searchQuery ? 'is-shortcut' : ''"
-            :title="idx < 9 && !searchQuery ? (currentLocale === 'en' ? `Press ${idx + 1} for password, Shift+${idx + 1} for username` : `按数字键 ${idx + 1} 填入密码，Shift+${idx + 1} 填入账号`) : ''"
+            :title="idx < 9 && !searchQuery ? (currentLocale === 'en' ? `Press ${idx + 1} to auto-fill, Shift+${idx + 1} for username only` : `按数字键 ${idx + 1} 一键填充，Shift+${idx + 1} 仅填账号`) : ''"
           >
             {{ idx + 1 }}
           </span>
@@ -376,6 +398,14 @@ onMounted(async () => {
           <!-- 右侧快速选择/填入按钮 -->
           <div class="flex items-center gap-1 shrink-0 self-center">
             <button
+              v-if="acc.username && acc.password"
+              class="picker-sub-btn !text-sky-300 !border-sky-400/50 hover:!bg-sky-500/20"
+              :title="t('snippetPicker.fillBoth')"
+              @click.stop="onFillAccount(acc)"
+            >
+              {{ t('snippetPicker.fillBothShort') }}
+            </button>
+            <button
               v-if="acc.username"
               class="picker-sub-btn hover:!border-sky-400 hover:!text-sky-300"
               :title="t('snippetPicker.pasteUsername') + ' (Shift+Enter)'"
@@ -386,7 +416,7 @@ onMounted(async () => {
             <button
               v-if="acc.password"
               class="picker-sub-btn hover:!border-amber-400 hover:!text-amber-300"
-              :title="t('snippetPicker.pastePassword') + ' (Enter)'"
+              :title="t('snippetPicker.pastePassword') + ' (Ctrl+Enter)'"
               @click.stop="onPasteAccount(acc, 'password')"
             >
               {{ t('accounts.passwordShort') }}
@@ -406,8 +436,9 @@ onMounted(async () => {
         <span><kbd class="picker-kbd">Esc</kbd> {{ currentLocale === 'en' ? 'Close' : '关闭' }}</span>
       </div>
       <div v-else class="flex items-center gap-2">
-        <span><kbd class="picker-kbd">Enter</kbd> {{ t('snippetPicker.pastePassword') }}</span>
+        <span><kbd class="picker-kbd">Enter</kbd> {{ t('snippetPicker.fillBothShort') }}</span>
         <span><kbd class="picker-kbd">⇧Enter</kbd> {{ t('snippetPicker.pasteUsername') }}</span>
+        <span><kbd class="picker-kbd">⌃Enter</kbd> {{ t('snippetPicker.pastePassword') }}</span>
         <span><kbd class="picker-kbd">Space</kbd> {{ currentLocale === 'en' ? 'Reveal' : '显隐' }}</span>
         <span><kbd class="picker-kbd">Tab</kbd> {{ t('snippetPicker.switchTabHint') }}</span>
         <span><kbd class="picker-kbd">Esc</kbd> {{ currentLocale === 'en' ? 'Close' : '关闭' }}</span>

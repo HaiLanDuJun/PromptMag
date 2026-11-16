@@ -56,6 +56,20 @@ function onDelete(acc) {
   toast(t('accounts.deleted'))
 }
 
+/** 一键填充登录：账号 → Tab → 密码 自动打进前台窗口光标处 */
+async function fillAccount(acc) {
+  const pass = await revealPassword(acc)
+  const user = acc.username || ''
+  if (window.pm && window.pm.fillLogin) {
+    const r = await window.pm.fillLogin(user, pass)
+    if (r && r.ok) {
+      toast(currentLocale.value === 'en' ? 'Auto-filled to foreground window' : '已一键填充到前台窗口')
+      return
+    }
+  }
+  toast(currentLocale.value === 'en' ? 'Auto-fill unavailable, use copy instead' : '当前环境不支持一键填充，请使用复制')
+}
+
 function encTag(acc) {
   return isPasswordEncrypted(acc)
     ? t('accounts.encryptedTag')
@@ -140,11 +154,21 @@ function encTag(acc) {
           <div class="text-xs font-semibold text-slate-200 truncate">{{ acc.title }}</div>
           <div class="text-[9.5px] text-slate-500 mt-0.5">{{ encTag(acc) }}</div>
         </div>
-        <button class="icon-btn hover:!text-rose-400 shrink-0" :title="t('common.delete')" @click="onDelete(acc)">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            v-if="acc.username && acc.password"
+            class="btn !py-1 !px-2.5 !text-sky-300 !border-sky-400/40 hover:!bg-sky-500/15 shrink-0"
+            :title="t('snippetPicker.fillBoth')"
+            @click="fillAccount(acc)"
+          >
+            ⇥ {{ t('snippetPicker.fillBothShort') }}
+          </button>
+          <button class="icon-btn hover:!text-rose-400 shrink-0" :title="t('common.delete')" @click="onDelete(acc)">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- 账号行 -->

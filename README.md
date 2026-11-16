@@ -10,12 +10,12 @@ CLI 提示词弹夹。为 Claude Code / Codex / AGY 等 CLI 编码 Agent 设计�
 
 ## 中文
 
-### 下载（v1.9.26，Windows x64，开箱即用）
+### 下载（v1.9.27，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.26.exe`](/installer/PromptMag-Portable-1.9.26.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.26.exe`](/installer/PromptMag-Setup-1.9.26.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.27.exe`](/installer/PromptMag-Portable-1.9.27.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.27.exe`](/installer/PromptMag-Setup-1.9.27.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -35,6 +35,10 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
   - **单写多读锁机制**：文件修改类任务同一时刻仅限一个 Agent 独占（写锁保护），读取类任务支持多 Agent 并发；写锁释放后自动触发接力交接；
   - **三态流转（pending → doing → done）**：清晰呈现任务正在被谁执行（Claude、AGY、Codex 等），执行完成后自动记录「谁解决的」与「解决方案」，无缝开启下一棒；
   - **一键复制接力启动提示词**：为每个项目弹夹一键生成量身定制的 Agent 启动指令，完美适配 Claude `loop` 等持续工作机制。
+- **测试账号专属独立弹窗与一键自动填充登录（v1.9.27）**：
+  - **像收藏夹一样随时弹出**：新增全局独立快捷键（默认 `Alt+Z`，设置面板可自定义），在任意外部应用（浏览器/终端/VS Code等）随时呼出账号弹窗；专属弹窗完美融合「⭐ 常用收藏」与「🔐 账号密码」双 Tab，支持按 Tab 键极速互切；
+  - **一键填充登录（账号 → Tab → 密码）**：在弹窗中按 Enter 或点击「填充」，自动先模拟输入账号，接着自动按下 Tab 键跳入密码框并填入密码，一气呵成完成表单登录！操作完成后自动还原用户剪贴板，不留密码痕迹；
+  - **全键盘极速取用与快捷切换**：按 Shift+Enter 仅填账号，按 Ctrl+Enter 仅填密码，空格键显隐密码（10 秒自动恢复掩码防窥屏），数字键 1-9 极速直达；主窗口内支持 `Alt+Z` / `Ctrl+Shift+A` 快速切换视图，面板新增「⧉ 弹出面板」按钮。
 - **长文本粘贴自动转存 TXT 与测试账号密码速记管理（v1.9.26）**：
   - **长文本自动落盘**：输入框粘贴长文本（默认 ≥ 1000 字符或多行）自动转为 `texts/text_<时间戳>_<序号>.txt` 本地文件，正文仅留 `[文件: 文件名.txt]` 短锚点，复制编译时自动展开为绝对路径供 Agent 直接读取；设置中可调整阈值或关闭；
   - **测试账号密码速记**：顶栏 🔒 按钮切换账号面板，密码经 safeStorage（Windows DPAPI）加密后存入 `data.json`；默认掩码显示，支持 10 秒防窥原文切换与账号/密码一键复制；
@@ -208,10 +212,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 ## English
 
-### Download (v1.9.26, Windows x64)
+### Download (v1.9.27, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.26.exe`](/installer/PromptMag-Portable-1.9.26.exe) — no install needed, portable mode
-- Installer: [`installer/PromptMag-Setup-1.9.26.exe`](/installer/PromptMag-Setup-1.9.26.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.27.exe`](/installer/PromptMag-Portable-1.9.27.exe) — no install needed, portable mode
+- Installer: [`installer/PromptMag-Setup-1.9.27.exe`](/installer/PromptMag-Setup-1.9.27.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases). Default hotkey to summon the window: `Alt+Q`.
 
@@ -231,6 +235,10 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
   - **Single-Writer Multi-Reader Lock**: File modification tasks are strictly locked by one agent (e.g. Claude Code), while other agents (like AGY) wait or read;
   - **Three-State Workflow (pending → doing → done)**: Tracks which agent claimed the task, records resolution details upon completion, and unlocks the next task;
   - **Relay Startup Prompt Generator**: One-click generation of tailored instructions for agents, fully compatible with continuous loop execution.
+- **Test Credentials Popup & One-Click Auto-Fill Login (v1.9.27)**:
+  - **Pop Up Anywhere Like Favorites**: Dedicated global hotkey `Alt+Z` (customizable in Settings) to summon the test credentials popup at cursor from any external app (browser, terminal, VS Code, etc.). Unified dual-tab picker seamlessly toggling between ⭐ Favorites and 🔐 Credentials via Tab;
+  - **One-Click Auto-Fill (Username → Tab → Password)**: Pressing Enter or clicking "Fill" simulates entering the username, pressing Tab to jump into password field, and pasting the decrypted password in one smooth sequence! Restores original clipboard upon completion so passwords never linger;
+  - **Full-Keyboard Workflow & Quick Actions**: Shift+Enter to paste username only, Ctrl+Enter to paste password only, Space to reveal password with 10s auto-remasking, and 1-9 shortcuts; in main window, press `Alt+Z` or `Ctrl+Shift+A` to toggle views.
 - **Auto-Save Pasted Long Text to TXT & Test Credentials Manager (v1.9.26)**:
   - **Long Text Auto-TXT**: Plain text exceeding the threshold (default 1000 characters) pasted into the input box is automatically saved locally under `texts/text_<timestamp>_<seq>.txt`. Body retains a clean `[File: xxx.txt]` anchor, expanded to the full absolute path upon compilation for CLI agents to read directly;
   - **Test Credentials Recorder**: TitleBar 🔒 toggle opens the test account panel. Passwords are saved with system-level DPAPI encryption via Electron safeStorage in `data.json`. Default `••••••••` masking with 10s auto-remasking countdown, plus 1-click copy for usernames and passwords;

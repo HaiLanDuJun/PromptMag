@@ -129,6 +129,8 @@ const api = {
   },
   /* 将剪贴板内容直接粘贴到前台窗口光标处 */
   pasteToForeground: (hwnd) => ipcRenderer.invoke('pm:paste-to-foreground', hwnd),
+  /* 一键填充登录：账号 → Tab → 密码 自动打进前台窗口光标处 */
+  fillLogin: (username, password) => ipcRenderer.invoke('pm:fill-login', username, password),
   /* 全局快捷键：收录选中文字到词库 */
   onHotkeyCollected: (cb) => {
     const h = (_e, payload) => cb(payload || {})

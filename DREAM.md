@@ -101,7 +101,11 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
 - [x] **Update state full-window lock & anti-shrink freeze prevention (v1.9.25)**: strictly locked the window to full-workspace mode during update checking, modal interaction, and downloading; suppressed edge-tucking, window blurring collapse, and scale-mode shrinking into capsule/quick panels to completely eliminate trapped/frozen capsule UI; preserved full cancel/close capabilities and safely restored previous window scale mode upon dismissal.
 - [x] **Auto-save pasted long text to TXT & secure test credentials manager (v1.9.26)**:
   - **Pasted Long Text Auto-TXT**: When pasting long plain text exceeding the threshold (default 1000 characters, configurable in Settings), it automatically saves locally to `~/.prompt-mag/texts/text_<timestamp>_<seq>.txt`. The prompt retains only a clean `[File: xxx.txt]` anchor, which automatically expands to the absolute local path upon compilation for CLI agents to read directly. Anchors seamlessly persist across task saving, editing, clearing, and copying; the `texts/` directory is migrated along when the data directory moves.
-  - **Test Credentials Quick-Recorder & Popup Launcher**: New 🔒 button in TitleBar and global hotkey `Alt+Z` (customizable in Settings) allow toggling and popping up credentials anywhere just like the Favorites Magazine. Passwords are saved with system-level DPAPI encryption via Electron `safeStorage` in `data.json`. The popup features quick Tab switching between Favorites and Credentials, Enter to paste password, Shift+Enter to paste username, Space to reveal with 10s auto-remasking, and 1-9 number shortcuts.
+  - **Test Credentials Quick-Recorder**: New 🔒 button in TitleBar toggles the "Test Accounts & Passwords" panel. Passwords are saved with system-level DPAPI encryption via Electron `safeStorage` in `data.json` (falling back to marked plaintext if unavailable). Features default `••••••••` masking with a 10-second auto-remasking countdown, plus one-click copying for usernames and passwords.
+- [x] **Test Credentials Popup & One-Click Auto-Fill Login (v1.9.27)**:
+  - **Pop Up Anywhere Like Favorites**: Dedicated global hotkey `Alt+Z` (customizable in Settings) to summon the test credentials popup at cursor from any external app (browser, terminal, VS Code, etc.). Unified dual-tab picker seamlessly toggling between ⭐ Favorites and 🔐 Credentials via <kbd>Tab</kbd>;
+  - **One-Click Auto-Fill (Username → Tab → Password)**: Pressing <kbd>Enter</kbd> or clicking "Fill" simulates entering the username, pressing <kbd>Tab</kbd> to jump into password field, and pasting the decrypted password in one smooth sequence! Restores original clipboard upon completion so passwords never linger;
+  - **Full-Keyboard Workflow & Quick Actions**: <kbd>Shift+Enter</kbd> to paste username only, <kbd>Ctrl+Enter</kbd> to paste password only, <kbd>Space</kbd> to reveal password with 10s auto-remasking, and 1-9 shortcuts; in main window, press `Alt+Z` or `Ctrl+Shift+A` to toggle views.
 - [x] **Daily log rotation with 7-day retention & latest log view (v1.9.24)**: upgraded runtime diagnostic logging from a single file to daily rolling logs (`logs/main-YYYY-MM-DD.log`), auto-purging logs older than 7 days on startup and midnight transitions; clicking "View Latest Log" opens the most recent log file with dedicated "Open Logs Folder" support.
 
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
@@ -208,7 +212,11 @@ May this little floating window catch every flash of brilliance you have — and
 - [x] **运行日志每日单文件轮转与最多保留7天生命周期管理（v1.9.24）**：将运行诊断日志全面升级为按自然日独立归档（`logs/main-YYYY-MM-DD.log`），启动与换日时自动清理超出 7 天的历史日志，杜绝无限膨胀；点击「查看最新运行日志」智能定位并打开当前最新生成的日志，设置面板新增「打开日志目录」一键查看最近 7 天完整记录。
 - [x] **长文本粘贴自动转存 TXT 与测试账号密码速记管理（v1.9.26）**：
   - **长文本粘贴自动落盘**：在输入框粘贴超过阈值（默认 1000 字符，支持在设置自定义字符数与关闭）的纯文本时，自动保存至本地 `~/.prompt-mag/texts/text_<时间戳>_<序号>.txt`，正文仅留 `[文件: 文件名.txt]` 短锚点，复制编译时自动展开为包含本地绝对路径的完整标注，CLI Agent 可直接秒读大文本；文件锚点随任务保存、编辑回填、清空与短锚点还原全链路流转，数据目录迁移时 `texts/` 一并迁移。
-  - **测试账号密码速记与专属弹窗呼出**：顶栏新增 🔒 按钮一键切换「测试账号密码」面板（支持快捷键 `Alt+Z` / `Ctrl+Shift+A` 快速切换）；密码保存前经 Electron safeStorage（Windows DPAPI）系统级加密；**像收藏夹一样随时弹出**：新增专属全局快捷键（默认 `Alt+Z`，设置面板可自定义），在任意外部应用（浏览器/终端/VS Code等）随时呼出账号弹窗并自动填入光标处；弹窗支持 `Tab` 键在「常用收藏」与「账号密码」之间极速互切，回车直接填入密码，`Shift+Enter` 填入账号，空格键显隐明文（10 秒自动恢复掩码防窥）。
+  - **测试账号密码速记**：顶栏新增 🔒 按钮一键切换「测试账号密码」面板（与提示词队列互切）；密码保存前经 Electron safeStorage（Windows DPAPI）系统级加密后写入本机 `data.json`（不可用时回退明文标记）；默认 `••••••••` 掩码显示，点眼睛图标查看原文并在 10 秒后自动恢复掩码防窥屏；账号、密码均支持一键复制，删除带二次确认。
+- [x] **测试账号专属独立弹窗与一键自动填充登录（v1.9.27）**：
+  - **像收藏夹一样随时弹出**：新增全局独立快捷键（默认 `Alt+Z`，设置面板可自定义），在任意外部应用（浏览器/终端/VS Code等）随时呼出账号弹窗；专属弹窗完美融合「⭐ 常用收藏」与「🔐 账号密码」双 Tab，支持按 <kbd>Tab</kbd> 键极速互切；
+  - **一键填充登录（账号 → Tab → 密码）**：在弹窗中按 <kbd>Enter</kbd> 或点击「填充」，自动先模拟输入账号，接着自动按下 Tab 键跳入密码框并填入密码，一气呵成完成表单登录！操作完成后自动还原用户剪贴板，不留密码痕迹；
+  - **全键盘极速取用与快捷切换**：按 <kbd>Shift+Enter</kbd> 仅填账号，按 <kbd>Ctrl+Enter</kbd> 仅填密码，空格键显隐密码（10 秒自动恢复掩码防窥屏），数字键 1-9 极速直达；主窗口内支持 `Alt+Z` / `Ctrl+Shift+A` 快速切换视图，面板新增「⧉ 弹出面板」按钮。
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 

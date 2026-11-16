@@ -158,6 +158,8 @@ export const messages = {
       selectToInsert: '回车或点击直接填入到光标处',
       pastePassword: '填入密码',
       pasteUsername: '填入账号',
+      fillBoth: '一键填充：账号 → Tab → 密码 自动打进登录框',
+      fillBothShort: '填充',
       switchTabHint: 'Tab 切换分类'
     },
     quickPanel: {
@@ -579,6 +581,8 @@ export const messages = {
       selectToInsert: 'Click or press Enter to insert at cursor',
       pastePassword: 'Paste password',
       pasteUsername: 'Paste username',
+      fillBoth: 'Auto-fill: username → Tab → password into the login form',
+      fillBothShort: 'Fill',
       switchTabHint: 'Switch Tab'
     },
     quickPanel: {

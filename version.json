@@ -1,17 +1,17 @@
 {
-  "version": "1.9.26",
-  "tagName": "v1.9.26",
-  "name": "PromptMag v1.9.26",
-  "publishedAt": "2026-11-16T11:00:00+08:00",
-  "body": "### PromptMag v1.9.26 更新说明\n\n1. 【粘贴长文本自动转存 TXT】在输入框粘贴长文本（默认 ≥ 1000 字符或多行）时，自动保存至本地 ~/.prompt-mag/texts/ 目录，正文仅留 [文件: xxx.txt] 短锚点防撑爆输入框；复制编译时自动展开为含本地绝对路径的完整标注，CLI Agent（Claude Code / Antigravity 等）可直接秒读本地文件；设置中支持开关与阈值调整；\n2. 【测试账号密码速记面板】标题栏新增 🔒 按钮切换测试账号面板；密码经 Electron safeStorage（Windows DPAPI）系统级加密落盘于本机 data.json；默认掩码显示，点眼睛显示原文（10秒后自动恢复掩码防窥屏）；账号/密码均支持一键复制，删除带二次确认；\n3. 【全链路流转与数据迁移】文件锚点随任务保存、编辑回填、清空与反编译还原完整流转；数据目录自定义迁移时 texts/ 目录一并安全迁移。",
+  "version": "1.9.27",
+  "tagName": "v1.9.27",
+  "name": "PromptMag v1.9.27: 测试账号密码速记专属弹窗与一键自动填充登录",
+  "publishedAt": "2026-11-16T14:10:00+08:00",
+  "body": "### PromptMag v1.9.27 更新说明\n\n1. 【像收藏夹一样弹出测试账号】新增全局独立快捷键（默认 Alt+Z，设置中可自由配置），在任意外部应用（浏览器/终端/VS Code等）随时一键呼出测试账号独立弹窗；专属弹窗完美融合「⭐ 常用收藏」与「🔐 账号密码」双 Tab，按 Tab 键极速互切；\n2. 【一键填充登录（账号 → Tab → 密码）】在弹窗中按 Enter 或点击「填充」，自动先模拟输入账号，接着自动按下 Tab 键跳入密码框并填入密码，一气呵成完成表单登录！操作完成后自动还原用户剪贴板，不留密码痕迹；\n3. 【全键盘极速取用与安全防窥】按 Shift+Enter 仅填账号，按 Ctrl+Enter 仅填密码，空格键显隐密码（10 秒自动恢复掩码防窥屏），数字键 1-9 极速直达；主窗口内支持 Alt+Z / Ctrl+Shift+A 快速切换视图，面板新增「⧉ 弹出面板」按钮。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.26.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.26/PromptMag-Portable-1.9.26.exe"
+      "name": "PromptMag-Portable-1.9.27.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.27/PromptMag-Portable-1.9.27.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.26.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.26/PromptMag-Setup-1.9.26.exe"
+      "name": "PromptMag-Setup-1.9.27.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.27/PromptMag-Setup-1.9.27.exe"
     }
   ]
 }

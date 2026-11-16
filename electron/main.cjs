@@ -2571,6 +2571,61 @@ function registerIpc() {
     }
   })
 
+/** 模拟按下 Tab 键（VBS SendKeys 兜底），用于登录框「账号 → Tab → 密码」自动填充 */
+function sendTabKeys() {
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => { if (!done) { done = true; resolve() } }
+    try {
+      const vbs = path.join(os.tmpdir(), 'pm-sendtab.vbs')
+      fs.writeFileSync(vbs, 'CreateObject("WScript.Shell").SendKeys "{TAB}"', 'utf8')
+      const p = spawn('wscript.exe', ['//nologo', '//B', vbs], { windowsHide: true, stdio: 'ignore' })
+      p.on('exit', finish)
+      p.on('error', finish)
+    } catch { finish() }
+    setTimeout(finish, 800)
+  })
+}
+
+/* 一键填充登录：账号 → Tab → 密码 自动打进前台窗口光标处（完成后还原剪贴板，不留密码） */
+ipcMain.handle('pm:fill-login', async (_e, username, password) => {
+  try {
+    const user = String(username || '')
+    const pass = String(password || '')
+    if (!user && !pass) return { ok: false, error: 'empty' }
+    log(tLog('[Accounts] 一键填充登录:', '[Accounts] Auto-fill login:'), user ? '账号 ✓' : '账号 ✗', pass ? '密码 ✓' : '密码 ✗')
+    const snap = snapshotClipboard()
+    try {
+      if (snippetWindow && !snippetWindow.isDestroyed()) snippetWindow.hide()
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) mainWindow.hide()
+      await sleep(120)
+      if (user) {
+        clipboard.writeText(user)
+        await sleep(80)
+        await sendPasteKeys('0')
+        await sleep(500)
+      }
+      if (user && pass) {
+        await sendTabKeys()
+        await sleep(350)
+      }
+      if (pass) {
+        clipboard.writeText(pass)
+        await sleep(80)
+        await sendPasteKeys('0')
+        await sleep(150)
+      }
+    } finally {
+      // 粘贴完成并确认送达后还原用户原剪贴板内容（密码不留在剪贴板）
+      setTimeout(() => restoreClipboard(snap), 800)
+    }
+    return { ok: true }
+  } catch (e) {
+    log('fill-login error:', e && e.message)
+    return { ok: false, error: String(e && e.message ? e.message : e) }
+  }
+})
+
   ipcMain.handle('pm:paste-to-foreground', async (_e, hwnd) => {
     try {
       log('paste-to-foreground to hwnd:', hwnd)
