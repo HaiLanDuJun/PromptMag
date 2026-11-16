@@ -11,7 +11,7 @@ import ImagePreviewModal from './components/ImagePreviewModal.vue'
 import MagazinePickerModal from './components/MagazinePickerModal.vue'
 import RelayStartupModal from './components/RelayStartupModal.vue'
 import UpdateModal from './components/UpdateModal.vue'
-import { state, initStore, bindExternalEvents, setMode, bindModeSync, checkForUpdates, cycleMagazine, setActiveMagazine, matchAccelerator, toast, t } from './lib/store'
+import { state, initStore, bindExternalEvents, setMode, bindModeSync, checkForUpdates, cycleMagazine, setActiveMagazine, matchAccelerator, toast, t, setMainView } from './lib/store'
 
 const isSnippetPicker = ref(window.location.hash === '#snippet-picker')
 const pendingCount = computed(() => state.queue.filter((t) => !t.done).length)
@@ -117,6 +117,16 @@ function onGlobalKeydown(e) {
       const pending = (nextMag.queue || []).filter((t) => !t.done).length
       toast(`🔫 ${nextMag.name} (${pending})`)
     }
+    return
+  }
+
+  // 快捷键切换主视图（提示词队列 / 测试账号密码速记）
+  const configuredAccounts = state.settings.hotkeyAccounts || 'Alt+Z'
+  if (matchAccelerator(e, configuredAccounts) || (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A'))) {
+    e.preventDefault()
+    e.stopPropagation()
+    setMainView(state.mainView === 'accounts' ? 'queue' : 'accounts')
+    toast(state.mainView === 'accounts' ? t('titleBar.accounts') : t('titleBar.backToQueue'))
     return
   }
 

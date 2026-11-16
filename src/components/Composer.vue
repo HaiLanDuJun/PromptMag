@@ -11,9 +11,9 @@ import {
   state, addImages, requestSaveComposer,
   copyCompiled, toast, readClipboardText, cancelEditingTask,
   openImagePreview, removeImage, clearAllImages as storeClearAllImages, imgUrl, currentLocale,
+  smartPastePlainText,
   t
 } from '../lib/store.js'
-import { parseCompiledPrompt } from '../lib/compilePrompt.js'
 import PromptEditor from './PromptEditor.vue'
 
 const promptEditor = ref(null)
@@ -44,19 +44,12 @@ async function onPickImages() {
   }
 }
 
-/* ---------- 粘贴纯文本（智能识别并还原已编译的提示词） ---------- */
+/* ---------- 粘贴纯文本（智能还原编译提示词 / 长文本自动转 .txt） ---------- */
 async function pasteText() {
   const txt = await readClipboardText()
   if (txt) {
-    const parsed = parseCompiledPrompt(txt)
-    if (parsed) {
-      if (parsed.images && parsed.images.length) {
-        state.composer.images = parsed.images
-      }
-      state.composer.text = parsed.text
-      toast(t('toast.restoredPrompt', { count: parsed.images.length }))
-      return
-    }
+    const r = await smartPastePlainText(txt, { append: true })
+    if (r.handled) return
     state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + txt
     toast(t('toast.pastedText'))
     return

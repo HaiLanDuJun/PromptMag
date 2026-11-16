@@ -73,9 +73,18 @@ function encTag(acc) {
           {{ state.accounts.length }}
         </span>
       </div>
-      <button class="btn btn-primary !py-1" @click="showForm = !showForm">
-        {{ showForm ? t('common.cancel') : t('accounts.addBtn') }}
-      </button>
+      <div class="flex items-center gap-1.5">
+        <button
+          class="btn !py-1 text-slate-300 hover:text-sky-300"
+          :title="t('accounts.openPopup') + (state.settings.hotkeyAccounts ? ` (${state.settings.hotkeyAccounts})` : '')"
+          @click="window.pm && window.pm.openSnippetPicker && window.pm.openSnippetPicker('accounts')"
+        >
+          ⧉ {{ t('accounts.popupBtn') }}
+        </button>
+        <button class="btn btn-primary !py-1" @click="showForm = !showForm">
+          {{ showForm ? t('common.cancel') : t('accounts.addBtn') }}
+        </button>
+      </div>
     </div>
 
     <!-- 新增表单 -->

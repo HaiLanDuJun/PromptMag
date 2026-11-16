@@ -8,7 +8,7 @@
  *  4. 支持框内随时修改关键词，强关联持续生效
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { state, addImages, removeImage, openImagePreview, toast, t, currentLocale } from '../lib/store'
+import { state, addImages, removeImage, openImagePreview, toast, t, currentLocale, smartPastePlainText } from '../lib/store'
 import { TOKEN_RE, parseCompiledPrompt } from '../lib/compilePrompt'
 
 const props = defineProps({
@@ -479,23 +479,8 @@ async function onPaste(e) {
     const clipboardText = (e.clipboardData ? e.clipboardData.getData('text/plain') : '').trim()
     if (clipboardText && !/\.(png|jpe?g|gif|webp|bmp)$/i.test(clipboardText) && !clipboardText.startsWith('file://')) {
       const parsed = parseCompiledPrompt(clipboardText)
-      if (!parsed) {
-        document.execCommand('insertText', false, clipboardText)
-        onInput()
-      }
-    }
-
-    toast(`已关联图片与关键词 [图${state.composer.images.length}]`)
-    return
-  }
-
-  // 纯文本粘贴（智能识别已编译的提示词结构并还原）
-  if (!isImagePaste) {
-    e.preventDefault()
-    const text = e.clipboardData ? e.clipboardData.getData('text/plain') : await window.pm.readClipboardText()
-    if (text) {
-      const parsed = parseCompiledPrompt(text)
       if (parsed) {
+        // 已编译提示词：还原图文锚点
         if (parsed.images && parsed.images.length) {
           state.composer.images = parsed.images
         }
@@ -503,27 +488,35 @@ async function onPaste(e) {
         toast(`已还原图片与关键词 [图${parsed.images.length}]`)
         return
       }
-
-      // 长文本自动转 .txt 落盘（正文仅留 [文件: xxx.txt] 锚点，无需手动另存）
-      if (state.settings.autoTxtEnabled !== false) {
-        const chars = Number(state.settings.autoTxtChars) > 0 ? Number(state.settings.autoTxtChars) : 1000
-        const lines = text.split(/\r?\n/).length
-        const lineLimit = Math.max(30, Math.floor(chars / 20))
-        if (text.length >= chars || lines >= lineLimit) {
-          const res = await window.pm.saveTextAsFile(text)
-          if (res && res.ok) {
-            if (!Array.isArray(state.composer.files)) state.composer.files = []
-            state.composer.files.push({ name: res.name, path: res.path, chars: res.chars || text.length })
-            insertTextAtCursor(`[文件: ${res.name}]`)
-            toast(currentLocale.value === 'en'
-              ? `Long text auto-saved as ${res.name} (${res.chars || text.length} chars)`
-              : `长文本已自动转为 ${res.name}（${res.chars || text.length} 字）`)
-            return
-          }
+      // 长文本：自动落盘为 .txt 并在光标处插入 [文件: xxx.txt] 短锚点
+      const r = await smartPastePlainText(clipboardText, {
+        onAnchor: (anchor) => {
+          insertTextAtCursor(anchor)
+          onInput()
         }
-      }
+      })
+      if (r.handled) return
+      document.execCommand('insertText', false, clipboardText)
+      onInput()
+    }
 
-      document.execCommand('insertText', false, text)
+    toast(`已关联图片与关键词 [图${state.composer.images.length}]`)
+    return
+  }
+
+  // 纯文本粘贴（智能还原已编译提示词 / 长文本自动转 .txt / 普通文本插入光标处）
+  if (!isImagePaste) {
+    e.preventDefault()
+    const text = e.clipboardData ? e.clipboardData.getData('text/plain') : await window.pm.readClipboardText()
+    const plain = typeof text === 'string' ? text : (text && typeof text.text === 'string' ? text.text : '')
+    if (plain) {
+      const r = await smartPastePlainText(plain)
+      if (r.handled) {
+        // 长文本已落盘：在光标处插入 [文件: xxx.txt] 短锚点
+        if (r.anchor) insertTextAtCursor(r.anchor)
+        return
+      }
+      document.execCommand('insertText', false, plain)
       onInput()
     }
   }

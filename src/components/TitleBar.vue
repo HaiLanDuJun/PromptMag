@@ -150,7 +150,7 @@ function toggleLang() {
       <button
         class="icon-btn"
         :class="{ active: state.mainView === 'accounts' }"
-        :title="state.mainView === 'accounts' ? t('titleBar.backToQueue') : t('titleBar.accounts')"
+        :title="state.mainView === 'accounts' ? t('titleBar.backToQueue') : (t('titleBar.accounts') + (state.settings.hotkeyAccounts ? ` (${state.settings.hotkeyAccounts})` : ''))"
         @click.stop="setMainView(state.mainView === 'accounts' ? 'queue' : 'accounts')"
       >
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -492,6 +492,14 @@ function toggleLang() {
           <HotkeyInput
             :model-value="state.settings.hotkeySnippets"
             @update:model-value="(v) => onHotkeyChange('snippets', v)"
+          />
+        </div>
+
+        <div class="hotkey-row">
+          <span class="hotkey-desc" :title="t('settings.hotkeyAccountsDesc')">{{ t('settings.hotkeyAccountsLabel') }}</span>
+          <HotkeyInput
+            :model-value="state.settings.hotkeyAccounts"
+            @update:model-value="(v) => onHotkeyChange('accounts', v)"
           />
         </div>
 

@@ -73,7 +73,8 @@ const HOTKEY_DEFAULTS = {
   pop: 'Alt+V',
   snippets: 'Alt+X',
   collect: 'Alt+T',
-  cycleMag: 'Ctrl+Tab'
+  cycleMag: 'Ctrl+Tab',
+  accounts: 'Alt+Z'
 }
 let customHotkeys = { ...HOTKEY_DEFAULTS }
 let currentlyRegisteredHotkeys = new Set()
@@ -2061,7 +2062,9 @@ function createSnippetWindow() {
   return snippetWindow
 }
 
-function toggleSnippetPicker(source = null, capturedHwnd = '0') {
+let activePickerTab = 'snippets'
+
+function toggleSnippetPicker(source = null, capturedHwnd = '0', initialTab = 'snippets') {
   if (source) {
     snippetTriggerSource = source
   } else {
@@ -2071,28 +2074,35 @@ function toggleSnippetPicker(source = null, capturedHwnd = '0') {
   if (capturedHwnd && capturedHwnd !== '0' && !isPromptMagHwnd(capturedHwnd)) {
     lastExternalHwnd = capturedHwnd
   }
-  log('toggleSnippetPicker source:', snippetTriggerSource, 'lastExternalHwnd:', lastExternalHwnd)
+  log('toggleSnippetPicker source:', snippetTriggerSource, 'lastExternalHwnd:', lastExternalHwnd, 'tab:', initialTab)
 
   const win = createSnippetWindow()
   if (win.isVisible()) {
-    win.hide()
+    if (activePickerTab === initialTab) {
+      win.hide()
+      return
+    }
+    activePickerTab = initialTab
+    win.webContents.send('pm:snippet-picker-opened', { tab: initialTab })
+    win.focus()
     return
   }
 
+  activePickerTab = initialTab
   // 居中或在当前屏幕光标附近优雅呈现
   const cursor = screen.getCursorScreenPoint()
   const display = screen.getDisplayNearestPoint(cursor)
   const w = 440
-  const h = 410
+  const h = 425
   const x = Math.round(display.workArea.x + (display.workArea.width - w) / 2)
   const y = Math.round(display.workArea.y + Math.max(50, (display.workArea.height - h) / 3))
 
   win.setBounds({ x, y, width: w, height: h })
   win.show()
   win.focus()
-  win.webContents.send('pm:snippet-picker-opened')
+  win.webContents.send('pm:snippet-picker-opened', { tab: initialTab })
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('pm:snippet-picker-opened')
+    mainWindow.webContents.send('pm:snippet-picker-opened', { tab: initialTab })
   }
 }
 
@@ -2100,7 +2110,14 @@ function toggleSnippetPicker(source = null, capturedHwnd = '0') {
 function onHotkeySnippets() {
   const fgHwnd = getForegroundHwndSync()
   log('hotkey snippets ->', customHotkeys.snippets, 'fgHwnd:', fgHwnd)
-  toggleSnippetPicker(null, fgHwnd)
+  toggleSnippetPicker(null, fgHwnd, 'snippets')
+}
+
+/** 快捷键 6：呼出测试账号密码专属独立弹窗 */
+function onHotkeyAccounts() {
+  const fgHwnd = getForegroundHwndSync()
+  log('hotkey accounts ->', customHotkeys.accounts, 'fgHwnd:', fgHwnd)
+  toggleSnippetPicker(null, fgHwnd, 'accounts')
 }
 
 /** 从 data.json 读取自定义快捷键配置 */
@@ -2112,7 +2129,8 @@ function readHotkeysFromData() {
     pop: s.hotkeyPop !== undefined ? String(s.hotkeyPop).trim() : HOTKEY_DEFAULTS.pop,
     snippets: s.hotkeySnippets !== undefined ? String(s.hotkeySnippets).trim() : HOTKEY_DEFAULTS.snippets,
     collect: s.hotkeyCollect !== undefined ? String(s.hotkeyCollect).trim() : HOTKEY_DEFAULTS.collect,
-    cycleMag: s.hotkeyCycleMag ? String(s.hotkeyCycleMag).trim() : HOTKEY_DEFAULTS.cycleMag
+    cycleMag: s.hotkeyCycleMag ? String(s.hotkeyCycleMag).trim() : HOTKEY_DEFAULTS.cycleMag,
+    accounts: s.hotkeyAccounts !== undefined ? String(s.hotkeyAccounts).trim() : HOTKEY_DEFAULTS.accounts
   }
   // 旧版本冲突键平滑迁移（微信冲突排查：Alt+C 会触发微信关闭窗口，Alt+S 会触发微信发消息）
   if (customHotkeys.snippets === 'Alt+C') customHotkeys.snippets = 'Alt+X'
@@ -2151,6 +2169,7 @@ function registerCustomHotkeys() {
   tryRegister('cycleMag', customHotkeys.cycleMag, () => {
     sendToRenderer('pm:cycle-magazine', { direction: 1 })
   })
+  tryRegister('accounts', customHotkeys.accounts, onHotkeyAccounts)
 
   const allOk = failedKeys.length === 0
   log('custom hotkeys ->', JSON.stringify(customHotkeys), 'allOk:', allOk, 'failed:', failedKeys)
@@ -2174,9 +2193,11 @@ function buildTrayMenu() {
   const isEn = appLocale === 'en'
   const toggleKey = customHotkeys.toggle ? ` (${customHotkeys.toggle})` : ''
   const snippetsKey = customHotkeys.snippets ? ` (${customHotkeys.snippets})` : ''
+  const accountsKey = customHotkeys.accounts ? ` (${customHotkeys.accounts})` : ''
   return Menu.buildFromTemplate([
     { label: isEn ? `Show / Hide${toggleKey}` : `显示 / 隐藏${toggleKey}`, click: () => toggleWindow() },
-    { label: isEn ? `Favorites Magazine${snippetsKey}` : `⭐ 收藏弹夹${snippetsKey}`, click: () => toggleSnippetPicker() },
+    { label: isEn ? `Favorites Magazine${snippetsKey}` : `⭐ 收藏弹夹${snippetsKey}`, click: () => toggleSnippetPicker(null, '0', 'snippets') },
+    { label: isEn ? `Test Credentials${accountsKey}` : `🔐 账号密码${accountsKey}`, click: () => toggleSnippetPicker(null, '0', 'accounts') },
     { type: 'separator' },
     {
       label: isEn ? 'Always on Top' : '窗口置顶（不被其他窗口覆盖）',
@@ -2490,6 +2511,7 @@ function registerIpc() {
       if (h.snippets !== undefined) customHotkeys.snippets = String(h.snippets).trim()
       if (h.collect !== undefined) customHotkeys.collect = String(h.collect).trim()
       if (h.cycleMag !== undefined) customHotkeys.cycleMag = String(h.cycleMag).trim()
+      if (h.accounts !== undefined) customHotkeys.accounts = String(h.accounts).trim()
     }
     const res = registerCustomHotkeys()
     updateTrayTooltip()
@@ -2502,13 +2524,14 @@ function registerIpc() {
         pop: customHotkeys.pop,
         snippets: customHotkeys.snippets,
         collect: customHotkeys.collect,
-        cycleMag: customHotkeys.cycleMag
+        cycleMag: customHotkeys.cycleMag,
+        accounts: customHotkeys.accounts
       })
     }
   })
 
-  /* 专属收藏夹提示词弹窗控制与光标粘贴 */
-  ipcMain.on('pm:open-snippet-picker', () => toggleSnippetPicker('main'))
+  /* 专属收藏夹提示词 / 账号密码弹窗控制与光标粘贴 */
+  ipcMain.on('pm:open-snippet-picker', (_e, tab) => toggleSnippetPicker('main', '0', tab || 'snippets'))
   ipcMain.on('pm:close-snippet-picker', () => {
     if (snippetWindow && !snippetWindow.isDestroyed()) snippetWindow.hide()
     if (snippetTriggerSource === 'main' && mainWindow && !mainWindow.isDestroyed()) {

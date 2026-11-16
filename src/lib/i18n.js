@@ -77,6 +77,8 @@ export const messages = {
     accounts: {
       title: '测试账号密码',
       addBtn: '＋ 新增账号',
+      popupBtn: '弹出面板',
+      openPopup: '在独立悬浮弹窗中打开账号密码',
       fieldTitle: '名称 / 备注',
       titlePlaceholder: '如：测试环境后台管理员',
       fieldUsername: '账号',
@@ -142,11 +144,21 @@ export const messages = {
       deleteTitle: '删除'
     },
     snippetPicker: {
-      title: '⭐ 收藏弹夹提示词',
+      title: '专属弹窗',
+      tabSnippets: '常用收藏',
+      tabAccounts: '账号密码',
+      tabSnippetsTip: '⭐ 常用收藏提示词列表',
+      tabAccountsTip: '🔐 测试账号密码速记列表',
       shortcutsHint: '↑↓ 选择 · Enter / 1-9 填入 · Esc 关闭',
       searchPlaceholder: '搜索收藏提示词...',
+      searchAccountsPlaceholder: '搜索账号标题 / 用户名 / 备注...',
       emptySearch: '未找到相关收藏提示词',
-      selectToInsert: '回车或点击直接填入到光标处'
+      emptyAccounts: '暂无测试账号记录',
+      emptyAccountsHint: '可在主窗口顶栏 🔒 按钮中添加',
+      selectToInsert: '回车或点击直接填入到光标处',
+      pastePassword: '填入密码',
+      pasteUsername: '填入账号',
+      switchTabHint: 'Tab 切换分类'
     },
     quickPanel: {
       title: 'PromptMag · 快捷输入',
@@ -223,6 +235,8 @@ export const messages = {
       hotkeyPopDesc: '按当前出弹模式弹出待用提示词并自动粘贴到光标处',
       hotkeySnippetsLabel: '收藏弹夹提示词弹窗',
       hotkeySnippetsDesc: '呼出专属收藏弹夹提示词独立弹窗，选择后直接粘贴到光标处',
+      hotkeyAccountsLabel: '测试账号密码弹窗',
+      hotkeyAccountsDesc: '呼出测试账号密码专属独立弹窗，选择后直接填入光标处',
       hotkeyCollectLabel: '收录到收藏弹夹',
       hotkeyCollectDesc: '把当前在外部应用中选中的文字一键收录进收藏弹夹',
       hotkeyCycleMagLabel: '快速切换弹夹',
@@ -484,6 +498,8 @@ export const messages = {
     accounts: {
       title: 'Test Accounts & Passwords',
       addBtn: '＋ Add Account',
+      popupBtn: 'Popup Panel',
+      openPopup: 'Open test credentials in floating popup',
       fieldTitle: 'Name / Note',
       titlePlaceholder: 'e.g. Admin of test environment',
       fieldUsername: 'Username',
@@ -549,11 +565,21 @@ export const messages = {
       deleteTitle: 'Delete'
     },
     snippetPicker: {
-      title: '⭐ Favorites Magazine Prompts',
+      title: 'Quick Popup',
+      tabSnippets: 'Favorites',
+      tabAccounts: 'Credentials',
+      tabSnippetsTip: '⭐ Favorites Prompt List',
+      tabAccountsTip: '🔐 Test Credentials List',
       shortcutsHint: '↑↓ Select · Enter / 1-9 Insert · Esc Close',
       searchPlaceholder: 'Search favorite prompts...',
+      searchAccountsPlaceholder: 'Search title, username, note...',
       emptySearch: 'No matching favorite prompts found',
-      selectToInsert: 'Click or press Enter to insert at cursor'
+      emptyAccounts: 'No test credentials yet',
+      emptyAccountsHint: 'Add via 🔒 button in the main window',
+      selectToInsert: 'Click or press Enter to insert at cursor',
+      pastePassword: 'Paste password',
+      pasteUsername: 'Paste username',
+      switchTabHint: 'Switch Tab'
     },
     quickPanel: {
       title: 'PromptMag · Quick Input',
@@ -630,6 +656,8 @@ export const messages = {
       hotkeyPopDesc: 'Pop a pending prompt and auto-paste to cursor (by active firing mode)',
       hotkeySnippetsLabel: 'Favorites Popup',
       hotkeySnippetsDesc: 'Open Favorites Magazine prompt popup, select and paste to cursor',
+      hotkeyAccountsLabel: 'Test Credentials Popup',
+      hotkeyAccountsDesc: 'Open Test Credentials independent popup, select and paste to cursor',
       hotkeyCollectLabel: 'Collect to Favorites',
       hotkeyCollectDesc: 'Collect selected text from external apps into Favorites Magazine',
       hotkeyCycleMagLabel: 'Cycle Magazine',

@@ -63,8 +63,8 @@ const api = {
   /* 自定义全局快捷键（弹出最旧未用 / 收录选中文字 / 收藏提示词弹窗） */
   updateHotkeys: (h) => ipcRenderer.send('pm:update-hotkeys', h),
 
-  /* 专属收藏夹提示词弹窗 */
-  openSnippetPicker: () => ipcRenderer.send('pm:open-snippet-picker'),
+  /* 专属收藏夹提示词 / 账号密码弹窗 */
+  openSnippetPicker: (tab = 'snippets') => ipcRenderer.send('pm:open-snippet-picker', tab),
   closeSnippetPicker: () => ipcRenderer.send('pm:close-snippet-picker'),
   pasteSnippetAtCursor: (text) => ipcRenderer.invoke('pm:paste-snippet-at-cursor', text),
 
@@ -141,9 +141,9 @@ const api = {
     ipcRenderer.on('pm:hotkeys-registered', h)
     return () => ipcRenderer.removeListener('pm:hotkeys-registered', h)
   },
-  /* 专属收藏夹弹窗事件 */
+  /* 专属弹窗事件 */
   onSnippetPickerOpened: (cb) => {
-    const h = () => cb()
+    const h = (_e, payload) => cb(payload || {})
     ipcRenderer.on('pm:snippet-picker-opened', h)
     return () => ipcRenderer.removeListener('pm:snippet-picker-opened', h)
   },

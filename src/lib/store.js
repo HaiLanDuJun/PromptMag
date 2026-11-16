@@ -4,7 +4,7 @@
  *      next_tasks.md 实时同步、外部勾选状态回写。
  */
 import { reactive, watch, toRaw, computed } from 'vue'
-import { compilePrompt, buildTasksFile, inferTaskType, buildRelayStartupPrompt } from './compilePrompt.js'
+import { compilePrompt, buildTasksFile, inferTaskType, buildRelayStartupPrompt, parseCompiledPrompt } from './compilePrompt.js'
 import { t, currentLocale, setLocale } from './i18n.js'
 
 /* 浏览器直跑 vite（无 Electron 桥）时的兜底 mock，便于纯前端调试 */
@@ -98,7 +98,7 @@ export const state = reactive({
   isHotkeyRecording: false,
   settings: {
     alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
-    hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T', hotkeyCycleMag: 'Ctrl+Tab',
+    hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T', hotkeyCycleMag: 'Ctrl+Tab', hotkeyAccounts: 'Alt+Z',
     locale: 'zh', popMode: 'shotgun', autoCleanup: 'off',
     saveTargetMode: 'active', // 'active' (当前活动弹夹) | 'ask' (每次弹窗选择) | 'specific' (指定固定弹夹)
     defaultMagazineId: 'default',
@@ -289,7 +289,7 @@ export async function initStore() {
   state.settings = Object.assign(
     {
       alwaysOnTop: true, opacity: 1, relay: false, mode: 'full',
-      hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T',
+      hotkeyToggle: 'Alt+Q', hotkeyPop: 'Alt+V', hotkeySnippets: 'Alt+X', hotkeyCollect: 'Alt+T', hotkeyCycleMag: 'Ctrl+Tab', hotkeyAccounts: 'Alt+Z',
       locale: 'zh',
       popMode: 'shotgun',
       saveTargetMode: 'active',
@@ -315,6 +315,7 @@ export async function initStore() {
   if (!state.settings.hotkeySnippets) state.settings.hotkeySnippets = 'Alt+X'
   if (!state.settings.hotkeyCollect) state.settings.hotkeyCollect = 'Alt+T'
   if (!state.settings.hotkeyCycleMag) state.settings.hotkeyCycleMag = 'Ctrl+Tab'
+  if (!state.settings.hotkeyAccounts) state.settings.hotkeyAccounts = 'Alt+Z'
   if (!state.settings.windowScaleMode) state.settings.windowScaleMode = 'quick'
   if (state.settings.hideTaskbar === undefined) state.settings.hideTaskbar = true
 
@@ -719,13 +720,14 @@ function bindHotkeyEvents() {
 }
 
 export function setHotkeys(patch = {}) {
-  const keys = ['toggle', 'pop', 'snippets', 'collect', 'cycleMag']
+  const keys = ['toggle', 'pop', 'snippets', 'collect', 'cycleMag', 'accounts']
   const mapKey = {
     toggle: 'hotkeyToggle',
     pop: 'hotkeyPop',
     snippets: 'hotkeySnippets',
     collect: 'hotkeyCollect',
-    cycleMag: 'hotkeyCycleMag'
+    cycleMag: 'hotkeyCycleMag',
+    accounts: 'hotkeyAccounts'
   }
 
   // 1. 单快捷键约束：每个功能快捷键只能设置一个，也可以为空（置空后彻底禁用该快捷键）
@@ -753,7 +755,8 @@ export function setHotkeys(patch = {}) {
     pop: state.settings.hotkeyPop || '',
     collect: state.settings.hotkeyCollect || '',
     snippets: state.settings.hotkeySnippets || '',
-    cycleMag: state.settings.hotkeyCycleMag || ''
+    cycleMag: state.settings.hotkeyCycleMag || '',
+    accounts: state.settings.hotkeyAccounts || ''
   })
 }
 
@@ -989,8 +992,67 @@ export function setMainView(v) {
   state.mainView = v === 'accounts' ? 'accounts' : 'queue'
 }
 
-/* ---------------- 测试账号密码速记 ---------------- */
+/* ---------------- 智能粘贴纯文本（三路统一：编辑器 Ctrl+V / 粘贴文本按钮 / 快捷面板） ---------------- */
 
+/** 长文本判定阈值（字符数）与行数兜底 */
+function longTextThreshold() {
+  const chars = Number(state.settings.autoTxtChars) > 0 ? Number(state.settings.autoTxtChars) : 1000
+  return { chars, lineLimit: Math.max(30, Math.floor(chars / 20)) }
+}
+
+function isLongText(text) {
+  const { chars, lineLimit } = longTextThreshold()
+  return text.length >= chars || text.split(/\r?\n/).length >= lineLimit
+}
+
+/**
+ * 统一智能粘贴：
+ *  1. 已编译提示词 -> 还原图文锚点
+ *  2. 超长纯文本 -> 自动落盘为 .txt，返回短锚点由调用方插入
+ *  3. 普通文本 -> handled=false，调用方按原逻辑追加
+ * @param {object} opts
+ * @param {boolean} opts.append 命中文件锚点时直接追加到 composer.text 末尾
+ * @param {(anchor: string) => void} opts.onAnchor 命中文件锚点时的自定义插入回调（优先于 append）
+ * @returns {{ handled: boolean, anchor: string|null }}
+ */
+export async function smartPastePlainText(txt, { append = false, onAnchor = null } = {}) {
+  const text = String(txt || '')
+  if (!text) return { handled: false, anchor: null }
+
+  // 1. 已编译提示词还原
+  const parsed = parseCompiledPrompt(text)
+  if (parsed) {
+    if (parsed.images && parsed.images.length) {
+      state.composer.images = parsed.images
+    }
+    state.composer.text = parsed.text
+    toast(t('toast.restoredPrompt', { count: parsed.images.length }))
+    return { handled: true, anchor: null }
+  }
+
+  // 2. 长文本自动转 .txt 落盘
+  if (state.settings.autoTxtEnabled !== false && isLongText(text) && window.pm && window.pm.saveTextAsFile) {
+    const res = await window.pm.saveTextAsFile(text)
+    if (res && res.ok) {
+      if (!Array.isArray(state.composer.files)) state.composer.files = []
+      state.composer.files.push({ name: res.name, path: res.path, chars: res.chars || text.length })
+      const anchor = `[文件: ${res.name}]`
+      if (typeof onAnchor === 'function') {
+        onAnchor(anchor)
+      } else if (append) {
+        state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + anchor
+      }
+      toast(currentLocale.value === 'en'
+        ? `Long text auto-saved as ${res.name} (${res.chars || text.length} chars)`
+        : `长文本已自动转为 ${res.name}（${res.chars || text.length} 字）`)
+      return { handled: true, anchor }
+    }
+  }
+
+  return { handled: false, anchor: null }
+}
+
+/* ---------------- 测试账号密码速记 ---------------- */
 /** 新增账号：密码经 safeStorage 系统级加密后落盘（不可用时回退 plain: 前缀） */
 export async function addAccount({ title, username, password, note }) {
   let stored = String(password || '')

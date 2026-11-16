@@ -10,9 +10,12 @@ const ROOT = path.resolve(__dirname, '..')
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 const version = pkg.version
 
-const RELEASE_DIR = fs.existsSync(path.join(ROOT, 'out-release'))
-  ? path.join(ROOT, 'out-release')
-  : path.join(ROOT, 'release')
+const CACHE_RELEASE = path.join(ROOT, 'node_modules', '.cache', 'release')
+const RELEASE_DIR = fs.existsSync(CACHE_RELEASE)
+  ? CACHE_RELEASE
+  : (fs.existsSync(path.join(ROOT, 'out-release'))
+    ? path.join(ROOT, 'out-release')
+    : path.join(ROOT, 'release'))
 const INSTALLER_DIR = path.join(ROOT, 'installer')
 
 if (!fs.existsSync(RELEASE_DIR)) {
