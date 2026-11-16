@@ -10,12 +10,12 @@ CLI 提示词弹夹。为 Claude Code / Codex / AGY 等 CLI 编码 Agent 设计�
 
 ## 中文
 
-### 下载（v1.9.25，Windows x64，开箱即用）
+### 下载（v1.9.26，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.25.exe`](/installer/PromptMag-Portable-1.9.25.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.25.exe`](/installer/PromptMag-Setup-1.9.25.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.26.exe`](/installer/PromptMag-Portable-1.9.26.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.26.exe`](/installer/PromptMag-Setup-1.9.26.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -35,6 +35,10 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
   - **单写多读锁机制**：文件修改类任务同一时刻仅限一个 Agent 独占（写锁保护），读取类任务支持多 Agent 并发；写锁释放后自动触发接力交接；
   - **三态流转（pending → doing → done）**：清晰呈现任务正在被谁执行（Claude、AGY、Codex 等），执行完成后自动记录「谁解决的」与「解决方案」，无缝开启下一棒；
   - **一键复制接力启动提示词**：为每个项目弹夹一键生成量身定制的 Agent 启动指令，完美适配 Claude `loop` 等持续工作机制。
+- **长文本粘贴自动转存 TXT 与测试账号密码速记管理（v1.9.26）**：
+  - **长文本自动落盘**：输入框粘贴长文本（默认 ≥ 1000 字符或多行）自动转为 `texts/text_<时间戳>_<序号>.txt` 本地文件，正文仅留 `[文件: 文件名.txt]` 短锚点，复制编译时自动展开为绝对路径供 Agent 直接读取；设置中可调整阈值或关闭；
+  - **测试账号密码速记**：顶栏 🔒 按钮切换账号面板，密码经 safeStorage（Windows DPAPI）加密后存入 `data.json`；默认掩码显示，支持 10 秒防窥原文切换与账号/密码一键复制；
+  - **全链路流转与数据迁移**：文件锚点随任务保存、编辑回填、清空与短锚点还原全链路闭环，数据目录迁移时 `texts/` 一并迁移。
 - **更新状态强制锁定大窗口防缩小化卡死机制（v1.9.25）**：
   - **更新全流程窗口锁定**：彻底解决更新弹窗弹出时因窗口未展开导致内容截断、以及失焦/贴边自动缩为 56px 悬浮球导致页面被挤压卡死的严重缺陷；
   - **双向防缩小化与贴边抑制**：更新弹窗打开与下载更新全期间，主进程与渲染进程严格双向锁定大窗口（mode='full'），全程严禁贴边缩小或收缩为悬浮球或快捷面板，热键 Alt+Q 呼出时智能定位大窗口并聚焦，确保更新页面完整可见；
@@ -204,10 +208,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 ## English
 
-### Download (v1.9.25, Windows x64)
+### Download (v1.9.26, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.25.exe`](/installer/PromptMag-Portable-1.9.25.exe) — no install needed, portable mode
-- Installer: [`installer/PromptMag-Setup-1.9.25.exe`](/installer/PromptMag-Setup-1.9.25.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.26.exe`](/installer/PromptMag-Portable-1.9.26.exe) — no install needed, portable mode
+- Installer: [`installer/PromptMag-Setup-1.9.26.exe`](/installer/PromptMag-Setup-1.9.26.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases). Default hotkey to summon the window: `Alt+Q`.
 
@@ -227,6 +231,10 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
   - **Single-Writer Multi-Reader Lock**: File modification tasks are strictly locked by one agent (e.g. Claude Code), while other agents (like AGY) wait or read;
   - **Three-State Workflow (pending → doing → done)**: Tracks which agent claimed the task, records resolution details upon completion, and unlocks the next task;
   - **Relay Startup Prompt Generator**: One-click generation of tailored instructions for agents, fully compatible with continuous loop execution.
+- **Auto-Save Pasted Long Text to TXT & Test Credentials Manager (v1.9.26)**:
+  - **Long Text Auto-TXT**: Plain text exceeding the threshold (default 1000 characters) pasted into the input box is automatically saved locally under `texts/text_<timestamp>_<seq>.txt`. Body retains a clean `[File: xxx.txt]` anchor, expanded to the full absolute path upon compilation for CLI agents to read directly;
+  - **Test Credentials Recorder**: TitleBar 🔒 toggle opens the test account panel. Passwords are saved with system-level DPAPI encryption via Electron safeStorage in `data.json`. Default `••••••••` masking with 10s auto-remasking countdown, plus 1-click copy for usernames and passwords;
+  - **Full-Lifecycle Relay & Migration**: Anchors persist across task saving, editing, clearing, and copying; the `texts/` directory is migrated along with data directory moves.
 - **Update State Full-Window Lock & Anti-Shrink Freeze Prevention (v1.9.25)**:
   - **Full-window update status lock**: resolved severe bugs where update prompts displayed inside a compact 195px quick panel cutting off content, or collapsed upon blur/edge-tucking into a 56px round floating capsule locking/freezing the entire interface;
   - **Strict anti-shrink & edge-tuck suppression**: during update checking, downloading, or modal interaction, both Electron main and renderer processes enforce a strict full-window lock (`mode='full'`), blocking all attempts to collapse into a capsule or quick panel, and ensuring Alt+Q refocuses the update window;

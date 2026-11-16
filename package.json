@@ -14,7 +14,7 @@
     "dev:static": "npm run build && electron .",
     "preview": "npm run build && electron .",
     "icon": "node scripts/make-icon.cjs",
-    "clean": "node -e \"require('node:fs').rmSync('release',{recursive:true,force:true})\"",
+    "clean": "node -e \"try { require('node:fs').rmSync('out-release',{recursive:true,force:true}) } catch {}; try { require('node:fs').rmSync('release',{recursive:true,force:true}) } catch {}\"",
     "dist": "npm run clean && npm run build && electron-builder --win && node scripts/sync-installer.cjs",
     "dist:portable": "npm run clean && npm run build && electron-builder --win portable && node scripts/sync-installer.cjs",
     "update:exe": "npm run dist",
@@ -39,7 +39,7 @@
     "appId": "com.hailandujun.promptmag",
     "productName": "PromptMag",
     "directories": {
-      "output": "release"
+      "output": "out-release"
     },
     "files": [
       "dist/**",

@@ -1,17 +1,17 @@
 {
-  "version": "1.9.25",
-  "tagName": "v1.9.25",
-  "name": "PromptMag v1.9.25",
-  "publishedAt": "2026-11-03T17:15:00+08:00",
-  "body": "### PromptMag v1.9.25 更新说明\n\n1. 【更新状态强制锁定大窗口防卡死】彻底解决更新弹窗弹出时因窗口未展开导致内容截断、以及失焦/贴边自动缩为 56px 悬浮球导致页面被挤压卡死的严重问题；\n2. 【更新全流程严禁缩小化】在更新弹窗展示与下载更新期间，主进程与渲染进程双向锁定完整大窗口（mode='full'），全程禁止贴边缩进、收起为悬浮球或切换为快捷输入面板，Alt+Q 热键智能唤醒聚焦；\n3. 【取消/关闭响应与形态安全恢复】更新弹窗右上角关闭按钮、稍后提醒与 Escape 快捷键全程响应可用（下载中支持随时一键取消）；关闭更新后安全解除锁定并平滑恢复进入更新前的窗口形态。",
+  "version": "1.9.26",
+  "tagName": "v1.9.26",
+  "name": "PromptMag v1.9.26",
+  "publishedAt": "2026-11-16T11:00:00+08:00",
+  "body": "### PromptMag v1.9.26 更新说明\n\n1. 【粘贴长文本自动转存 TXT】在输入框粘贴长文本（默认 ≥ 1000 字符或多行）时，自动保存至本地 ~/.prompt-mag/texts/ 目录，正文仅留 [文件: xxx.txt] 短锚点防撑爆输入框；复制编译时自动展开为含本地绝对路径的完整标注，CLI Agent（Claude Code / Antigravity 等）可直接秒读本地文件；设置中支持开关与阈值调整；\n2. 【测试账号密码速记面板】标题栏新增 🔒 按钮切换测试账号面板；密码经 Electron safeStorage（Windows DPAPI）系统级加密落盘于本机 data.json；默认掩码显示，点眼睛显示原文（10秒后自动恢复掩码防窥屏）；账号/密码均支持一键复制，删除带二次确认；\n3. 【全链路流转与数据迁移】文件锚点随任务保存、编辑回填、清空与反编译还原完整流转；数据目录自定义迁移时 texts/ 目录一并安全迁移。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.25.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.25/PromptMag-Portable-1.9.25.exe"
+      "name": "PromptMag-Portable-1.9.26.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.26/PromptMag-Portable-1.9.26.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.25.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.25/PromptMag-Setup-1.9.25.exe"
+      "name": "PromptMag-Setup-1.9.26.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.26/PromptMag-Setup-1.9.26.exe"
     }
   ]
 }

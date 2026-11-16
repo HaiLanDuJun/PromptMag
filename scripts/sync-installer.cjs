@@ -10,7 +10,9 @@ const ROOT = path.resolve(__dirname, '..')
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 const version = pkg.version
 
-const RELEASE_DIR = path.join(ROOT, 'release')
+const RELEASE_DIR = fs.existsSync(path.join(ROOT, 'out-release'))
+  ? path.join(ROOT, 'out-release')
+  : path.join(ROOT, 'release')
 const INSTALLER_DIR = path.join(ROOT, 'installer')
 
 if (!fs.existsSync(RELEASE_DIR)) {
