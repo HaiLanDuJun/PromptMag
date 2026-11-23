@@ -10,12 +10,12 @@ CLI 提示词弹夹。为 Claude Code / Codex / AGY 等 CLI 编码 Agent 设计�
 
 ## 中文
 
-### 下载（v1.9.29，Windows x64，开箱即用）
+### 下载（v1.9.30，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.29.exe`](/installer/PromptMag-Portable-1.9.29.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.29.exe`](/installer/PromptMag-Setup-1.9.29.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.30.exe`](/installer/PromptMag-Portable-1.9.30.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.30.exe`](/installer/PromptMag-Setup-1.9.30.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -35,6 +35,12 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
   - **单写多读锁机制**：文件修改类任务同一时刻仅限一个 Agent 独占（写锁保护），读取类任务支持多 Agent 并发；写锁释放后自动触发接力交接；
   - **三态流转（pending → doing → done）**：清晰呈现任务正在被谁执行（Claude、AGY、Codex 等），执行完成后自动记录「谁解决的」与「解决方案」，无缝开启下一棒；
   - **一键复制接力启动提示词**：为每个项目弹夹一键生成量身定制的 Agent 启动指令，完美适配 Claude `loop` 等持续工作机制。
+- **文件锚点丢失修复、锚点自愈与数据回写竞态修复（v1.9.30）**：
+  - **根因修复**：图片数归零时的胶囊清理不再连带删除文件胶囊（退出重开后 `[文件: xxx.txt]` 内容"消失"的根因）；
+  - **锚点自愈兜底**：编辑器挂载时 files 记录仍在而正文锚点丢失则自动补回，历史丢失内容重开面板即恢复；
+  - **输入法卡死防护**：组词状态下持续同步 DOM→state，杜绝编辑器与数据永久脱节；
+  - **数据回写竞态修复**：Alt+Z 收藏/账号弹窗改为只读，不再回写 data.json 覆盖主窗口新数据；
+  - **锚点丢失诊断**：锚点意外丢失自动写入运行日志。
 - **拖拽文本智能管线、粘贴路由修正与渲染层诊断日志（v1.9.29）**：
   - **拖拽文本兜底**：从 IDE/浏览器拖拽文本入框不再触发浏览器默认原文插入，统一走智能管线（长文本自动转 TXT、编译提示词还原、普通文本插入）；
   - **粘贴路由修正**：不再仅凭剪贴板 Files 格式判定为图片粘贴——IDE 复制代码携带杂项格式时优先按文本处理（≤300 字符的单行路径仍走图片/文件流程）；
@@ -222,10 +228,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 ## English
 
-### Download (v1.9.29, Windows x64)
+### Download (v1.9.30, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.29.exe`](/installer/PromptMag-Portable-1.9.29.exe) — no install needed, portable mode
-- Installer: [`installer/PromptMag-Setup-1.9.29.exe`](/installer/PromptMag-Setup-1.9.29.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.30.exe`](/installer/PromptMag-Portable-1.9.30.exe) — no install needed, portable mode
+- Installer: [`installer/PromptMag-Setup-1.9.30.exe`](/installer/PromptMag-Setup-1.9.30.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases). Default hotkey to summon the window: `Alt+Q`.
 
@@ -245,6 +251,12 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
   - **Single-Writer Multi-Reader Lock**: File modification tasks are strictly locked by one agent (e.g. Claude Code), while other agents (like AGY) wait or read;
   - **Three-State Workflow (pending → doing → done)**: Tracks which agent claimed the task, records resolution details upon completion, and unlocks the next task;
   - **Relay Startup Prompt Generator**: One-click generation of tailored instructions for agents, fully compatible with continuous loop execution.
+- **File Anchor Loss Fix, Anchor Self-Healing & Data Write-Back Race Fix (v1.9.30)**:
+  - **Root Cause Fixed**: keyword-chip cleanup no longer removes file chips when the image count reaches zero (the root cause of `[文件: xxx.txt]` content "disappearing" after panel exit/reopen);
+  - **Anchor Self-Healing**: on editor mount, missing body anchors with an existing `files` record are automatically re-appended — previously lost content is restored by reopening the panel;
+  - **IME Stall Guard**: DOM→state sync continues during IME composition, eliminating permanent editor/state divergence;
+  - **Write-Back Race Fixed**: the Alt+Z favorites/credentials popup is now read-only and never writes data.json over the main window's fresh data;
+  - **Anchor-Loss Diagnostics**: unexpected anchor loss is logged to the runtime log.
 - **Drag-Drop Text Pipeline, Smarter Paste Routing & Renderer Diagnostics (v1.9.29)**:
   - **Drag-Drop Fallback**: dragging text from an IDE/browser into the editor now runs the same smart pipeline (long text auto-TXT, compiled-prompt restore) instead of the browser's default raw insert;
   - **Smarter Paste Routing**: a clipboard `Files` flavor alone no longer forces the image flow — IDE code copies carrying miscellaneous formats are handled as text first (short single-line paths still route to the image/file flow);

@@ -317,6 +317,26 @@ function removeFileChip(chip) {
   }
 }
 
+/** 自愈：files 记录仍在但正文锚点丢失（异常路径误删了锚点文本）→ 自动补回短锚点 */
+function repairMissingFileAnchors() {
+  const files = state.composer.files || []
+  if (!files.length) return
+  let text = String(state.composer.text || '')
+  let changed = false
+  for (const f of files) {
+    if (!f || !f.name) continue
+    const nameRe = new RegExp('\\[(?:文件|File)\\s*[:：]\\s*' + escapeRegexpStr(f.name) + '\\s*\\]', 'i')
+    if (nameRe.test(text)) continue
+    if (f.path && text.includes(f.path)) continue // 已展开路径形式视为仍在
+    text = (text ? text.replace(/\s+$/, '') + ' ' : '') + '[文件: ' + f.name + ']'
+    changed = true
+  }
+  if (changed) {
+    state.composer.text = text
+    pasteLog('anchors-repaired', { count: files.length })
+  }
+}
+
 function renderFromText(text) {
   if (!editorRef.value || isUserTyping) return
   const current = serializeEditor()
@@ -401,7 +421,9 @@ function syncChipsWithImages() {
   const imgCount = state.composer.images.length
 
   if (imgCount === 0) {
-    clearAllChips()
+    // 只清理关键词胶囊；文件胶囊（[文件: xxx.txt]）与图片无关，绝不能连带删除，
+    // 否则下次输入序列化时正文锚点会被连带抹掉（退出重开后内容"消失"的根因）
+    chips.forEach((c) => c.remove())
     return
   }
 
@@ -671,10 +693,13 @@ function onCompositionEnd() {
 }
 
 function onInput() {
-  if (isComposing) return
   isUserTyping = true
+  // 即使处于组词中（isComposing）也持续序列化，避免输入法状态异常卡死时
+  // DOM 与 state 永久脱节（正文改动丢失）；组词期间只跳过 DOM 重渲染
   state.composer.text = serializeEditor()
-  nextTick(() => { isUserTyping = false })
+  if (!isComposing) {
+    nextTick(() => { isUserTyping = false })
+  }
 }
 
 function focusEditor(e) {
@@ -714,11 +739,10 @@ watch(
 
 watch(
   () => state.composer.images.length,
-  (newLen) => {
+  () => {
     isUserTyping = false
-    if (newLen === 0) {
-      clearAllChips()
-    } else {
+    syncChipsWithImages()
+    if (state.composer.images.length > 0) {
       renderFromText(state.composer.text)
       syncChipsWithImages()
     }
@@ -806,6 +830,7 @@ defineExpose({
   clearAllChips,
   syncFromStore: () => {
     isUserTyping = false
+    repairMissingFileAnchors()
     renderFromText(state.composer.text)
     syncChipsWithImages()
   }
@@ -814,6 +839,7 @@ defineExpose({
 let unsubFocus = null
 
 onMounted(() => {
+  repairMissingFileAnchors()
   renderFromText(state.composer.text)
   syncChipsWithImages()
   document.addEventListener('selectionchange', saveSelection)

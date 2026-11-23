@@ -163,6 +163,9 @@ export function toast(msg) {
 /* ---------------- 持久化 data.json ---------------- */
 let saveTimer = null
 function scheduleSave() {
+  // Alt+Z 收藏/账号弹窗是独立 BrowserWindow（第二渲染实例，加载时持久化自己的 state 快照），
+  // 它对数据只读：绝不允许回写 data.json，否则会用陈旧的 composer/queue 覆盖主窗口的新数据
+  if (typeof location !== 'undefined' && location.hash === '#snippet-picker') return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     const curMag = state.magazines.find((m) => m.id === state.activeMagazineId)
@@ -183,6 +186,20 @@ function scheduleSave() {
 }
 
 const saveStateDebounced = scheduleSave
+
+/* 诊断：正文文件锚点丢失（files 记录仍在）时上报运行日志，便于回溯误删链路 */
+watch(
+  () => state.composer.text,
+  (nv, ov) => {
+    try {
+      const hasFileRecord = (state.composer.files || []).length > 0
+      const anchorRe = /\[(?:文件|File)\s*[:：]/i
+      if (hasFileRecord && ov && anchorRe.test(ov) && nv && !anchorRe.test(nv)) {
+        window.pm && window.pm.rendererLog && window.pm.rendererLog(`[Composer] file anchors lost: ${JSON.stringify({ oldHead: String(ov).slice(0, 120), newHead: String(nv).slice(0, 120) })}`)
+      }
+    } catch { /* ignore */ }
+  }
+)
 
 watch(
   () => [state.settings, state.observeStats, state.snippets, state.composer, state.queue, state.magazines, state.activeMagazineId, state.accounts],

@@ -1,17 +1,17 @@
 {
-  "version": "1.9.29",
-  "tagName": "v1.9.29",
-  "name": "PromptMag v1.9.29: 拖拽文本智能管线、粘贴路由修正与渲染层诊断日志",
-  "publishedAt": "2026-11-23T16:15:00+08:00",
-  "body": "### PromptMag v1.9.29 更新说明\n\n1. 【拖拽文本智能管线】从 IDE/浏览器拖拽文本入框不再触发浏览器默认原文插入（该路径完全绕过粘贴转换，是长文本不转 txt 的元凶之一），统一走智能管线：长文本自动转 TXT、已编译提示词还原、普通文本插入；\n2. 【粘贴路由修正】不再仅凭剪贴板 Files 格式判定为图片粘贴——IDE（IntelliJ/VS Code 等）复制代码时常携带杂项格式，现在优先按文本处理（≤300 字符的单行路径仍走图片/文件流程），杜绝长文本既不转 txt 也不插入的死角；\n3. 【全链路异常兜底】粘贴/拖拽处理出现任何异常时，绝不允许浏览器默认行为把原文整段插入编辑器，改为明确 Toast 提示「粘贴处理失败，内容未插入」；\n4. 【渲染层诊断日志】新增 pm:renderer-log 通道：粘贴/拖拽全链路埋点（剪贴板格式、文本长度、分支判定、处理结果）与全局异常、未处理 Promise 拒绝全部写入运行日志，链路问题一次定位。",
+  "version": "1.9.30",
+  "tagName": "v1.9.30",
+  "name": "PromptMag v1.9.30: 修复文件锚点退出丢失与数据回写竞态",
+  "publishedAt": "2026-11-23T17:20:00+08:00",
+  "body": "### PromptMag v1.9.30 更新说明\n\n1. 【修复文件锚点退出丢失】根因：图片数归零时关键词胶囊清理逻辑连带删除了文件胶囊，下一次输入序列化时正文中的 [文件: xxx.txt] 锚点被一并抹掉，退出重开面板后内容看似\"消失\"。现在文件胶囊与图片清理彻底解耦；\n2. 【锚点自愈兜底】编辑器挂载时若 files 落盘记录仍在而正文锚点丢失，自动补回短锚点，历史已丢失的内容重开面板即可恢复；\n3. 【输入法卡死防护】onInput 在组词状态下也持续同步 DOM→state，杜绝输入法状态异常时编辑器与数据永久脱节；\n4. 【数据回写竞态修复】Alt+Z 收藏/账号弹窗（独立渲染实例）改为只读，不再回写 data.json，杜绝其加载时的陈旧 composer/队列快照覆盖主窗口新数据；\n5. 【锚点丢失诊断】正文文件锚点意外丢失时自动写入运行日志（[Composer] file anchors lost），链路问题一眼定位。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.29.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.29/PromptMag-Portable-1.9.29.exe"
+      "name": "PromptMag-Portable-1.9.30.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.30/PromptMag-Portable-1.9.30.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.29.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.29/PromptMag-Setup-1.9.29.exe"
+      "name": "PromptMag-Setup-1.9.30.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.30/PromptMag-Setup-1.9.30.exe"
     }
   ]
 }

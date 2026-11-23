@@ -111,6 +111,12 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
   - **📄 File-Chip Capsule**: `[File: xxx.txt]` anchors render as violet capsule chips with filename & content preview, hover-to-peek absolute path, and one-click deletion that auto-cleans the associated record;
   - **Anti-Freeze Guard**: if TXT saving fails or the main process is outdated, oversized text is never dumped into the editor — a clear toast explains instead, eliminating renderer freezes;
   - **Orphan Image Sweeper**: `sweepOrphanImages` scans the images directory and auto-deletes historical leftovers no longer referenced by any magazine queue, composer, or favorites (files under 1 hour old and favorites are always protected); runs after every cleanup task and on every app launch, so disk usage never bloats silently.
+- [x] **File Anchor Loss Fix, Anchor Self-Healing & Data Write-Back Race Fix (v1.9.30)**:
+  - **Root Cause Fixed**: when the image count reached zero, the keyword-chip cleanup also removed file chips — the next input's serialization then wiped `[文件: xxx.txt]` anchors from the body text, making content "disappear" after panel exit/reopen; file chips are now fully decoupled from image cleanup;
+  - **Anchor Self-Healing**: on editor mount, if a `files` record still exists on disk while its body anchor is missing, the short anchor is automatically re-appended — previously lost content is restored simply by reopening the panel;
+  - **IME Stall Guard**: `onInput` keeps syncing DOM→state even during IME composition, eliminating permanent DOM/state divergence caused by stuck composition state;
+  - **Write-Back Race Fixed**: the Alt+Z favorites/credentials popup (a separate renderer instance) is now read-only and never writes data.json, preventing its stale composer/queue snapshot from clobbering the main window's fresh data;
+  - **Anchor-Loss Diagnostics**: unexpected file anchor loss is logged (`[Composer] file anchors lost`) for one-shot diagnosis.
 - [x] **Drag-Drop Text Pipeline, Smarter Paste Routing & Renderer Diagnostics (v1.9.29)**:
   - **Drag-Drop Fallback**: dragging text from an IDE/browser into the editor no longer triggers the browser's default raw insert (which completely bypassed paste conversion) — the same smart pipeline now applies (long text auto-TXT, compiled-prompt restore, plain insert);
   - **Smarter Paste Routing**: a clipboard `Files` flavor alone no longer forces the image flow — IDE code copies carrying miscellaneous formats are handled as text first (short single-line path text still routes to the image/file flow), eliminating the dead corner where long text neither converted nor inserted;
@@ -232,6 +238,12 @@ May this little floating window catch every flash of brilliance you have — and
   - **📄 文件锚点胶囊卡片**：`[文件: xxx.txt]` 升级为紫罗兰色胶囊卡片，显示文件名与内容预览，悬浮查看绝对路径，点击删除自动清理关联记录；
   - **防卡死兜底**：长文本落盘失败或主进程版本过旧时绝不整段插入编辑器，改为明确 Toast 提示，彻底根除渲染进程卡顿假死；
   - **孤儿图片自动清扫**：新增 `sweepOrphanImages` 引擎，扫描 images 目录自动删除不再被弹夹队列、编辑器与收藏夹引用的历史遗留图片（1 小时内新文件与收藏夹图片绝对保护）；每次清理任务后与每次应用启动时自动执行，磁盘占用不再悄悄膨胀。
+- [x] **文件锚点丢失修复、锚点自愈与数据回写竞态修复（v1.9.30）**：
+  - **根因修复**：图片数归零时关键词胶囊清理连带删除了文件胶囊，下一次输入序列化时正文中的 `[文件: xxx.txt]` 锚点被一并抹掉，退出重开面板后内容看似"消失"；现在文件胶囊与图片清理彻底解耦；
+  - **锚点自愈兜底**：编辑器挂载时若 files 落盘记录仍在而正文锚点丢失，自动补回短锚点——历史已丢失的内容重开面板即可恢复；
+  - **输入法卡死防护**：onInput 在组词状态下也持续同步 DOM→state，杜绝输入法状态异常导致编辑器与数据永久脱节；
+  - **数据回写竞态修复**：Alt+Z 收藏/账号弹窗（独立渲染实例）改为只读，不再回写 data.json，杜绝其加载时的陈旧 composer/队列快照覆盖主窗口新数据；
+  - **锚点丢失诊断**：正文文件锚点意外丢失时自动写入运行日志（`[Composer] file anchors lost`），链路问题一眼定位。
 - [x] **拖拽文本智能管线、粘贴路由修正与渲染层诊断日志（v1.9.29）**：
   - **拖拽文本兜底**：从 IDE/浏览器拖拽文本入框不再触发浏览器默认原文插入（该路径完全绕过粘贴转换，是长文本不转 txt 的元凶之一），统一走智能管线（长文本自动转 TXT、已编译提示词还原、普通文本插入）；
   - **粘贴路由修正**：不再仅凭剪贴板 Files 格式判定为图片粘贴——IDE（IntelliJ/VS Code 等）复制代码携带杂项格式时优先按文本处理（≤300 字符的单行路径仍走图片/文件流程），杜绝长文本既不转 txt 也不插入的死角；
