@@ -9,7 +9,7 @@
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { state, addImages, removeImage, openImagePreview, toast, t, currentLocale, smartPastePlainText } from '../lib/store'
-import { TOKEN_RE, parseCompiledPrompt } from '../lib/compilePrompt'
+import { TOKEN_RE, FILE_TOKEN_RE, parseCompiledPrompt } from '../lib/compilePrompt'
 
 const props = defineProps({
   minHeight: { type: String, default: '100px' },
@@ -51,7 +51,9 @@ function serializeEditor() {
     if (node.nodeType === Node.TEXT_NODE) {
       result += node.nodeValue
     } else if (node.nodeType === Node.ELEMENT_NODE) {
-      if (node.classList.contains('kw-chip')) {
+      if (node.classList.contains('file-chip')) {
+        result += '[文件: ' + (node.getAttribute('data-file-name') || '') + ']'
+      } else if (node.classList.contains('kw-chip')) {
         const idx = Number(node.getAttribute('data-img-idx'))
         const textEl = node.querySelector('.kw-text')
         const note = (textEl ? textEl.textContent : '').trim()
@@ -249,6 +251,72 @@ function createChipNode(imgIdx, keyword = '') {
   return chip
 }
 
+/* ---------- 创建文件胶囊节点（长文本已落盘为 .txt，框内以紧凑胶囊呈现，类似聊天输入框的附件卡片） ---------- */
+function escapeRegexpStr(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function createFileChipNode(fileName) {
+  const chip = document.createElement('span')
+  chip.className = 'file-chip'
+  chip.setAttribute('contenteditable', 'false')
+  chip.setAttribute('data-file-name', fileName)
+
+  const f = (state.composer.files || []).find((x) => x && x.name === fileName)
+  const preview = f && f.preview ? String(f.preview) : ''
+
+  // 类型图标
+  const icon = document.createElement('span')
+  icon.className = 'file-chip-icon'
+  icon.textContent = '📄'
+  chip.appendChild(icon)
+
+  // 标签：优先展示内容预览（前12字，同聊天输入框附件胶囊），无预览时回退文件名
+  const label = document.createElement('span')
+  label.className = 'file-chip-label'
+  label.textContent = preview ? preview + '…' : fileName
+  chip.appendChild(label)
+
+  // 删除按钮
+  const closeBtn = document.createElement('span')
+  closeBtn.className = 'file-chip-close'
+  closeBtn.textContent = '×'
+  closeBtn.title = t('editor.deleteBinding')
+  closeBtn.addEventListener('mousedown', (e) => e.stopPropagation())
+  closeBtn.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    removeFileChip(chip)
+  })
+  chip.appendChild(closeBtn)
+
+  // 点击胶囊任意非删除区域：阻止光标进入，保持内容不可编辑
+  chip.addEventListener('mousedown', (e) => {
+    if (e.target !== closeBtn) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  })
+
+  // 悬浮提示：文件名 + 绝对路径
+  chip.title = f && f.path ? fileName + '\n' + f.path : fileName
+  return chip
+}
+
+/** 删除文件胶囊：同步剥离 composer.text 中的锚点，并清理无引用的孤儿文件记录 */
+function removeFileChip(chip) {
+  if (!chip || !chip.parentNode) return
+  const name = chip.getAttribute('data-file-name') || ''
+  chip.remove()
+  onInput()
+  if (name) {
+    const stillRef = new RegExp('\\[(?:文件|File)\\s*[:：]\\s*' + escapeRegexpStr(name) + '\\s*\\]', 'i')
+    if (!stillRef.test(state.composer.text || '')) {
+      state.composer.files = (state.composer.files || []).filter((f) => f && f.name !== name)
+    }
+  }
+}
+
 function renderFromText(text) {
   if (!editorRef.value || isUserTyping) return
   const current = serializeEditor()
@@ -267,15 +335,14 @@ function renderFromText(text) {
   const frag = document.createDocumentFragment()
   let lastIndex = 0
 
-  const re = new RegExp(TOKEN_RE.source, 'gi')
+  // 合并扫描图片锚点 [图N: note] 与文件锚点 [文件: xxx.txt]，按出现顺序统一渲染
+  const re = new RegExp(TOKEN_RE.source + '|' + FILE_TOKEN_RE.source, 'gi')
   let match
 
   while ((match = re.exec(text)) !== null) {
     const rawMatch = match[0]
     const matchIndex = match.index
-    const imgNum = Number(match[1])
-    const imgIdx = imgNum - 1
-    const note = (match[2] || (state.composer.images[imgIdx] && state.composer.images[imgIdx].note) || '').trim()
+    const isFileToken = /^\[(?:文件|File)\s*[:：]/i.test(rawMatch)
 
     // 匹配项之前的纯文本
     if (matchIndex > lastIndex) {
@@ -286,9 +353,19 @@ function renderFromText(text) {
       })
     }
 
-    // 插入关联高亮框（关键词完整显示）
-    const chip = createChipNode(imgIdx, note)
-    frag.appendChild(chip)
+    if (isFileToken) {
+      // 文件胶囊（长文本已落盘为 .txt）
+      // 注意：合并正则中 FILE_TOKEN_RE 的捕获组是第 3 组（TOKEN_RE 占据 1、2 组）
+      const fileName = (match[3] || '').trim()
+      frag.appendChild(createFileChipNode(fileName))
+    } else {
+      // 插入关联高亮框（关键词完整显示）
+      const imgNum = Number(match[1])
+      const imgIdx = imgNum - 1
+      const note = (match[2] || (state.composer.images[imgIdx] && state.composer.images[imgIdx].note) || '').trim()
+      const chip = createChipNode(imgIdx, note)
+      frag.appendChild(chip)
+    }
 
     lastIndex = matchIndex + rawMatch.length
   }
@@ -310,6 +387,8 @@ function clearAllChips() {
   if (!editorRef.value) return
   const chips = editorRef.value.querySelectorAll('.kw-chip')
   chips.forEach((c) => c.remove())
+  const fileChips = editorRef.value.querySelectorAll('.file-chip')
+  fileChips.forEach((c) => c.remove())
   if (!editorRef.value.textContent.trim()) {
     editorRef.value.innerHTML = ''
   }

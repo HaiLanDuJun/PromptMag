@@ -287,7 +287,7 @@ function toggleLang() {
                 step="100"
                 class="w-16 rounded-lg bg-slate-800/80 border border-slate-700/70 px-1.5 py-1 text-xs text-slate-200 outline-none focus:border-sky-400/60 transition-colors"
                 :value="state.settings.autoTxtChars"
-                @change="state.settings.autoTxtChars = Math.max(100, Number($event.target.value) || 1000)"
+                @change="state.settings.autoTxtChars = Math.max(100, Number($event.target.value) || 200)"
               >
               {{ t('settings.autoTxtUnit') }}
             </label>

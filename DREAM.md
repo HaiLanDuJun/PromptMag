@@ -106,6 +106,11 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
   - **Pop Up Anywhere Like Favorites**: Dedicated global hotkey `Alt+Z` (customizable in Settings) to summon the test credentials popup at cursor from any external app (browser, terminal, VS Code, etc.). Unified dual-tab picker seamlessly toggling between ⭐ Favorites and 🔐 Credentials via <kbd>Tab</kbd>;
   - **One-Click Auto-Fill (Username → Tab → Password)**: Pressing <kbd>Enter</kbd> or clicking "Fill" simulates entering the username, pressing <kbd>Tab</kbd> to jump into password field, and pasting the decrypted password in one smooth sequence! Restores original clipboard upon completion so passwords never linger;
   - **Full-Keyboard Workflow & Quick Actions**: <kbd>Shift+Enter</kbd> to paste username only, <kbd>Ctrl+Enter</kbd> to paste password only, <kbd>Space</kbd> to reveal password with 10s auto-remasking, and 1-9 shortcuts; in main window, press `Alt+Z` or `Ctrl+Shift+A` to toggle views.
+- [x] **Smart Long-Text Paste Polish, Anti-Freeze Guard & Orphan Image Sweeper (v1.9.28)**:
+  - **Three-Path Unified Smart Paste**: Editor Ctrl+V, the "Paste Text" button, and QuickPanel paste now share one smart pipeline (compiled-prompt restore → long-text auto-TXT → plain insert). Long-text threshold lowered from 1000 to 200 chars (old default auto-migrated; custom values untouched);
+  - **📄 File-Chip Capsule**: `[File: xxx.txt]` anchors render as violet capsule chips with filename & content preview, hover-to-peek absolute path, and one-click deletion that auto-cleans the associated record;
+  - **Anti-Freeze Guard**: if TXT saving fails or the main process is outdated, oversized text is never dumped into the editor — a clear toast explains instead, eliminating renderer freezes;
+  - **Orphan Image Sweeper**: `sweepOrphanImages` scans the images directory and auto-deletes historical leftovers no longer referenced by any magazine queue, composer, or favorites (files under 1 hour old and favorites are always protected); runs after every cleanup task and on every app launch, so disk usage never bloats silently.
 - [x] **Daily log rotation with 7-day retention & latest log view (v1.9.24)**: upgraded runtime diagnostic logging from a single file to daily rolling logs (`logs/main-YYYY-MM-DD.log`), auto-purging logs older than 7 days on startup and midnight transitions; clicking "View Latest Log" opens the most recent log file with dedicated "Open Logs Folder" support.
 
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
@@ -217,6 +222,11 @@ May this little floating window catch every flash of brilliance you have — and
   - **像收藏夹一样随时弹出**：新增全局独立快捷键（默认 `Alt+Z`，设置面板可自定义），在任意外部应用（浏览器/终端/VS Code等）随时呼出账号弹窗；专属弹窗完美融合「⭐ 常用收藏」与「🔐 账号密码」双 Tab，支持按 <kbd>Tab</kbd> 键极速互切；
   - **一键填充登录（账号 → Tab → 密码）**：在弹窗中按 <kbd>Enter</kbd> 或点击「填充」，自动先模拟输入账号，接着自动按下 Tab 键跳入密码框并填入密码，一气呵成完成表单登录！操作完成后自动还原用户剪贴板，不留密码痕迹；
   - **全键盘极速取用与快捷切换**：按 <kbd>Shift+Enter</kbd> 仅填账号，按 <kbd>Ctrl+Enter</kbd> 仅填密码，空格键显隐密码（10 秒自动恢复掩码防窥屏），数字键 1-9 极速直达；主窗口内支持 `Alt+Z` / `Ctrl+Shift+A` 快速切换视图，面板新增「⧉ 弹出面板」按钮。
+- [x] **长文本智能粘贴优化、防卡死兜底与孤儿图片自动清扫（v1.9.28）**：
+  - **三路粘贴统一智能判定**：编辑器 Ctrl+V、「粘贴文本」按钮与快捷面板粘贴共用一套智能管线（已编译提示词还原 → 长文本自动转 TXT → 普通文本插入）；长文本阈值默认从 1000 字符下调至 200 字符（旧默认自动迁移，用户自定义值不动）；
+  - **📄 文件锚点胶囊卡片**：`[文件: xxx.txt]` 升级为紫罗兰色胶囊卡片，显示文件名与内容预览，悬浮查看绝对路径，点击删除自动清理关联记录；
+  - **防卡死兜底**：长文本落盘失败或主进程版本过旧时绝不整段插入编辑器，改为明确 Toast 提示，彻底根除渲染进程卡顿假死；
+  - **孤儿图片自动清扫**：新增 `sweepOrphanImages` 引擎，扫描 images 目录自动删除不再被弹夹队列、编辑器与收藏夹引用的历史遗留图片（1 小时内新文件与收藏夹图片绝对保护）；每次清理任务后与每次应用启动时自动执行，磁盘占用不再悄悄膨胀。
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 

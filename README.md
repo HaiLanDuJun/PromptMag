@@ -10,12 +10,12 @@ CLI 提示词弹夹。为 Claude Code / Codex / AGY 等 CLI 编码 Agent 设计�
 
 ## 中文
 
-### 下载（v1.9.27，Windows x64，开箱即用）
+### 下载（v1.9.28，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.27.exe`](/installer/PromptMag-Portable-1.9.27.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.27.exe`](/installer/PromptMag-Setup-1.9.27.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.28.exe`](/installer/PromptMag-Portable-1.9.28.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.28.exe`](/installer/PromptMag-Setup-1.9.28.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -35,6 +35,11 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
   - **单写多读锁机制**：文件修改类任务同一时刻仅限一个 Agent 独占（写锁保护），读取类任务支持多 Agent 并发；写锁释放后自动触发接力交接；
   - **三态流转（pending → doing → done）**：清晰呈现任务正在被谁执行（Claude、AGY、Codex 等），执行完成后自动记录「谁解决的」与「解决方案」，无缝开启下一棒；
   - **一键复制接力启动提示词**：为每个项目弹夹一键生成量身定制的 Agent 启动指令，完美适配 Claude `loop` 等持续工作机制。
+- **长文本智能粘贴优化、防卡死兜底与孤儿图片自动清扫（v1.9.28）**：
+  - **三路粘贴统一智能判定**：编辑器 Ctrl+V、「粘贴文本」按钮与快捷面板粘贴共用一套智能管线（已编译提示词还原 → 长文本自动转 TXT → 普通文本插入）；长文本阈值默认下调至 200 字符（旧默认自动迁移，自定义值不动）；
+  - **文件锚点胶囊卡片**：`[文件: xxx.txt]` 渲染为紫罗兰色胶囊，显示文件名与内容预览，悬浮查看绝对路径，点击删除自动清理关联记录；
+  - **防卡死兜底**：长文本落盘失败或主进程版本过旧时绝不整段插入编辑器，改为明确 Toast 提示，根除渲染进程卡顿假死；
+  - **孤儿图片自动清扫**：扫描 images 目录自动删除不再被弹夹队列、编辑器与收藏夹引用的历史遗留图片（1 小时内新文件与收藏夹图片绝对保护）；每次清理任务后与每次应用启动时自动执行。
 - **测试账号专属独立弹窗与一键自动填充登录（v1.9.27）**：
   - **像收藏夹一样随时弹出**：新增全局独立快捷键（默认 `Alt+Z`，设置面板可自定义），在任意外部应用（浏览器/终端/VS Code等）随时呼出账号弹窗；专属弹窗完美融合「⭐ 常用收藏」与「🔐 账号密码」双 Tab，支持按 Tab 键极速互切；
   - **一键填充登录（账号 → Tab → 密码）**：在弹窗中按 Enter 或点击「填充」，自动先模拟输入账号，接着自动按下 Tab 键跳入密码框并填入密码，一气呵成完成表单登录！操作完成后自动还原用户剪贴板，不留密码痕迹；
@@ -212,10 +217,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 ## English
 
-### Download (v1.9.27, Windows x64)
+### Download (v1.9.28, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.27.exe`](/installer/PromptMag-Portable-1.9.27.exe) — no install needed, portable mode
-- Installer: [`installer/PromptMag-Setup-1.9.27.exe`](/installer/PromptMag-Setup-1.9.27.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.28.exe`](/installer/PromptMag-Portable-1.9.28.exe) — no install needed, portable mode
+- Installer: [`installer/PromptMag-Setup-1.9.28.exe`](/installer/PromptMag-Setup-1.9.28.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases). Default hotkey to summon the window: `Alt+Q`.
 
@@ -235,6 +240,11 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
   - **Single-Writer Multi-Reader Lock**: File modification tasks are strictly locked by one agent (e.g. Claude Code), while other agents (like AGY) wait or read;
   - **Three-State Workflow (pending → doing → done)**: Tracks which agent claimed the task, records resolution details upon completion, and unlocks the next task;
   - **Relay Startup Prompt Generator**: One-click generation of tailored instructions for agents, fully compatible with continuous loop execution.
+- **Smart Long-Text Paste Polish, Anti-Freeze Guard & Orphan Image Sweeper (v1.9.28)**:
+  - **Three-Path Unified Smart Paste**: Editor Ctrl+V, "Paste Text" button, and QuickPanel paste share one smart pipeline (compiled-prompt restore → long-text auto-TXT → plain insert); long-text threshold lowered to 200 chars by default (old default auto-migrated, custom values untouched);
+  - **File-Chip Capsule**: `[File: xxx.txt]` anchors render as violet capsule chips with filename & content preview, hover-to-peek absolute path, and one-click deletion that auto-cleans the associated record;
+  - **Anti-Freeze Guard**: if TXT saving fails or the main process is outdated, oversized text is never dumped into the editor — a clear toast explains instead, eliminating renderer freezes;
+  - **Orphan Image Sweeper**: auto-deletes historical images no longer referenced by any magazine queue, composer, or favorites (files under 1 hour old and favorites are always protected); runs after every cleanup task and on every app launch.
 - **Test Credentials Popup & One-Click Auto-Fill Login (v1.9.27)**:
   - **Pop Up Anywhere Like Favorites**: Dedicated global hotkey `Alt+Z` (customizable in Settings) to summon the test credentials popup at cursor from any external app (browser, terminal, VS Code, etc.). Unified dual-tab picker seamlessly toggling between ⭐ Favorites and 🔐 Credentials via Tab;
   - **One-Click Auto-Fill (Username → Tab → Password)**: Pressing Enter or clicking "Fill" simulates entering the username, pressing Tab to jump into password field, and pasting the decrypted password in one smooth sequence! Restores original clipboard upon completion so passwords never linger;

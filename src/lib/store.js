@@ -108,7 +108,7 @@ export const state = reactive({
     observeAgentTasks: true,
     /* 长文本粘贴自动转 .txt */
     autoTxtEnabled: true,
-    autoTxtChars: 1000
+    autoTxtChars: 200
   },
   /* 测试账号密码速记（密码系统级加密存储） */
   accounts: [],
@@ -299,10 +299,12 @@ export async function initStore() {
       observeAgentTasks: true,
       magazineAutoCleanup: {},
       autoTxtEnabled: true,
-      autoTxtChars: 1000
+      autoTxtChars: 200
     },
     d.settings || {}
   )
+  // 旧版本默认阈值 1000 迁移为 200（仅当仍是旧默认值时，用户自定义值不动）
+  if (state.settings.autoTxtChars === 1000) state.settings.autoTxtChars = 200
   if (res.mode) {
     state.settings.mode = res.mode
   }
@@ -996,8 +998,8 @@ export function setMainView(v) {
 
 /** 长文本判定阈值（字符数）与行数兜底 */
 function longTextThreshold() {
-  const chars = Number(state.settings.autoTxtChars) > 0 ? Number(state.settings.autoTxtChars) : 1000
-  return { chars, lineLimit: Math.max(30, Math.floor(chars / 20)) }
+  const chars = Number(state.settings.autoTxtChars) > 0 ? Number(state.settings.autoTxtChars) : 200
+  return { chars, lineLimit: Math.max(5, Math.floor(chars / 20)) }
 }
 
 function isLongText(text) {
@@ -1030,23 +1032,39 @@ export async function smartPastePlainText(txt, { append = false, onAnchor = null
     return { handled: true, anchor: null }
   }
 
-  // 2. 长文本自动转 .txt 落盘
-  if (state.settings.autoTxtEnabled !== false && isLongText(text) && window.pm && window.pm.saveTextAsFile) {
-    const res = await window.pm.saveTextAsFile(text)
-    if (res && res.ok) {
-      if (!Array.isArray(state.composer.files)) state.composer.files = []
-      state.composer.files.push({ name: res.name, path: res.path, chars: res.chars || text.length })
-      const anchor = `[文件: ${res.name}]`
-      if (typeof onAnchor === 'function') {
-        onAnchor(anchor)
-      } else if (append) {
-        state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + anchor
+  // 2. 长文本自动转 .txt 落盘（兜底：落盘失败也不整段插入，避免编辑器卡死）
+  if (state.settings.autoTxtEnabled !== false && isLongText(text)) {
+    if (window.pm && window.pm.saveTextAsFile) {
+      const res = await window.pm.saveTextAsFile(text)
+      if (res && res.ok) {
+        if (!Array.isArray(state.composer.files)) state.composer.files = []
+        state.composer.files.push({
+          name: res.name,
+          path: res.path,
+          chars: res.chars || text.length,
+          preview: text.slice(0, 12).replace(/\s+/g, ' ').trim()
+        })
+        const anchor = `[文件: ${res.name}]`
+        if (typeof onAnchor === 'function') {
+          onAnchor(anchor)
+        } else if (append) {
+          state.composer.text = (state.composer.text ? state.composer.text + ' ' : '') + anchor
+        }
+        toast(currentLocale.value === 'en'
+          ? `Long text auto-saved as ${res.name} (${res.chars || text.length} chars)`
+          : `长文本已自动转为 ${res.name}（${res.chars || text.length} 字）`)
+        return { handled: true, anchor }
       }
       toast(currentLocale.value === 'en'
-        ? `Long text auto-saved as ${res.name} (${res.chars || text.length} chars)`
-        : `长文本已自动转为 ${res.name}（${res.chars || text.length} 字）`)
-      return { handled: true, anchor }
+        ? `Long text save failed: ${res && res.error ? res.error : 'unknown'}`
+        : `长文本保存失败：${res && res.error ? res.error : '未知原因'}，已放弃插入以防止卡顿`)
+      return { handled: true, anchor: null }
     }
+    // 主进程不支持（旧版本）：拒绝整段插入
+    toast(currentLocale.value === 'en'
+      ? 'Long text paste requires restarting the app to enable auto .txt conversion'
+      : '长文本粘贴需要重启应用以启用自动转 .txt（当前版本过旧）')
+    return { handled: true, anchor: null }
   }
 
   return { handled: false, anchor: null }

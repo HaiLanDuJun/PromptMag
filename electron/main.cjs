@@ -1164,7 +1164,10 @@ function cleanupUnfavoritedPrompts(criteria = 'used', targetMagId = null) {
   }
 
   writeJsonAtomic(P.dataFile, data)
-  log(`cleaned up ${removedTasks.length} prompts, deleted ${deletedImages} images, protected ${protectedImages} images`)
+
+  // 清理任务后顺带清扫历史孤儿图片
+  const orphan = sweepOrphanImages()
+  log(`cleaned up ${removedTasks.length} prompts, deleted ${deletedImages} images, protected ${protectedImages} images, orphan images removed: ${orphan.deleted}`)
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('pm:queue-updated', { queue: data.queue, magazines: data.magazines })
@@ -1173,9 +1176,71 @@ function cleanupUnfavoritedPrompts(criteria = 'used', targetMagId = null) {
   return {
     ok: true,
     deletedPrompts: removedTasks.length,
-    deletedImages,
-    protectedImages
+    deletedImages: deletedImages + orphan.deleted,
+    protectedImages,
+    orphanImages: orphan.deleted
   }
+}
+
+/**
+ * 孤儿图片清扫：扫描 images 目录，删除不再被任何数据引用的历史遗留图片。
+ * 引用来源：各弹夹队列任务、当前队列、编辑器 composer、收藏夹（favorites.json）。
+ * 保护：favorites 独立目录不扫描；仅清理本应用生成的 img_* 文件；
+ *      maxAgeMs 内的新文件跳过（防误删刚粘贴还未落库的图，默认 1 小时）。
+ */
+function collectReferencedImagePaths() {
+  const refs = new Set()
+  const addTaskImages = (t) => {
+    for (const im of ((t && t.images) || [])) {
+      if (im && im.path) refs.add(path.resolve(im.path))
+    }
+  }
+  const data = readJsonSafe(P.dataFile) || {}
+  for (const t of (Array.isArray(data.queue) ? data.queue : [])) addTaskImages(t)
+  if (Array.isArray(data.magazines)) {
+    for (const mag of data.magazines) {
+      for (const t of (mag.queue || [])) addTaskImages(t)
+    }
+  }
+  const c = data.composer || {}
+  for (const im of (Array.isArray(c.images) ? c.images : [])) {
+    if (im && im.path) refs.add(path.resolve(im.path))
+  }
+  for (const f of getFavoritesData()) addTaskImages(f)
+  return refs
+}
+
+const IMG_FILE_RE = /^img_.+\.(png|jpe?g|gif|webp|bmp)$/i
+
+function sweepOrphanImages({ maxAgeMs = 60 * 60 * 1000 } = {}) {
+  ensureDirs()
+  let deleted = 0
+  let freedBytes = 0
+  try {
+    const refs = collectReferencedImagePaths()
+    const entries = fs.readdirSync(P.images, { withFileTypes: true })
+    const now = Date.now()
+    for (const ent of entries) {
+      if (!ent.isFile() || !IMG_FILE_RE.test(ent.name)) continue
+      const p = path.join(P.images, ent.name)
+      if (refs.has(path.resolve(p))) continue
+      try {
+        const st = fs.statSync(p)
+        if (now - st.mtimeMs < maxAgeMs) continue
+        freedBytes += st.size
+        fs.unlinkSync(p)
+        deleted += 1
+      } catch (e) {
+        log('failed to delete orphan image:', p, e && e.message)
+      }
+    }
+    if (deleted) {
+      log(`[Cleanup] 孤儿图片清扫: 删除 ${deleted} 张, 释放 ${(freedBytes / 1024 / 1024).toFixed(2)} MB`)
+    }
+  } catch (e) {
+    log('sweepOrphanImages failed:', e && e.message)
+  }
+  return { ok: true, deleted, freedBytes }
 }
 
 function startAutoCleanupSchedule() {
@@ -3114,6 +3179,8 @@ if (!process.env.PM_ALLOW_MULTI && !app.requestSingleInstanceLock()) {
 
     // 定时清理未收藏提示词调度器
     startAutoCleanupSchedule()
+    // 启动时清扫历史孤儿图片（仅删 1 小时前的未引用 img_* 文件）
+    try { sweepOrphanImages() } catch { /* ignore */ }
     try {
       const initData = readJsonSafe(P.dataFile)
       const setting = initData && initData.settings && initData.settings.autoCleanup
