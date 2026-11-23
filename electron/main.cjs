@@ -2436,6 +2436,11 @@ function registerIpc() {
 
   ipcMain.handle('pm:save-clipboard-images', () => saveClipboardImages())
 
+  /* 渲染层诊断日志（粘贴/拖拽链路追踪与前端异常上报） */
+  ipcMain.on('pm:renderer-log', (_e, msg) => {
+    try { log('[Renderer] ' + String(msg || '').slice(0, 800)) } catch { /* ignore */ }
+  })
+
   /* 粘贴长文本自动转 .txt 落盘（texts 目录，本地保存，无需手动另存） */
   ipcMain.handle('pm:save-text-as-file', (_e, text, ext) => {
     try {

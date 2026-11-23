@@ -11,6 +11,9 @@ const api = {
   /* 状态持久化 (~/.prompt-mag/data.json) */
   saveData: (payload) => ipcRenderer.invoke('pm:save-data', payload),
 
+  /* 渲染层诊断日志：写入主进程运行日志，便于回溯粘贴/拖拽等链路问题 */
+  rendererLog: (msg) => ipcRenderer.send('pm:renderer-log', String(msg || '').slice(0, 800)),
+
   /* 剪贴板图片落盘 */
   saveClipboardImages: () => ipcRenderer.invoke('pm:save-clipboard-images'),
 

@@ -1,17 +1,17 @@
 {
-  "version": "1.9.28",
-  "tagName": "v1.9.28",
-  "name": "PromptMag v1.9.28: 长文本智能粘贴优化防卡死与孤儿图片自动清扫",
-  "publishedAt": "2026-11-23T14:55:00+08:00",
-  "body": "### PromptMag v1.9.28 更新说明\n\n1. 【长文本粘贴体验全面优化】转 txt 阈值默认从 1000 字符下调至 200 字符（老用户自定义值不受影响，旧默认自动迁移）；文件锚点升级为紫色 📄 胶囊卡片（显示文件名与内容预览，悬浮查看绝对路径，可点击删除并自动清理关联记录）；编辑器 Ctrl+V、「粘贴文本」按钮与快捷面板三条粘贴路径统一智能判定（已编译提示词还原 / 长文本落盘 / 普通文本插入）；\n2. 【防卡死兜底】长文本即使落盘失败或版本过旧，也绝不整段插入编辑器导致卡顿，改为明确的错误提示；\n3. 【孤儿图片自动清扫】新增 sweepOrphanImages 引擎：扫描 images 目录，自动删除不再被弹夹队列、编辑器与收藏夹引用的历史遗留图片（1 小时内新文件与收藏夹图片绝对保护）；每次清理任务后与每次应用启动时自动执行，磁盘不再无限膨胀。",
+  "version": "1.9.29",
+  "tagName": "v1.9.29",
+  "name": "PromptMag v1.9.29: 拖拽文本智能管线、粘贴路由修正与渲染层诊断日志",
+  "publishedAt": "2026-11-23T16:15:00+08:00",
+  "body": "### PromptMag v1.9.29 更新说明\n\n1. 【拖拽文本智能管线】从 IDE/浏览器拖拽文本入框不再触发浏览器默认原文插入（该路径完全绕过粘贴转换，是长文本不转 txt 的元凶之一），统一走智能管线：长文本自动转 TXT、已编译提示词还原、普通文本插入；\n2. 【粘贴路由修正】不再仅凭剪贴板 Files 格式判定为图片粘贴——IDE（IntelliJ/VS Code 等）复制代码时常携带杂项格式，现在优先按文本处理（≤300 字符的单行路径仍走图片/文件流程），杜绝长文本既不转 txt 也不插入的死角；\n3. 【全链路异常兜底】粘贴/拖拽处理出现任何异常时，绝不允许浏览器默认行为把原文整段插入编辑器，改为明确 Toast 提示「粘贴处理失败，内容未插入」；\n4. 【渲染层诊断日志】新增 pm:renderer-log 通道：粘贴/拖拽全链路埋点（剪贴板格式、文本长度、分支判定、处理结果）与全局异常、未处理 Promise 拒绝全部写入运行日志，链路问题一次定位。",
   "assets": [
     {
-      "name": "PromptMag-Portable-1.9.28.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.28/PromptMag-Portable-1.9.28.exe"
+      "name": "PromptMag-Portable-1.9.29.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.29/PromptMag-Portable-1.9.29.exe"
     },
     {
-      "name": "PromptMag-Setup-1.9.28.exe",
-      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.28/PromptMag-Setup-1.9.28.exe"
+      "name": "PromptMag-Setup-1.9.29.exe",
+      "downloadUrl": "https://github.com/HaiLanDuJun/PromptMag/releases/download/v1.9.29/PromptMag-Setup-1.9.29.exe"
     }
   ]
 }

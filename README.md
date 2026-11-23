@@ -10,12 +10,12 @@ CLI 提示词弹夹。为 Claude Code / Codex / AGY 等 CLI 编码 Agent 设计�
 
 ## 中文
 
-### 下载（v1.9.28，Windows x64，开箱即用）
+### 下载（v1.9.29，Windows x64，开箱即用）
 
 | 包 | 说明 | 路径 |
 |------|------|------|
-| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.28.exe`](/installer/PromptMag-Portable-1.9.28.exe) |
-| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.28.exe`](/installer/PromptMag-Setup-1.9.28.exe) |
+| **绿色版（推荐）** | 双击即用，免安装，数据存 `~/.prompt-mag/` | [`installer/PromptMag-Portable-1.9.29.exe`](/installer/PromptMag-Portable-1.9.29.exe) |
+| 安装版 | NSIS 向导安装，支持中英双语选择，可建桌面/开始菜单快捷方式 | [`installer/PromptMag-Setup-1.9.29.exe`](/installer/PromptMag-Setup-1.9.29.exe) |
 
 也可以从 [Releases](https://github.com/HaiLanDuJun/PromptMag/releases) 页面直接下载。下载后双击运行，默认 `Alt+Q` 呼出悬浮窗。
 
@@ -35,6 +35,11 @@ PromptMag 是一个置顶小窗。`Alt+Q` 呼出，`Ctrl+V` 在光标处贴图�
   - **单写多读锁机制**：文件修改类任务同一时刻仅限一个 Agent 独占（写锁保护），读取类任务支持多 Agent 并发；写锁释放后自动触发接力交接；
   - **三态流转（pending → doing → done）**：清晰呈现任务正在被谁执行（Claude、AGY、Codex 等），执行完成后自动记录「谁解决的」与「解决方案」，无缝开启下一棒；
   - **一键复制接力启动提示词**：为每个项目弹夹一键生成量身定制的 Agent 启动指令，完美适配 Claude `loop` 等持续工作机制。
+- **拖拽文本智能管线、粘贴路由修正与渲染层诊断日志（v1.9.29）**：
+  - **拖拽文本兜底**：从 IDE/浏览器拖拽文本入框不再触发浏览器默认原文插入，统一走智能管线（长文本自动转 TXT、编译提示词还原、普通文本插入）；
+  - **粘贴路由修正**：不再仅凭剪贴板 Files 格式判定为图片粘贴——IDE 复制代码携带杂项格式时优先按文本处理（≤300 字符的单行路径仍走图片/文件流程）；
+  - **全链路异常兜底**：粘贴/拖拽处理任何异常都不允许默认行为把原文整段插入编辑器，改为明确 Toast 提示；
+  - **渲染层诊断日志**：粘贴/拖拽全链路埋点与全局异常、未处理 Promise 拒绝经 `pm:renderer-log` 写入运行日志。
 - **长文本智能粘贴优化、防卡死兜底与孤儿图片自动清扫（v1.9.28）**：
   - **三路粘贴统一智能判定**：编辑器 Ctrl+V、「粘贴文本」按钮与快捷面板粘贴共用一套智能管线（已编译提示词还原 → 长文本自动转 TXT → 普通文本插入）；长文本阈值默认下调至 200 字符（旧默认自动迁移，自定义值不动）；
   - **文件锚点胶囊卡片**：`[文件: xxx.txt]` 渲染为紫罗兰色胶囊，显示文件名与内容预览，悬浮查看绝对路径，点击删除自动清理关联记录；
@@ -217,10 +222,10 @@ npm run update:exe    # 或 npm run dist：构建前端并打包，自动将最�
 
 ## English
 
-### Download (v1.9.28, Windows x64)
+### Download (v1.9.29, Windows x64)
 
-- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.28.exe`](/installer/PromptMag-Portable-1.9.28.exe) — no install needed, portable mode
-- Installer: [`installer/PromptMag-Setup-1.9.28.exe`](/installer/PromptMag-Setup-1.9.28.exe) — with English/Chinese language selection
+- **Portable (recommended)**: [`installer/PromptMag-Portable-1.9.29.exe`](/installer/PromptMag-Portable-1.9.29.exe) — no install needed, portable mode
+- Installer: [`installer/PromptMag-Setup-1.9.29.exe`](/installer/PromptMag-Setup-1.9.29.exe) — with English/Chinese language selection
 
 Or grab the latest build from [Releases](https://github.com/HaiLanDuJun/PromptMag/releases). Default hotkey to summon the window: `Alt+Q`.
 
@@ -240,6 +245,11 @@ PromptMag provides an always-on-top floating dock. Press `Alt+Q` to summon, past
   - **Single-Writer Multi-Reader Lock**: File modification tasks are strictly locked by one agent (e.g. Claude Code), while other agents (like AGY) wait or read;
   - **Three-State Workflow (pending → doing → done)**: Tracks which agent claimed the task, records resolution details upon completion, and unlocks the next task;
   - **Relay Startup Prompt Generator**: One-click generation of tailored instructions for agents, fully compatible with continuous loop execution.
+- **Drag-Drop Text Pipeline, Smarter Paste Routing & Renderer Diagnostics (v1.9.29)**:
+  - **Drag-Drop Fallback**: dragging text from an IDE/browser into the editor now runs the same smart pipeline (long text auto-TXT, compiled-prompt restore) instead of the browser's default raw insert;
+  - **Smarter Paste Routing**: a clipboard `Files` flavor alone no longer forces the image flow — IDE code copies carrying miscellaneous formats are handled as text first (short single-line paths still route to the image/file flow);
+  - **Full-Chain Exception Guard**: any paste/drop processing error never dumps raw content into the editor — a clear toast explains instead;
+  - **Renderer Diagnostics**: paste/drop breadcrumbs plus global errors and unhandled promise rejections are logged to the runtime log via `pm:renderer-log`.
 - **Smart Long-Text Paste Polish, Anti-Freeze Guard & Orphan Image Sweeper (v1.9.28)**:
   - **Three-Path Unified Smart Paste**: Editor Ctrl+V, "Paste Text" button, and QuickPanel paste share one smart pipeline (compiled-prompt restore → long-text auto-TXT → plain insert); long-text threshold lowered to 200 chars by default (old default auto-migrated, custom values untouched);
   - **File-Chip Capsule**: `[File: xxx.txt]` anchors render as violet capsule chips with filename & content preview, hover-to-peek absolute path, and one-click deletion that auto-cleans the associated record;

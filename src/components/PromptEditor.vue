@@ -533,63 +533,72 @@ async function onPaste(e) {
     capturedText = savedSelection.text || ''
   }
 
-  // 2. 检测剪贴板是否含图片
+  // 2. 检测剪贴板内容：先读文本，再判定图片/文件引用
+  //    注意：IDE（如 IntelliJ/VS Code）复制代码时剪贴板可能同时携带 Files 等杂项格式，
+  //    不能仅凭 types 含 'Files' 就按图片流程处理，否则长文本既不转 txt 也不插入。
   const types = (e.clipboardData && e.clipboardData.types) || []
   const items = (e.clipboardData && e.clipboardData.items) || []
-  let isImagePaste = types.includes('Files')
+  const rawText = e.clipboardData ? String(e.clipboardData.getData('text/plain') || '') : ''
+  let hasImageItem = false
   for (let i = 0; i < items.length; i++) {
     if (items[i].type && items[i].type.startsWith('image/')) {
-      isImagePaste = true
+      hasImageItem = true
       break
     }
   }
+  const hasFiles = types.includes('Files')
+  const trimmed = rawText.trim()
+  // 文本仅为单个路径（资源管理器/IDE 复制文件引用）时才按图片/文件流程处理
+  const textIsPathLike = !!trimmed && trimmed.length <= 300 && !trimmed.includes('\n')
+  const isImagePaste = hasImageItem || (hasFiles && (!trimmed || textIsPathLike))
 
-  // 只要剪贴板有图片特征，同步阻止默认行为，杜绝浏览器默认 paste 抹除选区！
-  if (isImagePaste) {
-    e.preventDefault()
-  }
+  pasteLog('paste', { types: types.join('|'), hasFiles, hasImageItem, textLen: rawText.length, isImagePaste })
 
-  const res = await window.pm.saveClipboardImages()
-  if (res && res.ok && res.images && res.images.length) {
-    e.preventDefault()
-    await bindImageToSelection(res.images, capturedRange, capturedText)
+  try {
+    if (isImagePaste) {
+      e.preventDefault()
+      const res = await window.pm.saveClipboardImages()
+      if (res && res.ok && res.images && res.images.length) {
+        await bindImageToSelection(res.images, capturedRange, capturedText)
 
-    // 若剪贴板中同时包含图文混合纯文本（如微信复制图文消息），且非纯图片路径，一并追加文字入框
-    const clipboardText = (e.clipboardData ? e.clipboardData.getData('text/plain') : '').trim()
-    if (clipboardText && !/\.(png|jpe?g|gif|webp|bmp)$/i.test(clipboardText) && !clipboardText.startsWith('file://')) {
-      const parsed = parseCompiledPrompt(clipboardText)
-      if (parsed) {
-        // 已编译提示词：还原图文锚点
-        if (parsed.images && parsed.images.length) {
-          state.composer.images = parsed.images
-        }
-        state.composer.text = parsed.text
-        toast(`已还原图片与关键词 [图${parsed.images.length}]`)
-        return
-      }
-      // 长文本：自动落盘为 .txt 并在光标处插入 [文件: xxx.txt] 短锚点
-      const r = await smartPastePlainText(clipboardText, {
-        onAnchor: (anchor) => {
-          insertTextAtCursor(anchor)
+        // 若剪贴板中同时包含图文混合纯文本（如微信复制图文消息），且非纯图片路径，一并按智能管线处理
+        const clipboardText = trimmed
+        if (clipboardText && !/\.(png|jpe?g|gif|webp|bmp)$/i.test(clipboardText) && !clipboardText.startsWith('file://')) {
+          const parsed = parseCompiledPrompt(clipboardText)
+          if (parsed) {
+            // 已编译提示词：还原图文锚点
+            if (parsed.images && parsed.images.length) {
+              state.composer.images = parsed.images
+            }
+            state.composer.text = parsed.text
+            toast(`已还原图片与关键词 [图${parsed.images.length}]`)
+            return
+          }
+          // 长文本：自动落盘为 .txt 并在光标处插入 [文件: xxx.txt] 短锚点
+          const r = await smartPastePlainText(clipboardText, {
+            onAnchor: (anchor) => {
+              insertTextAtCursor(anchor)
+              onInput()
+            }
+          })
+          if (r.handled) return
+          document.execCommand('insertText', false, clipboardText)
           onInput()
         }
-      })
-      if (r.handled) return
-      document.execCommand('insertText', false, clipboardText)
-      onInput()
+
+        toast(`已关联图片与关键词 [图${state.composer.images.length}]`)
+        return
+      }
+      // 未存下任何图片：带文本则继续按文本流程，否则到此为止（已阻止默认粘贴）
+      if (!trimmed) return
     }
 
-    toast(`已关联图片与关键词 [图${state.composer.images.length}]`)
-    return
-  }
-
-  // 纯文本粘贴（智能还原已编译提示词 / 长文本自动转 .txt / 普通文本插入光标处）
-  if (!isImagePaste) {
-    e.preventDefault()
-    const text = e.clipboardData ? e.clipboardData.getData('text/plain') : await window.pm.readClipboardText()
-    const plain = typeof text === 'string' ? text : (text && typeof text.text === 'string' ? text.text : '')
+    // 文本粘贴（含 Files+长文本并存的场景）：智能还原已编译提示词 / 长文本自动转 .txt / 普通文本插入
+    const plain = rawText
     if (plain) {
+      e.preventDefault()
       const r = await smartPastePlainText(plain)
+      pasteLog('paste-result', { handled: r.handled, anchor: r.anchor })
       if (r.handled) {
         // 长文本已落盘：在光标处插入 [文件: xxx.txt] 短锚点
         if (r.anchor) insertTextAtCursor(r.anchor)
@@ -597,7 +606,55 @@ async function onPaste(e) {
       }
       document.execCommand('insertText', false, plain)
       onInput()
+    } else if (!isImagePaste) {
+      // 既无文本也非图片/文件引用：阻止默认粘贴防止脏数据入框
+      e.preventDefault()
     }
+  } catch (err) {
+    // 兜底：粘贴链路任何异常都不允许浏览器默认行为把原文整段怼进编辑器
+    try { e.preventDefault() } catch (_) { /* ignore */ }
+    pasteLog('paste-error', { message: String((err && err.message) || err) })
+    toast(currentLocale.value === 'en' ? 'Paste failed, content not inserted' : '粘贴处理失败，内容未插入')
+  }
+}
+
+/** 渲染层诊断日志：经主进程写入运行日志，便于回溯粘贴/拖拽等链路问题 */
+function pasteLog(tag, data) {
+  try {
+    window.pm && window.pm.rendererLog && window.pm.rendererLog(`[Editor] ${tag} ${JSON.stringify(data)}`)
+  } catch { /* ignore */ }
+}
+
+/* ---------- 拖拽兜底：从 IDE/浏览器拖拽文本入框同样走智能管线（默认 drop 会绕过粘贴转换） ---------- */
+function onDragOver(e) {
+  e.preventDefault()
+}
+
+async function onDrop(e) {
+  const rawText = e.dataTransfer ? String(e.dataTransfer.getData('text/plain') || '') : ''
+  const hasFiles = !!(e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.includes('Files'))
+  pasteLog('drop', { textLen: rawText.length, hasFiles })
+  if (hasFiles && !rawText) {
+    // 文件拖拽（截图/图片文件等）暂不支持，阻止默认行为避免打乱编辑器内容
+    e.preventDefault()
+    toast(currentLocale.value === 'en'
+      ? 'File drag is not supported yet. Please copy it and press Ctrl+V'
+      : '暂不支持拖入文件，请复制后按 Ctrl+V 粘贴')
+    return
+  }
+  if (!rawText) return
+  e.preventDefault()
+  try {
+    const r = await smartPastePlainText(rawText)
+    pasteLog('drop-result', { handled: r.handled, anchor: r.anchor })
+    if (r.handled) {
+      if (r.anchor) insertTextAtCursor(r.anchor)
+      return
+    }
+    document.execCommand('insertText', false, rawText)
+    onInput()
+  } catch (err) {
+    pasteLog('drop-error', { message: String((err && err.message) || err) })
   }
 }
 
@@ -787,6 +844,8 @@ onBeforeUnmount(() => {
       @compositionstart="onCompositionStart"
       @compositionend="onCompositionEnd"
       @paste="onPaste"
+      @dragover="onDragOver"
+      @drop="onDrop"
       @keydown="onKeydown"
       @mouseup="saveSelection"
       @keyup="saveSelection"

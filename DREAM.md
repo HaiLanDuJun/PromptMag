@@ -111,6 +111,11 @@ That's why PromptMag exists. We don't need another bloated notes app. We need a 
   - **📄 File-Chip Capsule**: `[File: xxx.txt]` anchors render as violet capsule chips with filename & content preview, hover-to-peek absolute path, and one-click deletion that auto-cleans the associated record;
   - **Anti-Freeze Guard**: if TXT saving fails or the main process is outdated, oversized text is never dumped into the editor — a clear toast explains instead, eliminating renderer freezes;
   - **Orphan Image Sweeper**: `sweepOrphanImages` scans the images directory and auto-deletes historical leftovers no longer referenced by any magazine queue, composer, or favorites (files under 1 hour old and favorites are always protected); runs after every cleanup task and on every app launch, so disk usage never bloats silently.
+- [x] **Drag-Drop Text Pipeline, Smarter Paste Routing & Renderer Diagnostics (v1.9.29)**:
+  - **Drag-Drop Fallback**: dragging text from an IDE/browser into the editor no longer triggers the browser's default raw insert (which completely bypassed paste conversion) — the same smart pipeline now applies (long text auto-TXT, compiled-prompt restore, plain insert);
+  - **Smarter Paste Routing**: a clipboard `Files` flavor alone no longer forces the image flow — IDE code copies carrying miscellaneous formats are handled as text first (short single-line path text still routes to the image/file flow), eliminating the dead corner where long text neither converted nor inserted;
+  - **Full-Chain Exception Guard**: any error during paste/drop processing never lets the default behavior dump raw content into the editor — a clear toast explains instead;
+  - **Renderer Diagnostics**: new `pm:renderer-log` channel — paste/drop breadcrumbs (clipboard formats, text length, branch decision, result) plus global errors and unhandled promise rejections are written to the runtime log for one-shot diagnosis.
 - [x] **Daily log rotation with 7-day retention & latest log view (v1.9.24)**: upgraded runtime diagnostic logging from a single file to daily rolling logs (`logs/main-YYYY-MM-DD.log`), auto-purging logs older than 7 days on startup and midnight transitions; clicking "View Latest Log" opens the most recent log file with dedicated "Open Logs Folder" support.
 
 #### 🌳 Phase 3 — The Next Horizons (v2.0+)
@@ -227,6 +232,11 @@ May this little floating window catch every flash of brilliance you have — and
   - **📄 文件锚点胶囊卡片**：`[文件: xxx.txt]` 升级为紫罗兰色胶囊卡片，显示文件名与内容预览，悬浮查看绝对路径，点击删除自动清理关联记录；
   - **防卡死兜底**：长文本落盘失败或主进程版本过旧时绝不整段插入编辑器，改为明确 Toast 提示，彻底根除渲染进程卡顿假死；
   - **孤儿图片自动清扫**：新增 `sweepOrphanImages` 引擎，扫描 images 目录自动删除不再被弹夹队列、编辑器与收藏夹引用的历史遗留图片（1 小时内新文件与收藏夹图片绝对保护）；每次清理任务后与每次应用启动时自动执行，磁盘占用不再悄悄膨胀。
+- [x] **拖拽文本智能管线、粘贴路由修正与渲染层诊断日志（v1.9.29）**：
+  - **拖拽文本兜底**：从 IDE/浏览器拖拽文本入框不再触发浏览器默认原文插入（该路径完全绕过粘贴转换，是长文本不转 txt 的元凶之一），统一走智能管线（长文本自动转 TXT、已编译提示词还原、普通文本插入）；
+  - **粘贴路由修正**：不再仅凭剪贴板 Files 格式判定为图片粘贴——IDE（IntelliJ/VS Code 等）复制代码携带杂项格式时优先按文本处理（≤300 字符的单行路径仍走图片/文件流程），杜绝长文本既不转 txt 也不插入的死角；
+  - **全链路异常兜底**：粘贴/拖拽处理任何异常都不允许默认行为把原文整段插入编辑器，改为明确 Toast 提示；
+  - **渲染层诊断日志**：新增 `pm:renderer-log` 通道——粘贴/拖拽全链路埋点（剪贴板格式、文本长度、分支判定、处理结果）与全局异常、未处理 Promise 拒绝写入运行日志，问题一次定位。
 
 #### 🌳 Phase 3：终极形态与未来愿景（v2.0+ · 筹划中）
 
